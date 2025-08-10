@@ -11,11 +11,11 @@ interface MongooseCache {
   promise: Promise<typeof mongoose> | null;
 }
 
-// @ts-ignore
+// @ts-expect-error -- global mongoose cache is used to avoid multiple connections in dev
 let cached: MongooseCache = global.mongoose;
 
 if (!cached) {
-  // @ts-ignore
+  // @ts-expect-error -- global mongoose cache is used to avoid multiple connections in dev
   cached = global.mongoose = { conn: null, promise: null };
 }
 

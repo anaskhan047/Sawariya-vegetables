@@ -5,8 +5,8 @@ export async function GET() {
   try {
     await dbConnect();
     return NextResponse.json({ message: "MongoDB Connected ✅" });
-  } catch (error: any) {
-    console.error("MongoDB Error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("MongoDB Error:", error instanceof Error ? error.message : "Unknown error");
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
   }
 }

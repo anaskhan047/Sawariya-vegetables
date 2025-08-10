@@ -57,8 +57,12 @@ export default function Auth() {
                     router.push("/login");
                 }
             }
-        } catch (err: any) {
-            setError(err.message || "Network error");
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message || "Network error");
+            } else {
+                setError("Unknown error");
+            }
         } finally {
             setLoading(false);
         }
