@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { FiSearch, FiShoppingCart, FiUser, FiMenu, FiX } from "react-icons/fi";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -21,7 +21,12 @@ const navLinks: NavLink[] = [
 export default function Navbar() {
   const [active, setActive] = useState<string>("Home");
   const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [searchOpen, setSearchOpen] = useState<boolean>(false);
+  const [searchValue, setSearchValue] = useState<string>("");
+
+  const searchRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
   const linkClass = (name: string) =>
     `relative inline-block pb-1 transition ${
       active === name
@@ -31,8 +36,30 @@ export default function Navbar() {
 
   const underline = (name: string) =>
     active === name && (
-      <span className="absolute left-0 -bottom-[2px] h-[2px] w-full bg-[var(--primary-color)] transition-all duration-300"></span>
+      <span className="absolute left-0 -bottom-[2px] h-[2px] w-full bg-[var(--primary-color)] transition-all duration-700"></span>
     );
+
+  // Close search when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Close on Esc key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, []);
 
   return (
     <nav className="w-full bg-white shadow-sm sticky top-0 left-0 z-50">
@@ -60,13 +87,37 @@ export default function Navbar() {
           ))}
         </ul>
 
-        {/* Right: Icons + Mobile Menu Button */}
+        {/* Right: Search + Icons + Mobile Menu Button */}
         <div className="flex items-center space-x-4">
-          <div className="flex space-x-4 text-xl text-[var(--text-color)]">
-            <FiSearch className="cursor-pointer hover:text-[var(--hover-color)]" />
-            <FiShoppingCart className="cursor-pointer hover:text-[var(--hover-color)]" />
-            <FiUser className="cursor-pointer hover:text-[var(--hover-color)]" onClick={() => router.push('/login')}/>
+          {/* Search */}
+          <div ref={searchRef} className="relative flex items-center">
+            {searchOpen ? (
+              <input
+                type="text"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                placeholder="Search products..."
+                className="border border-[var(--border-color)] rounded-lg px-3 py-1 w-[350px] max-w-[80vw] focus:outline-none focus:border-[var(--primary-color)]"
+                autoFocus
+              />
+            ) : (
+              <FiSearch
+                className="cursor-pointer text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]"
+                onClick={() => setSearchOpen(true)}
+              />
+            )}
           </div>
+
+          {/* Cart */}
+          <FiShoppingCart className="cursor-pointer text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]" />
+
+          {/* User */}
+          <FiUser
+            className="cursor-pointer text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]"
+            onClick={() => router.push("/login")}
+          />
+
+          {/* Mobile Menu */}
           <button
             className="md:hidden text-2xl text-[var(--text-color)]"
             onClick={() => setIsOpen((prev) => !prev)}

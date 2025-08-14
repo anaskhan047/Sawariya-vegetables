@@ -3,18 +3,17 @@
 @import "slick-carousel/slick/slick-theme.css";
 
 :root {
-  --primary-color: #16A34A;      /* Green */
-  --secondary-color: #15803D;    /* Dark Green Hover */
-  --accent-color: #FACC15;       /* Yellow Accent */
-  --background-color: #FFFFFF;   /* White Background */
-  --text-color: #374151;         /* Gray Text */
-  --text-light: #6B7280;         /* Light Gray Text */
-  --border-color: #E5E7EB; 
-
-    /* Footer gradient colors */
-  --footer-gradient-start: #4D9F3D; 
+  --primary-color: #16A34A;
+  --secondary-color: #15803D;
+  --accent-color: #FACC15;
+  --background-color: #FFFFFF;
+  --text-color: #374151;
+  --text-light: #6B7280;
+  --border-color: #E5E7EB;
+  --footer-gradient-start: #4D9F3D;
   --footer-gradient-end: #B28B23;
-
+  --star-color: #fbbf24;
+  --star-empty-color: #d1d5db;
 }
 
 @theme inline {
@@ -26,13 +25,20 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-       --primary-color: #16A34A;      /* Green */
-  --secondary-color: #15803D;    /* Dark Green Hover */
-  --accent-color: #FACC15;       /* Yellow Accent */
-  --background-color: #FFFFFF;   /* White Background */
-  --text-color: #374151;         /* Gray Text */
-  --text-light: #6B7280;         /* Light Gray Text */
-  --border-color: #E5E7EB;        /* dark background */
+    --primary-color: #16A34A;
+    /* Green */
+    --secondary-color: #15803D;
+    /* Dark Green Hover */
+    --accent-color: #FACC15;
+    /* Yellow Accent */
+    --background-color: #FFFFFF;
+    /* White Background */
+    --text-color: #374151;
+    /* Gray Text */
+    --text-light: #6B7280;
+    /* Light Gray Text */
+    --border-color: #E5E7EB;
+    /* dark background */
   }
 }
 
@@ -41,4 +47,12 @@ body {
   /* color: var(--foreground); */
 
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.star {
+  color: var(--star-color);
+}
+
+.star-empty {
+  color: var(--star-empty-color);
 }
