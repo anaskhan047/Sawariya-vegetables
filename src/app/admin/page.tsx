@@ -1,3 +1,6 @@
+export const metadata = {
+  title: "Admin - Sawariya Vegetables",
+};
 export default function Dashboard () {
     return(
         <>
