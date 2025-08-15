@@ -45,11 +45,22 @@ body {
 
   font-family: Arial, Helvetica, sans-serif;
 }
-
+* {
+  box-sizing: border-box;
+}
 .star {
   color: var(--star-color);
 }
 
 .star-empty {
   color: var(--star-empty-color);
+}
+
+/* contact css */
+.contact-banner {
+  background-image: linear-gradient(rgba(55, 65, 81, 0.4), rgba(55, 65, 81, 0.4)),
+    url('/contact/contact-banner.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }

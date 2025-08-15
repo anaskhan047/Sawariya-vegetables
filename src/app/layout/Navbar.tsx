@@ -13,9 +13,9 @@ interface NavLink {
 
 const navLinks: NavLink[] = [
   { name: "Home", href: "/" },
-  { name: "Shop", href: "/shop" },
-  { name: "Categories", href: "/categories" },
-  { name: "Contact Us", href: "/contact" },
+  { name: "shop", href: "/shop" },
+  { name: "fruit", href: "/fruit" },
+  { name: "contact us", href: "/contact" },
 ];
 
 export default function Navbar() {
@@ -74,10 +74,10 @@ export default function Navbar() {
         {/* Desktop Menu */}
         <ul className="hidden md:flex items-center space-x-8">
           {navLinks.map((link) => (
-            <li key={link.name}>
+            <li className="capitalize" key={link.name}>
               <Link
                 href={link.href}
-                className={linkClass(link.name)}
+                className={linkClass(link.name) }
                 onClick={() => setActive(link.name)}
               >
                 {link.name}
