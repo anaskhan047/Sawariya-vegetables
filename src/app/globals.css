@@ -55,6 +55,10 @@ body {
 .star-empty {
   color: var(--star-empty-color);
 }
+html, body { 
+  overflow-x: hidden; 
+  scroll-behavior: smooth;
+}
 
 /* contact css */
 .contact-banner {

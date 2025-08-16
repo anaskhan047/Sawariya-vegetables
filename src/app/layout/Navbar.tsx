@@ -137,7 +137,7 @@ export default function Navbar() {
         <div className="container mx-auto px-6">
           <ul className="flex flex-col space-y-4 py-4">
             {navLinks.map((link) => (
-              <li key={link.name}>
+              <li key={link.name} className="capitalize">
                 <Link
                   href={link.href}
                   className={linkClass(link.name)}
