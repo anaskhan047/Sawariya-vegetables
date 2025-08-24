@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
 
-type Language = "en" | "hi";
 type SortOrder = "newest" | "oldest" | "low-high" | "high-low";
 
 interface Fruit {
@@ -14,17 +13,16 @@ interface Fruit {
 }
 
 export default function FruitsPage() {
-  const [language, setLanguage] = useState<Language>("en");
   const [sortOrder, setSortOrder] = useState<SortOrder>("low-high");
   const [translatedNames, setTranslatedNames] = useState<Record<string, string>>({});
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   const fruits: Fruit[] = [
-    { name: "Apple", price: 120, unit: "kg", image: "https://assets.clevelandclinic.org/transform/LargeFeatureImage/cd71f4bd-81d4-45d8-a450-74df78e4477a/Apples-184940975-770x533-1_jpg", date: "2025-08-10" },
+    { name: "Kashmiri Apple", price: 120, unit: "kg", image: "https://assets.clevelandclinic.org/transform/LargeFeatureImage/cd71f4bd-81d4-45d8-a450-74df78e4477a/Apples-184940975-770x533-1_jpg", date: "2025-08-10" },
     { name: "Banana", price: 60, unit: "dozen", image: "https://nutritionsource.hsph.harvard.edu/wp-content/uploads/2018/08/bananas-1354785_1920.jpg", date: "2025-08-12" },
-    { name: "Mango", price: 150, unit: "kg", image: "https://www.shutterstock.com/image-photo/ripe-mango-isolated-on-white-600w-2500576635.jpg", date: "2025-08-14" },
+    { name: "Mango Fruit", price: 150, unit: "kg", image: "https://www.shutterstock.com/image-photo/ripe-mango-isolated-on-white-600w-2500576635.jpg", date: "2025-08-14" },
     { name: "Orange", price: 80, unit: "kg", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Ambersweet_oranges.jpg/1200px-Ambersweet_oranges.jpg", date: "2025-08-08" },
-    { name: "Grapes", price: 90, unit: "kg", image: "https://extension.psu.edu/media/catalog/product/i/m/image_3777_1_2_1_262_1_23_1_28_2_11_2_2_2_38_1_94_7_2_24_46_6_414_49_21_45_2_25_15_1_9_1_18_9_6_5_1_21_3_29_8_2_1_13_5_1_2232.jpg?quality=80&bg-color=255,255,255&fit=bounds&height=336&width=504&canvas=504:336", date: "2025-08-11" },
+    { name: "Grapes", price: 90, unit: "kg", image: "https://extension.psu.edu/media/catalog/product/i/m/image_3777_1_2_1_262_1_23_1_28_2_11_2_2_2_38_1_94_7_2_24_46_6_414_49_21_45_2_25_15_1_9_1_18_9_6_5_1_21_3_29_8_2_1_13_5_1_2232.jpg", date: "2025-08-11" },
     { name: "Papaya", price: 70, unit: "kg", image: "https://www.metropolisindia.com/upgrade/blog/upload/25/04/papaya-benefits1744030669.webp", date: "2025-08-15" },
     { name: "Pineapple", price: 95, unit: "piece", image: "https://royalsplant.com/wp-content/uploads/2023/12/71Ozj99xTBL.jpg", date: "2025-08-09" },
     { name: "Watermelon", price: 45, unit: "kg", image: "https://www.watermelon.org/wp-content/uploads/2020/07/Seeded-Wedge-scaled.jpg", date: "2025-08-13" },
@@ -96,32 +94,8 @@ export default function FruitsPage() {
     <div className="bg-[var(--background-color)] min-h-screen py-6 text-[var(--text-color)]">
       <div className="container mx-auto max-w-6xl px-4">
 
-        {/* Controls */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-
-          {/* Language Toggle */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setLanguage("en")}
-              className={`px-4 py-2 rounded-md border border-[var(--border-color)] ${language === "en"
-                  ? "bg-[var(--primary-color)] text-white"
-                  : "bg-transparent text-[var(--text-color)]"
-                }`}
-            >
-              English
-            </button>
-            <button
-              onClick={() => setLanguage("hi")}
-              className={`px-4 py-2 rounded-md border border-[var(--border-color)] ${language === "hi"
-                  ? "bg-[var(--primary-color)] text-white"
-                  : "bg-transparent text-[var(--text-color)]"
-                }`}
-            >
-              हिंदी
-            </button>
-          </div>
-
-          {/* Sort Dropdown */}
+        {/* Sort Dropdown */}
+        <div className="flex justify-end mb-6">
           <select
             value={sortOrder}
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortOrder(e.target.value as SortOrder)}
@@ -135,7 +109,7 @@ export default function FruitsPage() {
         </div>
 
         {/* Fruits Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4  gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {sortedFruits.map((fruit, index) => (
             <div
               key={index}
@@ -150,9 +124,7 @@ export default function FruitsPage() {
                 />
               </div>
               <h3 className="text-lg font-semibold my-3">
-                {language === "en"
-                  ? fruit.name
-                  : translatedNames[fruit.name] || "…"}
+                {fruit.name} / {translatedNames[fruit.name] || "…"}
               </h3>
               <p className="text-[var(--text-light)]">
                 ₹{fruit.price} / {fruit.unit}

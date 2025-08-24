@@ -66,11 +66,12 @@ export default function ShopSidebar({ onClose }: ShopSidebarProps) {
   };
 
   return (
-    <aside className="w-64 h-screen sticky top-0 left-0 bg-[var(--background-color)] border-r border-[var(--border-color)] p-4 space-y-4 overflow-y-auto">
+    <aside className="w-64 h-[calc(100vh-64px)] sticky top-16 left-0 bg-[var(--background-color)] border-r border-[var(--border-color)] p-4 space-y-4 overflow-y-auto">
+
       <h2 className="text-lg font-semibold text-[var(--primary-color)]">Filters</h2>
 
       {/* Filters Sections */}
-      <FilterSection title="Availability">
+      <FilterSection title="Availability" >
         {["Available Today", "All Products"].map((item) => (
           <label key={item} className="flex items-center space-x-2 text-[var(--text-light)]">
             <input type="radio" name="availability" /> <span>{item}</span>

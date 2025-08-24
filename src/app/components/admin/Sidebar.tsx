@@ -27,10 +27,10 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { name: "Dashboard", icon: <BiCube size={20} />, link: "/admin" },
   { name: "Orders", icon: <Receipt size={20} />, link: "/admin/orders" },
-  { name: "Product Management", icon: <Package size={20} />, link: "/products", notification: true },
+  { name: "Product Management", icon: <Package size={20} />, link: "/products",  },
   { name: "Categories", icon: <Tag size={20} />, link: "/admin/categories" },
   { name: "UI", icon: <MdDraw size={20} />, link: "/admin/ui" },
-  { name: "Users", icon: <Users size={20} />, link: "/admin/users" },
+  { name: "Users", icon: <Users size={20} />, link: "/admin/users" ,notification: true},
   { name: "Messages", icon: <MessageSquare size={20} />, link: "/messages" },
   { name: "Delivery Areas", icon: <MapPin size={20} />, link: "/delivery-areas" },
   { name: "Settings", icon: <Settings size={20} />, link: "/settings" },

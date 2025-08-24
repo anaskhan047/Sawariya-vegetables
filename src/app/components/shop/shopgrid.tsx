@@ -94,24 +94,25 @@ export default function ShopGrid() {
         Filters
       </button>
 
-      {/* Sidebar */}
-      <div
-        ref={sidebarRef}
-        className={`fixed md:static top-0 left-0 h-full bg-white z-40 transform transition-transform duration-300
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
-      >
-        <ShopSidebar onClose={() => setSidebarOpen(false)} />
-      </div>
+      {/* Sidebar (mobile only) */}
+<div
+  ref={sidebarRef}
+  className={`fixed md:hidden top-0 left-0 h-full bg-white z-40 transform transition-transform duration-300
+    ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+>
+  <ShopSidebar onClose={() => setSidebarOpen(false)} />
+</div>
+
 
       {/* Products */}
       <div className="container mx-auto p-6">
         <h1 className="text-2xl font-bold text-[var(--primary-color)] mb-6 mt-5">Our Products</h1>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {products.map((product) => (
             <div
               key={product.id}
-              className="border border-[var(--border-color)] rounded-lg p-4 flex flex-col items-center shadow-sm hover:shadow-md transition-shadow"
+              className="border border-[var(--border-color)] rounded-lg p-0 md:p-4 flex flex-col items-center shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="relative w-full h-40">
                 <Image

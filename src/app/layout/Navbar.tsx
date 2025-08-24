@@ -24,6 +24,9 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState<boolean>(false);
   const [searchValue, setSearchValue] = useState<string>("");
 
+  // 🔥 cart count (replace with global state / context later)
+  const [cartCount, setCartCount] = useState<number>(3);
+
   const searchRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -62,7 +65,7 @@ export default function Navbar() {
   }, []);
 
   return (
-    <nav className="w-full bg-white shadow-sm sticky top-0 left-0 z-50">
+    <nav className="w-full sticky top-0 left-0 z-50 bg-[var(--background-color)] shadow-sm">
       <div className="container mx-auto flex items-center justify-between py-4 px-6">
         {/* Logo */}
         <div className="flex items-center space-x-2">
@@ -77,7 +80,7 @@ export default function Navbar() {
             <li className="capitalize" key={link.name}>
               <Link
                 href={link.href}
-                className={linkClass(link.name) }
+                className={linkClass(link.name)}
                 onClick={() => setActive(link.name)}
               >
                 {link.name}
@@ -108,8 +111,15 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Cart */}
-          <FiShoppingCart className="cursor-pointer text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]" />
+          {/* Cart with badge */}
+          <div className="relative cursor-pointer" onClick={() => router.push("/cart")}>
+            <FiShoppingCart className="text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]" />
+            {cartCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-[var(--primary-color)] text-white text-xs font-bold rounded-full px-2 py-0.5">
+                {cartCount}
+              </span>
+            )}
+          </div>
 
           {/* User */}
           <FiUser
@@ -130,7 +140,7 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       <div
-        className={`md:hidden bg-[var(--bg-color)] border-t border-gray-200 overflow-hidden transition-all duration-300 ease-in-out ${
+        className={`md:hidden bg-[var(--background-color)] border-t border-[var(--border-color)] overflow-hidden transition-all duration-300 ease-in-out ${
           isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
         }`}
       >
