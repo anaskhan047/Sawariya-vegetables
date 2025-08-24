@@ -80,16 +80,16 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl sm:px-6 lg:px-8 space-y-6">
+    <div className="mx-auto max-w-6xl px-3 sm:px-6 lg:px-8 space-y-6">
       <h1 className="text-xl sm:text-2xl font-semibold">Orders</h1>
 
       {/* Filters */}
-      <div className="rounded-lg border border-[var(--border-color)] bg-white p-4 shadow-sm w-55 sm:w-80 md:w-100 lg:w-full">
+      <div className="rounded-lg border border-[var(--border-color)] bg-white p-4 shadow-sm w-full">
         <h2 className="mb-4 text-base sm:text-lg font-medium">Filter Orders</h2>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <select
-            className="w-auto rounded-lg border border-[var(--border-color)] px-3 py-2 text-sm"
+            className="w-full sm:w-auto rounded-lg border border-[var(--border-color)] px-3 py-2 text-sm"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
@@ -101,7 +101,7 @@ export default function OrdersPage() {
             <option value="Cancelled">Cancelled</option>
           </select>
 
-          <div className="flex flex-col sm:flex-row gap-2 w-auto sm:w-auto">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <button
               className="w-full sm:w-auto rounded-lg bg-[var(--primary-color)] px-4 py-2 text-sm text-white"
               onClick={() => setStatusFilter(statusFilter)}
@@ -118,8 +118,8 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Table Card */}
-      <div className="rounded-lg border border-[var(--border-color)] bg-white shadow-sm  w-70 sm:w-135 md:w-120 lg:w-full">
+      {/* Orders Table / Cards */}
+      <div className="rounded-lg border border-[var(--border-color)] bg-white shadow-sm w-full">
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base sm:text-lg font-medium">All Orders</h2>
           <button
@@ -130,9 +130,9 @@ export default function OrdersPage() {
           </button>
         </div>
 
-        {/* Table wrapper */}
-        <div className="overflow-x-auto w-auto">
-          <table className="min-w-full text-sm table-auto">
+        {/* Desktop Table */}
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="min-w-auto text-sm table-auto">
             <thead className="bg-gray-50 text-[var(--text-light)]">
               <tr>
                 <th className="px-4 py-2 text-left">Order ID</th>
@@ -149,20 +149,18 @@ export default function OrdersPage() {
                   key={order.id}
                   className="border-t border-[var(--border-color)] hover:bg-gray-50"
                 >
-                  <td className="px-4 py-3 font-medium break-words whitespace-normal">{order.id}</td>
-                  <td className="px-4 py-3 break-words whitespace-normal">
+                  <td className="px-4 py-3 font-medium">{order.id}</td>
+                  <td className="px-4 py-3">
                     <div className="font-medium">{order.customer.name}</div>
-                    <div className="max-w-[220px] truncate text-xs text-[var(--text-light)]">
+                    <div className="text-xs text-[var(--text-light)]">
                       ✉️ {order.customer.email}
                     </div>
                     <div className="text-xs text-[var(--text-light)]">
                       📞 {order.customer.phone}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-[var(--text-light)] break-words whitespace-normal">
-                    <div className="max-w-[320px] truncate">{order.products}</div>
-                  </td>
-                  <td className="px-4 py-3 font-medium break-words whitespace-normal">{order.total}</td>
+                  <td className="px-4 py-3 text-[var(--text-light)]">{order.products}</td>
+                  <td className="px-4 py-3 font-medium">{order.total}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`rounded-full px-3 py-1 text-xs ${
@@ -196,7 +194,60 @@ export default function OrdersPage() {
             </tbody>
           </table>
         </div>
-        {/* End wrapper */}
+
+        {/* Mobile Cards */}
+        <div className="block lg:hidden p-4 space-y-4">
+          {filteredOrders.map((order) => (
+            <div
+              key={order.id}
+              className="rounded-lg border border-[var(--border-color)] p-4 bg-white shadow-sm space-y-2"
+            >
+              <div className="flex justify-between">
+                <span className="font-medium">{order.id}</span>
+                <span
+                  className={`rounded-full px-2 py-1 text-xs ${
+                    order.status === "Delivered"
+                      ? "bg-green-100 text-green-700"
+                      : order.status === "Processing"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : order.status === "Pending"
+                      ? "bg-gray-100 text-gray-700"
+                      : order.status === "Shipped"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {order.status}
+                </span>
+              </div>
+
+              <div>
+                <div className="font-medium">{order.customer.name}</div>
+                <div className="text-xs text-[var(--text-light)]">
+                  ✉️ {order.customer.email}
+                </div>
+                <div className="text-xs text-[var(--text-light)]">
+                  📞 {order.customer.phone}
+                </div>
+              </div>
+
+              <div className="text-sm text-[var(--text-light)]">{order.products}</div>
+              <div className="font-medium">{order.total}</div>
+
+              <div>
+                {order.paymentMode === "Online" ? (
+                  <span className="rounded-full bg-indigo-100 text-indigo-700 px-2 py-1 text-xs">
+                    Online
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-orange-100 text-orange-700 px-2 py-1 text-xs">
+                    Cash on Delivery
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

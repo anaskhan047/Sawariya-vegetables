@@ -42,7 +42,9 @@ export default function UsersPage() {
 
       {/* Filters */}
       <div className="bg-[color:var(--background-color)] p-4 rounded-xl border border-[color:var(--border-color)] shadow-sm">
-        <h2 className="text-lg font-semibold mb-3 text-[color:var(--text-color)]">Filter & Sort Users</h2>
+        <h2 className="text-lg font-semibold mb-3 text-[color:var(--text-color)]">
+          Filter & Sort Users
+        </h2>
         <div className="flex gap-4 flex-wrap">
           {/* Pincode filter */}
           <select
@@ -81,33 +83,73 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* User Table */}
+      {/* User Table / Cards */}
       <div className="bg-[color:var(--background-color)] p-4 rounded-xl border border-[color:var(--border-color)] shadow-sm">
-        <h2 className="text-lg font-semibold mb-3 text-[color:var(--text-color)]">User List</h2>
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-[color:var(--border-color)] bg-gray-50">
-              <th className="p-3">User ID</th>
-              <th className="p-3">Name</th>
-              <th className="p-3">Email</th>
-              <th className="p-3">Phone</th>
-              <th className="p-3">Pincode</th>
-              <th className="p-3">Orders</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.map((user) => (
-              <tr key={user.id} className="border-b border-[color:var(--border-color)] hover:bg-gray-50">
-                <td className="p-3">{user.id}</td>
-                <td className="p-3">{user.name}</td>
-                <td className="p-3">{user.email}</td>
-                <td className="p-3">{user.phone}</td>
-                <td className="p-3">{user.pincode}</td>
-                <td className="p-3">{user.orders}</td>
+        <h2 className="text-lg font-semibold mb-3 text-[color:var(--text-color)]">
+          User List
+        </h2>
+
+        {/* Desktop Table */}
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="min-w-[900px] w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-[color:var(--border-color)] bg-gray-50">
+                <th className="p-3">User ID</th>
+                <th className="p-3">Name</th>
+                <th className="p-3">Email</th>
+                <th className="p-3">Phone</th>
+                <th className="p-3">Pincode</th>
+                <th className="p-3">Orders</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredUsers.map((user) => (
+                <tr
+                  key={user.id}
+                  className="border-b border-[color:var(--border-color)] hover:bg-gray-50"
+                >
+                  <td className="p-3">{user.id}</td>
+                  <td className="p-3">{user.name}</td>
+                  <td className="p-3">{user.email}</td>
+                  <td className="p-3">{user.phone}</td>
+                  <td className="p-3">{user.pincode}</td>
+                  <td className="p-3">{user.orders}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile / Tablet Cards */}
+        <div className="grid gap-4 lg:hidden">
+          {filteredUsers.map((user) => (
+            <div
+              key={user.id}
+              className="border border-[color:var(--border-color)] rounded-lg p-4 shadow-sm bg-white"
+            >
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-semibold text-[color:var(--text-color)]">
+                  {user.name}
+                </h3>
+                <span className="text-xs px-2 py-1 rounded bg-[color:var(--secondary-color)] text-white">
+                  {user.orders} Orders
+                </span>
+              </div>
+              <p className="text-sm text-[color:var(--text-light)]">
+                <strong>ID:</strong> {user.id}
+              </p>
+              <p className="text-sm text-[color:var(--text-light)]">
+                <strong>Email:</strong> {user.email}
+              </p>
+              <p className="text-sm text-[color:var(--text-light)]">
+                <strong>Phone:</strong> {user.phone}
+              </p>
+              <p className="text-sm text-[color:var(--text-light)]">
+                <strong>Pincode:</strong> {user.pincode}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
