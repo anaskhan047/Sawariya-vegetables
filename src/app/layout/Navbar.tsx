@@ -80,7 +80,7 @@ export default function Navbar() {
         {/* Logo */}
         <div className="flex items-center space-x-2">
           <span className="text-[var(--primary-color)] text-xl font-semibold">
-            <Image src="/favicon.ico" alt="Logo" width={40} height={40} />
+            <Image src="/logo/logo.png" alt="Logo" width={40} height={40} />
           </span>
         </div>
 
@@ -130,7 +130,7 @@ export default function Navbar() {
                   <li>
                     <Link
                       href="/profile"
-                      onClick={() => setUserOpen(false)}
+                      onClick={() => {setUserOpen(false); router.push("/profile")}}
                       className="flex items-center px-4 py-2 text-[var(--text-color)] hover:bg-[var(--primary-color)] hover:text-white transition-colors duration-150"
                     >
                       👤 Profile
