@@ -1,70 +1,51 @@
+// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-
-// Define which roles can access which routes
-const roleBasedRoutes: Record<string, string[]> = {
-  "/admin": ["admin"],
-  "/delivery-address": ["delivery"],
-  "/shop": ["user", "admin", "delivery"], // shop accessible by all roles (adjust if needed)
-};
-
-// Extract token from cookie (assuming you save JWT token in cookie after login)
-function getTokenFromCookie(req: NextRequest): string | null {
-  return req.cookies.get("token")?.value || null;
-}
-
-// A simple JWT decode function (you can use a library or verify token server side)
-function parseJwt(token: string) {
-  try {
-    const base64Payload = token.split(".")[1];
-    const payload = Buffer.from(base64Payload, "base64").toString();
-    return JSON.parse(payload);
-  } catch {
-    return null;
-  }
-}
+import { verify } from "jsonwebtoken";
 
 export function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  const token = req.cookies.get("token")?.value;
+  const url = req.nextUrl.clone();
 
-  // If request is for public routes (login, register, api etc), let it pass
-  if (
-    pathname.startsWith("/api") ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/register") ||
-    pathname === "/" // home page
-  ) {
+  // Public pages allowed
+  const publicPaths = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/api/auth/me", "/api/auth/logout", "/"];
+  if (publicPaths.some((p) => url.pathname === p || url.pathname.startsWith(p + "/"))) {
+    // still allow through - but we still want protection for admin/shop paths below
+  }
+
+  // If accessing protected routes and no token -> redirect to /login
+  if (!token) {
+    if (url.pathname.startsWith("/admin") || url.pathname.startsWith("/deliveryBoy") || url.pathname.startsWith("/shop")) {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
     return NextResponse.next();
   }
 
-  // Get token from cookie
-  const token = getTokenFromCookie(req);
-  if (!token) {
-    // No token, redirect to login
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
-
-  // Decode JWT to get role
-  const payload = parseJwt(token);
-  if (!payload || !payload.role) {
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
-
-  // Check if current path requires role and user has permission
-  for (const routePrefix in roleBasedRoutes) {
-    if (pathname.startsWith(routePrefix)) {
-      if (!roleBasedRoutes[routePrefix].includes(payload.role)) {
-        // User role not allowed here → redirect to unauthorized or home
-        return NextResponse.redirect(new URL("/", req.url));
-      }
+  try {
+    interface JwtPayload {
+      role: string;
+      // add other properties as needed
     }
-  }
+    const decoded = verify(token, process.env.JWT_SECRET!) as JwtPayload;
 
-  // Otherwise allow
-  return NextResponse.next();
+    if (url.pathname.startsWith("/admin") && decoded.role !== "admin") {
+      return NextResponse.redirect(new URL("/unauthorized", req.url));
+    }
+
+    if (url.pathname.startsWith("/deliveryBoy") && decoded.role !== "delivery") {
+      return NextResponse.redirect(new URL("/unauthorized", req.url));
+    }
+
+    if (url.pathname.startsWith("/shop") && !["user", "admin", "delivery"].includes(decoded.role)) {
+      return NextResponse.redirect(new URL("/unauthorized", req.url));
+    }
+
+    return NextResponse.next();
+  } catch (err) {
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
 }
 
-// Define matcher for middleware (paths to apply middleware)
 export const config = {
   matcher: ["/admin/:path*", "/deliveryBoy/:path*", "/shop/:path*"],
 };

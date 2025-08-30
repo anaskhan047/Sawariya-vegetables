@@ -1,6 +1,16 @@
+"use client";
 import { Bell, Settings, LogOut } from "lucide-react";
 import "../../../app/globals.css"; // Ensure global styles are imported
+import { useRouter } from "next/navigation";
+
 export default function Topbar() {
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  }
+
   return (
     <header className="w-full bg-[var(--secondary-color)] flex items-center justify-end px-6 py-3 shadow-sm">
       <div className="flex items-center gap-4 text-white">
@@ -21,7 +31,10 @@ export default function Topbar() {
         </button>
 
         {/* Logout Button */}
-        <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded flex items-center gap-2 transition">
+        <button
+          onClick={handleLogout} // ✅ moved here
+          className="bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded flex items-center gap-2 transition"
+        >
           <LogOut size={16} />
           Logout
         </button>
