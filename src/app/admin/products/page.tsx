@@ -2,14 +2,50 @@
 
 import ProductForm from "@/app/components/admin/product/ProductForm";
 import ProductList from "@/app/components/admin/product/ProductList";
-import { readProducts, writeProducts } from "@/app/lib/storage";
 import { CATEGORIES, Product } from "@/app/lib/types";
 import { useEffect, useMemo, useState } from "react";
+import {
+  fetchProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+} from "@/app/lib/api/products";
 
-const uid = () => "PRD" + Math.floor(1000 + Math.random() * 9000).toString();
+// --------------------------
+// Types
+// --------------------------
+export type ProductPayload = Partial<Omit<Product, "id">> & { id?: string };
 
-export default function ProductsPage() {
+
+// --------------------------
+// Custom Hook for Products
+// --------------------------
+function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const items = await fetchProducts();
+        setProducts(items);
+      } catch (err) {
+        console.error("Load products failed:", err);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  return { products, setProducts, loading };
+}
+
+// --------------------------
+// Page Component
+// --------------------------
+export default function ProductsPage() {
+  const { products, setProducts, loading } = useProducts();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
 
@@ -17,17 +53,7 @@ export default function ProductsPage() {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<"" | Product["category"]>("");
 
-  useEffect(() => {
-    // load from storage (seed once if empty)
-    const loaded = readProducts();
-    setProducts(loaded);
-  }, []);
-
-  useEffect(() => {
-    // persist on change
-    writeProducts(products);
-  }, [products]);
-
+  // Filtering logic
   const filtered = useMemo(() => {
     return products.filter((p) => {
       const matchesCat = cat ? p.category === cat : true;
@@ -42,6 +68,7 @@ export default function ProductsPage() {
     });
   }, [products, q, cat]);
 
+  // Handlers
   const onAdd = () => {
     setEditing(null);
     setIsFormOpen(true);
@@ -52,21 +79,72 @@ export default function ProductsPage() {
     setIsFormOpen(true);
   };
 
-  const onDelete = (id: string) => {
+  const onDelete = async (id: string) => {
     if (!confirm("Delete this product?")) return;
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+
+    const prev = products;
+    setProducts((p) => p.filter((x) => x.id !== id)); // optimistic remove
+
+    try {
+      await deleteProduct(id);
+    } catch (err) {
+      console.error("delete failed", err);
+      alert("❌ Could not delete product");
+      setProducts(prev); // rollback
+    }
   };
 
-  const onSubmit = (data: Product) => {
+const onSubmit = async (data: ProductPayload) => {
+  try {
     if (editing) {
-      setProducts((prev) => prev.map((p) => (p.id === data.id ? data : p)));
+      // Optimistic update
+      const prev = products;
+      setProducts((p) =>
+        p.map((x) => (x.id === data.id ? { ...x, ...data } : x))
+      );
+
+      try {
+        // Use non-null assertion because id must exist when updating
+        const updated = await updateProduct(data.id!, data);
+        setProducts((p) =>
+          p.map((x) => (x.id === updated.id ? updated : x))
+        );
+      } catch (err) {
+        console.error("update failed:", err);
+        setProducts(prev); // rollback
+        alert("❌ Could not update product");
+      }
     } else {
-      setProducts((prev) => [{ ...data, id: uid() }, ...prev]);
+      // Optimistic create
+      const temp = { ...data, id: "TEMP-" + Date.now() } as Product;
+      setProducts((p) => [temp, ...p]);
+
+      try {
+        const { id, ...rest } = data;
+        const payload = id === undefined ? rest : { ...data, id };
+        const created = await createProduct(payload as Product);
+        setProducts((p) =>
+          [created, ...p.filter((x) => x.id !== temp.id)]
+        );
+      } catch (err) {
+        console.error("create failed:", err);
+        setProducts((p) => p.filter((x) => x.id !== temp.id));
+        alert("❌ Could not create product");
+      }
     }
+
     setIsFormOpen(false);
     setEditing(null);
-  };
+  } catch (err) {
+    console.error("save product failed:", err);
+    alert("❌ Could not save product");
+  }
+};
 
+
+  // --------------------------
+  // UI
+  // --------------------------
   return (
     <div className="container mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header */}
@@ -140,7 +218,7 @@ export default function ProductsPage() {
                 fontWeight: 600,
               }}
             >
-              {filtered.length} result{filtered.length === 1 ? "" : "s"}
+              {loading ? "Loading…" : `${filtered.length} result${filtered.length === 1 ? "" : "s"}`}
             </div>
           </div>
         </div>

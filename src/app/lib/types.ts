@@ -1,27 +1,33 @@
-export type Category =
-  | "Leafy Greens"
-  | "Root Vegetables"
-  | "Fruit Vegetables"
-  | "Legumes"
-  | "Herbs";
+export type Unit = "kg" | "piece" | "dozen";
 
-export const CATEGORIES: Category[] = [
-  "Leafy Greens",
-  "Root Vegetables",
-  "Fruit Vegetables",
-  "Legumes",
-  "Herbs",
-];
+export type ImageRef = {
+  url: string;
+  public_id: string;
+};
 
-export type Product = {
+export interface Product {
   id: string;
   name: string;
+  description?: string;
   category: string;
   price: number;
-  unit: "kg" | "piece" | "dozen";
-  stockQty: number; // ✅ total stock (e.g., 100 kg, 50 dozen)
-  description?: string;
-  imageData?: string;
+
+  images?: ImageRef[];   // from backend
+  imageData?: string;    // for frontend preview (not stored in DB)
+
+  unit: Unit;
   minQty: number;
   maxQty: number;
-};
+  stockQty: number;
+
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const CATEGORIES = [
+  "Leafy Greens",
+  "Fruits",
+  "Vegetables",
+  "Herbs",
+  "Other",
+] as const;

@@ -138,7 +138,7 @@ export default function Navbar() {
                   </li>
                   <li>
                     <Link
-                      href="/orders"
+                      href="/order"
                       onClick={() => setUserOpen(false)}
                       className="flex items-center px-4 py-2 text-[var(--text-color)] hover:bg-[var(--primary-color)] hover:text-white transition-colors duration-150"
                     >
