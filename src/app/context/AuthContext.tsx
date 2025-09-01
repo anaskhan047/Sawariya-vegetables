@@ -17,6 +17,7 @@ interface AuthContextType {
   setUserDirect: (user: User | null) => void;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
+  token: string | null
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,7 +26,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(null);
 
+  useEffect(() => {
+  const savedToken = localStorage.getItem("token");
+  console.log("Loaded token:", savedToken);  // ✅ check karo
+  if (savedToken) setToken(savedToken);
+  refresh();
+}, []);
   const login = async (email: string, password: string) => {
     const res = await fetch("/api/auth/login", {
       method: "POST",
@@ -35,11 +43,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const data = await res.json();
 
-    if (res.ok) {
-      await refresh(); // ✅ fetch user from /api/auth/me
+    if (res.ok && data.token) {
+      setToken(data.token);               // ✅ context me save
+      localStorage.setItem("token", data.token); // persist bhi
+      await refresh();
     } else {
       throw new Error(data.error || "Login failed");
     }
+    console.log("Saved token in context:", data.token);
   };
 
   const setUserDirect = (user: User | null) => {
@@ -51,9 +62,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
     setIsLoggedIn(false);
+    setToken(null);
+    localStorage.removeItem("token");  // ✅ clear
   };
 
   const refresh = async () => {
+
     try {
       const res = await fetch("/api/auth/me");
       const data = await res.json();
@@ -80,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, isLoggedIn, login, setUserDirect, logout, refresh }}
+      value={{ user, isLoading, isLoggedIn, login, setUserDirect, logout, refresh, token }}
     >
       {children}
     </AuthContext.Provider>

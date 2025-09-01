@@ -39,20 +39,23 @@ export async function POST(req: Request) {
     );
 
     const response = NextResponse.json({
-  success: true,   // 👈 yeh jaruri hai
-  message: "Login successful",
-  user: {
-    id: user._id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-  },
-  redirectUrl: user.role === "admin"
-      ? "/admin"
-      : user.role === "delivery"
-      ? "/deliveryBoy"
-      : "/shop",
-});
+      success: true,
+      message: "Login successful",
+      token, // 👈 add this
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      redirectUrl:
+        user.role === "admin"
+          ? "/admin"
+          : user.role === "delivery"
+            ? "/deliveryBoy"
+            : "/shop",
+    });
+
 
     // secure: true only in production (HTTPS). On localhost secure should be false.
     response.cookies.set("token", token, {

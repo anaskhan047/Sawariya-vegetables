@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/app/context/AuthContext";
+import Swal from "sweetalert2";
 
 interface NavLink {
   name: string;
@@ -50,7 +51,6 @@ export default function Navbar() {
 
   async function handleLogout() {
     // Dynamically import SweetAlert2
-    const Swal = (await import('sweetalert2')).default;
     const result = await Swal.fire({
       title: 'Are you sure?',
       text: 'Do you want to logout?',

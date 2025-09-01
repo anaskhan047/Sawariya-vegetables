@@ -23,3 +23,12 @@ export interface Product {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  image?: string;
+} 

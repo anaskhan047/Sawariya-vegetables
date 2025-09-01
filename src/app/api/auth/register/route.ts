@@ -1,68 +1,47 @@
-// app/api/auth/register/route.ts
+// src/app/api/auth/register/route.ts
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import dbConnect from "@/app/lib/mongodb";
-import User from "@/app/models/User";
+import Otp from "@/app/models/Otp";
+import { sendMail, otpEmailTemplate } from "@/app/api/utils/sendMail";
 import { NextRequest, NextResponse } from "next/server";
+
+function genOtp() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { name, email, password, role } = body;
+    const { name, email, password, role } = await req.json();
 
     if (!name || !email || !password) {
-      return NextResponse.json({ error: "All fields are required" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "All fields required" }, { status: 400 });
     }
 
     await dbConnect();
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return NextResponse.json({ error: "Email already registered" }, { status: 400 });
-    }
+    // OPTIONAL: check existing user and return error if you want to block duplicate registration.
+    // If you prefer the flow where user must verify email even if account exists, adjust accordingly.
+    // const exists = await User.findOne({ email });
+    // if (exists) return NextResponse.json({ success: false, error: "Email already registered" }, { status: 400 });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const otp = genOtp();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
 
-    const newUser = await User.create({
-      name,
+    // store the OTP document with the user payload (we'll create user on verify)
+    await Otp.create({
       email,
-      password: hashedPassword,
-      role: role || "user",
+      otpHash,
+      type: "register",
+      payload: { name, passwordHash, role: role ?? "user" },
     });
 
-    const token = jwt.sign(
-      { id: newUser._id, role: newUser.role, name: newUser.name, email: newUser.email },
-      process.env.JWT_SECRET!,
-      { expiresIn: "7d" }
-    );
+    // send email (don't expose internal info)
+    await sendMail(email, "Verify your account", otpEmailTemplate({ name, otp, purpose: "account verification" }));
 
-    const response = NextResponse.json(
-      {
-        message: "User registered successfully",
-        user: {
-          id: newUser._id,
-          name: newUser.name,
-          email: newUser.email,
-          role: newUser.role,
-        },
-      },
-      { status: 201 }
-    );
-
-    response.cookies.set("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 7 * 24 * 60 * 60,
-    });
-
-    return response;
-  } catch (error: unknown) {
-    console.error("REGISTER API ERROR:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, message: "OTP sent to email" }, { status: 200 });
+  } catch (err: unknown) {
+    console.error("REGISTER ERROR:", err);
+    return NextResponse.json({ success: false, error: err instanceof Error ? err.message : "Server error" }, { status: 500 });
   }
 }
