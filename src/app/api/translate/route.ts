@@ -5,25 +5,25 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { text } = body;
 
-    console.log("Body received:", body);
-
-    if (!text) {
+    if (!text || text.trim() === "") {
       return NextResponse.json({ error: "Text is required" }, { status: 400 });
     }
 
-    // MyMemory API URL
-    const res = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|hi`
-    );
+    // Encode text safely
+    const encodedText = encodeURIComponent(text);
+
+    // Call MyMemory API
+    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodedText}&langpair=en|hi`);
+    if (!res.ok) {
+      return NextResponse.json({ error: "Translation service unavailable" }, { status: res.status });
+    }
 
     const data = await res.json();
-    console.log("API response:", data);
-
     const translatedText = data?.responseData?.translatedText || "";
 
     return NextResponse.json({ translatedText });
   } catch (error) {
-    console.error("Server crash reason:", error);
+    console.error("Translation API error:", error);
     return NextResponse.json({ error: "Translation failed" }, { status: 500 });
   }
 }

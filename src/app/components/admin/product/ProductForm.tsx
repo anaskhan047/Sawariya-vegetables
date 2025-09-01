@@ -2,16 +2,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Product, CATEGORIES } from "@/app/lib/types";
+import { Product } from "@/app/lib/types";
 
 interface Props {
   initial?: Product;
-  onSubmit: (data: ProductPayload) => void; // Accept ProductPayload
+  onSubmit: (data: ProductPayload) => void;
   onCancel: () => void;
 }
 
-
-// Payload type = partial product with image upload fields
 type ProductPayload = Partial<Product> & {
   imageBase64?: string;
   imagesBase64?: string[];
@@ -19,21 +17,30 @@ type ProductPayload = Partial<Product> & {
 
 export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
-  const [category, setCategory] = useState<Product["category"]>(initial?.category ?? "Leafy Greens");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [category, setCategory] = useState(initial?.category ?? "");
   const [price, setPrice] = useState<number>(initial?.price ?? 0);
   const [unit, setUnit] = useState<Product["unit"]>(initial?.unit ?? "kg");
   const [stockQty, setStockQty] = useState<number>(initial?.stockQty ?? 0);
   const [description, setDescription] = useState(initial?.description ?? "");
   const [minQty, setMinQty] = useState<number>(initial?.minQty ?? (unit === "kg" ? 0.5 : 1));
   const [maxQty, setMaxQty] = useState<number>(initial?.maxQty ?? (unit === "kg" ? 10 : 5));
-
-  // existing images (from backend) we will keep unless user removes
   const [existingImages, setExistingImages] = useState<{ url: string; public_id: string }[]>(initial?.images ?? []);
-  // new images as base64 strings (to be uploaded)
   const [newImagesBase64, setNewImagesBase64] = useState<string[]>([]);
-  // validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
+  // --- MOBILE VH FIX: set --vh (to handle mobile keyboard / address bar resizing) ---
+  useEffect(() => {
+    function setVhVar() {
+      document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
+    }
+    setVhVar();
+    window.addEventListener("resize", setVhVar);
+    return () => window.removeEventListener("resize", setVhVar);
+  }, []);
+
+  // Keep proper min/max when unit changes
   useEffect(() => {
     if (unit === "kg") {
       if (minQty < 0.1) setMinQty(0.5);
@@ -44,6 +51,36 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unit]);
+interface Category {
+  id: string;
+  name: string;
+}
+
+  // Fetch categories
+useEffect(() => {
+  async function fetchCategories() {
+    try {
+      const res = await fetch("/api/categories");
+      const data: { success: boolean; data: Category[]; error?: string } = await res.json();
+
+      if (data?.success) {
+        const names = data.data.map((c: Category) => c.name);
+        setCategories(names);
+
+        if (!initial?.category && names.length > 0) {
+          setCategory(names[0]);
+        }
+      } else {
+        console.error("Failed to fetch categories", data?.error);
+      }
+    } catch (err) {
+      console.error("Error fetching categories", err);
+    } finally {
+      setLoadingCategories(false);
+    }
+  }
+  fetchCategories();
+}, [initial]);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -101,65 +138,146 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+    <div className="fixed inset-1 z-50 flex items-end md:items-center justify-center">
+      {/* overlay */}
       <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
-      <div className="relative w-full md:max-w-2xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border" style={{ borderColor: "var(--border-color)" }}>
-        <div className="p-5 border-b" style={{ borderColor: "var(--border-color)" }}>
+
+      {/* modal container
+          - flex-col so header/body/footer stack
+          - min-h-0 allows inner overflow to work
+          - maxHeight uses CSS var --vh to handle mobile browser UI resizing
+      */}
+      <div
+        className="relative w-full md:max-w-2xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border flex flex-col min-h-0"
+        style={{
+          borderColor: "var(--border-color)",
+          // on mobile use almost-fullscreen; on desktop max height handled by layout
+          maxHeight: "calc(var(--vh, 1vh) * 100 - 3.5rem)",
+          // fallback for browsers without --vh support (desktop)
+          // (optional) you can remove the next line if you prefer the CSS-only approach
+          // height: "auto"
+        }}
+      >
+        {/* header (sticky) */}
+        <div
+          className="p-5 border-b sticky top-0 bg-white z-20"
+          style={{ borderColor: "var(--border-color)" }}
+        >
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">{initial ? "Edit Product" : "Add Product"}</h3>
-            <button onClick={onCancel} className="rounded-lg border px-3 py-1 text-sm" style={{ borderColor: "var(--border-color)" }}>Close</button>
+            <button
+              onClick={onCancel}
+              className="rounded-lg border px-3 py-1 text-sm"
+              style={{ borderColor: "var(--border-color)" }}
+            >
+              Close
+            </button>
           </div>
         </div>
 
-        <div className="p-5 grid gap-4 md:grid-cols-2">
+        {/* body: IMPORTANT: flex-1 + overflow-y-auto + min-h-0 */}
+        <div
+          className="p-5 grid gap-4 md:grid-cols-2 flex-1 overflow-y-auto min-h-0 pb-20"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          {/* Product Name */}
           <div className="md:col-span-2">
             <label className="block text-sm mb-1">Product Name *</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-color)" }} />
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--border-color)" }}
+            />
             {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
           </div>
 
+          {/* Category */}
           <div>
             <label className="block text-sm mb-1">Category</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value as Product["category"])} className="w-full rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-color)" }}>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--border-color)" }}
+              disabled={loadingCategories}
+            >
+              {loadingCategories ? <option>Loading...</option> : categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
+          {/* Price */}
           <div>
             <label className="block text-sm mb-1">Price (₹)</label>
-            <input type="number" value={price} onChange={(e) => setPrice(Number(e.target.value))} className="w-full rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-color)" }} />
+            <input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(Number(e.target.value))}
+              className="w-full rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--border-color)" }}
+            />
             {errors.price && <p className="text-xs text-red-600 mt-1">{errors.price}</p>}
           </div>
 
+          {/* Unit */}
           <div>
             <label className="block text-sm mb-1">Unit</label>
-            <select value={unit} onChange={(e) => setUnit(e.target.value as Product["unit"])} className="w-full rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-color)" }}>
+            <select
+              value={unit}
+              onChange={(e) => setUnit(e.target.value as Product["unit"])}
+              className="w-full rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--border-color)" }}
+            >
               <option value="kg">kg</option>
               <option value="piece">piece</option>
               <option value="dozen">dozen</option>
             </select>
           </div>
 
+          {/* Min / Max */}
           <div>
             <label className="block text-sm mb-1">Min Limit</label>
-            <input type="number" step={unit === "kg" ? "0.1" : "1"} value={minQty} onChange={(e) => setMinQty(Number(e.target.value))} className="w-full rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-color)" }} />
+            <input
+              type="number"
+              step={unit === "kg" ? "0.1" : "1"}
+              value={minQty}
+              onChange={(e) => setMinQty(Number(e.target.value))}
+              className="w-full rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--border-color)" }}
+            />
           </div>
-
           <div>
             <label className="block text-sm mb-1">Max Limit</label>
-            <input type="number" step={unit === "kg" ? "0.1" : "1"} value={maxQty} onChange={(e) => setMaxQty(Number(e.target.value))} className="w-full rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-color)" }} />
+            <input
+              type="number"
+              step={unit === "kg" ? "0.1" : "1"}
+              value={maxQty}
+              onChange={(e) => setMaxQty(Number(e.target.value))}
+              className="w-full rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--border-color)" }}
+            />
             {errors.limit && <p className="text-xs text-red-600 mt-1">{errors.limit}</p>}
           </div>
 
+          {/* Stock */}
           <div>
             <label className="block text-sm mb-1">Stock Quantity ({unit})</label>
-            <input type="number" min={0} step={unit === "kg" ? 0.1 : 1} value={stockQty} onChange={(e) => setStockQty(Number(e.target.value))} className="w-full rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-color)" }} />
+            <input
+              type="number"
+              min={0}
+              step={unit === "kg" ? 0.1 : 1}
+              value={stockQty}
+              onChange={(e) => setStockQty(Number(e.target.value))}
+              className="w-full rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--border-color)" }}
+            />
             {errors.stock && <p className="text-xs text-red-600 mt-1">{errors.stock}</p>}
           </div>
 
+          {/* Images */}
           <div className="md:col-span-2">
             <label className="block text-sm mb-1">Images</label>
-            <div className="flex gap-2 mb-2">
+            <div className="flex gap-2 mb-2 flex-wrap">
               {existingImages.map(img => (
                 <div key={img.public_id} className="relative">
                   <img src={img.url} alt="" className="h-20 w-20 object-cover rounded" />
@@ -176,15 +294,23 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
             <input type="file" accept="image/*" onChange={handleFile} />
           </div>
 
+          {/* Description */}
           <div className="md:col-span-2">
             <label className="block text-sm mb-1">Description</label>
             <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-color)" }} />
           </div>
         </div>
 
-        <div className="p-5 border-t flex gap-2 justify-end" style={{ borderColor: "var(--border-color)" }}>
-          <button onClick={onCancel} className="px-4 py-2 rounded-lg border" style={{ borderColor: "var(--border-color)" }}>Cancel</button>
-          <button onClick={submit} className="px-4 py-2 rounded-lg text-white" style={{ backgroundColor: "var(--primary-color)" }}>{initial ? "Save Changes" : "Add Product"}</button>
+        {/* footer (sticky) */}
+        <div className="p-5 border-t sticky bottom-0 bg-white z-20" style={{ borderColor: "var(--border-color)" }}>
+          <div className="flex gap-2 justify-end">
+            <button onClick={onCancel} className="px-4 py-2 rounded-lg border" style={{ borderColor: "var(--border-color)" }}>
+              Cancel
+            </button>
+            <button onClick={submit} className="px-4 py-2 rounded-lg text-white" style={{ backgroundColor: "var(--primary-color)" }}>
+              {initial ? "Save Changes" : "Add Product"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

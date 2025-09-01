@@ -23,11 +23,3 @@ export interface Product {
   createdAt?: string;
   updatedAt?: string;
 }
-
-export const CATEGORIES = [
-  "Leafy Greens",
-  "Fruits",
-  "Vegetables",
-  "Herbs",
-  "Other",
-] as const;

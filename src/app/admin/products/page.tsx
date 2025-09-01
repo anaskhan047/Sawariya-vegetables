@@ -2,7 +2,7 @@
 
 import ProductForm from "@/app/components/admin/product/ProductForm";
 import ProductList from "@/app/components/admin/product/ProductList";
-import { CATEGORIES, Product } from "@/app/lib/types";
+import { Product } from "@/app/lib/types";
 import { useEffect, useMemo, useState } from "react";
 import {
   fetchProducts,
@@ -10,16 +10,15 @@ import {
   updateProduct,
   deleteProduct,
 } from "@/app/lib/api/products";
+interface Category {
+  id: string;
+  name: string;
+}
 
-// --------------------------
 // Types
-// --------------------------
 export type ProductPayload = Partial<Omit<Product, "id">> & { id?: string };
 
-
-// --------------------------
 // Custom Hook for Products
-// --------------------------
 function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,11 +40,39 @@ function useProducts() {
   return { products, setProducts, loading };
 }
 
-// --------------------------
+// Custom Hook for Categories
+function useCategories() {
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+ useEffect(() => {
+  (async () => {
+    try {
+      const res = await fetch("/api/categories");
+      const data: { success: boolean; data: Category[]; error?: string } = await res.json();
+      
+      if (data.success) {
+        setCategories(data.data.map((c) => c.name));
+      } else {
+        console.error("Failed to fetch categories:", data.error);
+      }
+    } catch (err) {
+      console.error("Error fetching categories:", err);
+    } finally {
+      setLoading(false);
+    }
+  })();
+}, []);
+
+
+  return { categories, loading };
+}
+
 // Page Component
-// --------------------------
 export default function ProductsPage() {
   const { products, setProducts, loading } = useProducts();
+  const { categories, loading: loadingCategories } = useCategories();
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
 
@@ -94,57 +121,50 @@ export default function ProductsPage() {
     }
   };
 
-const onSubmit = async (data: ProductPayload) => {
-  try {
-    if (editing) {
-      // Optimistic update
-      const prev = products;
-      setProducts((p) =>
-        p.map((x) => (x.id === data.id ? { ...x, ...data } : x))
-      );
-
-      try {
-        // Use non-null assertion because id must exist when updating
-        const updated = await updateProduct(data.id!, data);
+  const onSubmit = async (data: ProductPayload) => {
+    try {
+      if (editing) {
+        const prev = products;
         setProducts((p) =>
-          p.map((x) => (x.id === updated.id ? updated : x))
+          p.map((x) => (x.id === data.id ? { ...x, ...data } : x))
         );
-      } catch (err) {
-        console.error("update failed:", err);
-        setProducts(prev); // rollback
-        alert("❌ Could not update product");
-      }
-    } else {
-      // Optimistic create
-      const temp = { ...data, id: "TEMP-" + Date.now() } as Product;
-      setProducts((p) => [temp, ...p]);
+        try {
+          const updated = await updateProduct(data.id!, data);
+          setProducts((p) =>
+            p.map((x) => (x.id === updated.id ? updated : x))
+          );
+        } catch (err) {
+          console.error("update failed:", err);
+          setProducts(prev);
+          alert("❌ Could not update product");
+        }
+      } else {
+        const temp = { ...data, id: "TEMP-" + Date.now() } as Product;
+        setProducts((p) => [temp, ...p]);
 
-      try {
-        const { id, ...rest } = data;
-        const payload = id === undefined ? rest : { ...data, id };
-        const created = await createProduct(payload as Product);
-        setProducts((p) =>
-          [created, ...p.filter((x) => x.id !== temp.id)]
-        );
-      } catch (err) {
-        console.error("create failed:", err);
-        setProducts((p) => p.filter((x) => x.id !== temp.id));
-        alert("❌ Could not create product");
+        try {
+          const { id, ...rest } = data;
+          const payload = id === undefined ? rest : { ...data, id };
+          const created = await createProduct(payload as Product);
+          setProducts((p) =>
+            [created, ...p.filter((x) => x.id !== temp.id)]
+          );
+        } catch (err) {
+          console.error("create failed:", err);
+          setProducts((p) => p.filter((x) => x.id !== temp.id));
+          alert("❌ Could not create product");
+        }
       }
+
+      setIsFormOpen(false);
+      setEditing(null);
+    } catch (err) {
+      console.error("save product failed:", err);
+      alert("❌ Could not save product");
     }
+  };
 
-    setIsFormOpen(false);
-    setEditing(null);
-  } catch (err) {
-    console.error("save product failed:", err);
-    alert("❌ Could not save product");
-  }
-};
-
-
-  // --------------------------
   // UI
-  // --------------------------
   return (
     <div className="container mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header */}
@@ -179,9 +199,10 @@ const onSubmit = async (data: ProductPayload) => {
         style={{ borderColor: "var(--border-color)" }}
       >
         <div className="grid gap-3 sm:grid-cols-3">
+          {/* Search */}
           <div>
             <label className="block text-sm mb-1" style={{ color: "var(--text-light)" }}>
-              Search (name / SKU / description)
+              Search (name / description)
             </label>
             <input
               value={q}
@@ -191,6 +212,8 @@ const onSubmit = async (data: ProductPayload) => {
               style={{ borderColor: "var(--border-color)" }}
             />
           </div>
+
+          {/* Category Filter */}
           <div>
             <label className="block text-sm mb-1" style={{ color: "var(--text-light)" }}>
               Category
@@ -200,15 +223,18 @@ const onSubmit = async (data: ProductPayload) => {
               onChange={(e) => setCat(e.target.value as Product["category"] | "")}
               className="w-full rounded-lg border px-3 py-2"
               style={{ borderColor: "var(--border-color)" }}
+              disabled={loadingCategories}
             >
               <option value="">All Categories</option>
-              {CATEGORIES.map((c) => (
+              {categories.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
               ))}
             </select>
           </div>
+
+          {/* Count */}
           <div className="flex items-end">
             <div
               className="text-sm px-3 py-2 rounded-lg"
