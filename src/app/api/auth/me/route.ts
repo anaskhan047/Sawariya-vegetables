@@ -28,7 +28,7 @@ export async function GET(req: Request) {
 
     await dbConnect();
 
-    // 🔹 Type-safe JWT verification
+    //  Type-safe JWT verification
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as DecodedToken;
 
     const user = await User.findById(decoded.id).lean();

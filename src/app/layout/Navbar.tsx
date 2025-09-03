@@ -50,15 +50,14 @@ export default function Navbar() {
   }, []);
 
   async function handleLogout() {
-    // Dynamically import SweetAlert2
     const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to logout?',
-      icon: 'warning',
+      title: "Are you sure?",
+      text: "Do you want to logout?",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, logout',
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, logout",
     });
 
     if (result.isConfirmed) {
@@ -69,26 +68,34 @@ export default function Navbar() {
   }
 
   const linkClass = (name: string) =>
-    `relative inline-block pb-1 transition ${active === name ? "text-[var(--primary-color)] font-semibold" : "text-[var(--text-color)]"} hover:text-[var(--hover-color)]`;
+    `relative inline-block pb-1 transition ${
+      active === name
+        ? "text-[var(--primary-color)] font-semibold"
+        : "text-[var(--text-color)]"
+    } hover:text-[var(--hover-color)]`;
 
   const underline = (name: string) =>
-    active === name && <span className="absolute left-0 -bottom-[2px] h-[2px] w-full bg-[var(--primary-color)] transition-all duration-700"></span>;
+    active === name && (
+      <span className="absolute left-0 -bottom-[2px] h-[2px] w-full bg-[var(--primary-color)] transition-all duration-700"></span>
+    );
 
   return (
-    <nav className="w-full sticky top-0 left-0 z-50 bg-[var(--background-color)] shadow-sm">
+    <nav className="w-full fixed top-0 left-0 z-50 bg-[var(--background-color)] shadow-sm">
       <div className="container mx-auto flex items-center justify-between py-4 px-6">
         {/* Logo */}
         <div className="flex items-center space-x-2">
-          <span className="text-[var(--primary-color)] text-xl font-semibold">
-            <Image src="/logo/logo.png" alt="Logo" width={40} height={40} />
-          </span>
+          <Image src="/logo/logo.png" alt="Logo" width={40} height={40} />
         </div>
 
         {/* Desktop Menu */}
         <ul className="hidden md:flex items-center space-x-8">
           {navLinks.map((link) => (
             <li className="capitalize" key={link.name}>
-              <Link href={link.href} className={linkClass(link.name)} onClick={() => setActive(link.name)}>
+              <Link
+                href={link.href}
+                className={linkClass(link.name)}
+                onClick={() => setActive(link.name)}
+              >
                 {link.name}
                 {underline(link.name)}
               </Link>
@@ -101,20 +108,37 @@ export default function Navbar() {
           {/* Search */}
           <div ref={searchRef} className="relative flex items-center">
             {searchOpen ? (
-              <input type="text" value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="Search products..." className="border border-[var(--border-color)] rounded-lg px-3 py-1 w-[350px] max-w-[80vw] focus:outline-none focus:border-[var(--primary-color)]" autoFocus />
+              <input
+                type="text"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                placeholder="Search products..."
+                className="border border-[var(--border-color)] rounded-lg px-3 py-1 w-[250px] sm:w-[350px] max-w-[70vw] focus:outline-none focus:border-[var(--primary-color)]"
+                autoFocus
+              />
             ) : (
-              <FiSearch className="cursor-pointer text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]" onClick={() => setSearchOpen(true)} />
+              <FiSearch
+                className="cursor-pointer text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]"
+                onClick={() => setSearchOpen(true)}
+              />
             )}
           </div>
 
           {/* Cart */}
-          <div className="relative cursor-pointer" onClick={() => router.push("/cart")}>
+          <div
+            className="relative cursor-pointer"
+            onClick={() => router.push("/cart")}
+          >
             <FiShoppingCart className="text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]" />
-            {cartCount > 0 && <span className="absolute -top-2 -right-2 bg-[var(--primary-color)] text-white text-xs font-bold rounded-full px-2 py-0.5">{cartCount}</span>}
+            {cartCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-[var(--primary-color)] text-white text-xs font-bold rounded-full px-2 py-0.5">
+                {cartCount}
+              </span>
+            )}
           </div>
 
           {/* User Dropdown */}
-          <div ref={userRef} className="relative">
+          <div ref={userRef} className="relative md:block">
             <FiUser
               className="cursor-pointer text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]"
               onClick={() => {
@@ -130,7 +154,10 @@ export default function Navbar() {
                   <li>
                     <Link
                       href="/profile"
-                      onClick={() => {setUserOpen(false); router.push("/profile")}}
+                      onClick={() => {
+                        setUserOpen(false);
+                        router.push("/profile");
+                      }}
                       className="flex items-center px-4 py-2 text-[var(--text-color)] hover:bg-[var(--primary-color)] hover:text-white transition-colors duration-150"
                     >
                       👤 Profile
@@ -156,15 +183,42 @@ export default function Navbar() {
                 </ul>
               </div>
             )}
-
           </div>
 
-          {/* Mobile Menu */}
-          <button className="md:hidden text-2xl text-[var(--text-color)]" onClick={() => setIsOpen((p) => !p)} aria-label="Toggle Menu">
+          {/* Mobile Menu Button */}
+          <button
+            className="md:hidden text-2xl text-[var(--text-color)]"
+            onClick={() => setIsOpen((p) => !p)}
+            aria-label="Toggle Menu"
+          >
             {isOpen ? <FiX /> : <FiMenu />}
           </button>
         </div>
       </div>
+
+      {/* Mobile Dropdown Menu */}
+      {isOpen && (
+        <div className="md:hidden bg-[var(--background-color)] border-t border-[var(--border-color)] shadow-md">
+          <ul className="flex flex-col space-y-2 p-4">
+            {navLinks.map((link) => (
+              <li key={link.name}>
+                <Link
+                  href={link.href}
+                  onClick={() => {
+                    setActive(link.name);
+                    setIsOpen(false);
+                  }}
+                  className="block capitalize text-[var(--text-color)] hover:text-[var(--primary-color)] py-2"
+                >
+                  {link.name}
+                </Link>
+              </li>
+            ))}
+
+           
+          </ul>
+        </div>
+      )}
     </nav>
   );
 }
