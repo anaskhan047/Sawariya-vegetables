@@ -5,9 +5,10 @@ import { useState, useRef, useEffect } from "react";
 import { FiSearch, FiShoppingCart, FiUser, FiMenu, FiX } from "react-icons/fi";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { useAuth } from "@/app/context/AuthContext";
 import Swal from "sweetalert2";
+import { useAuth } from "@/app/context/AuthContext";
+import { ArrowBigDown } from "lucide-react";
+import { BiUpArrow } from "react-icons/bi";
 
 interface NavLink {
   name: string;
@@ -34,7 +35,10 @@ export default function Navbar() {
   const userRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { user, isLoading, isLoggedIn, logout, refresh } = useAuth();
+  const [image, setImage] = useState<string | null>(null);
 
+  // Loading state while fetching user data
+  const [loading, setLoading] = useState(true);
   // close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -49,6 +53,22 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.loggedIn) {
+          setImage(data.user.image || null);
+        }
+      } catch (err) {
+        console.error("Error fetching user:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchUser();
+  }, []);
   async function handleLogout() {
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -68,10 +88,9 @@ export default function Navbar() {
   }
 
   const linkClass = (name: string) =>
-    `relative inline-block pb-1 transition ${
-      active === name
-        ? "text-[var(--primary-color)] font-semibold"
-        : "text-[var(--text-color)]"
+    `relative inline-block pb-1 transition ${active === name
+      ? "text-[var(--primary-color)] font-semibold"
+      : "text-[var(--text-color)]"
     } hover:text-[var(--hover-color)]`;
 
   const underline = (name: string) =>
@@ -84,7 +103,9 @@ export default function Navbar() {
       <div className="container mx-auto flex items-center justify-between py-4 px-6">
         {/* Logo */}
         <div className="flex items-center space-x-2">
-          <Image src="/logo/logo.png" alt="Logo" width={40} height={40} />
+          <Link href="/">
+            <span className="font-bold text-lg text-[var(--primary-color)]">MyShop</span>
+          </Link>
         </div>
 
         {/* Desktop Menu */}
@@ -149,7 +170,15 @@ export default function Navbar() {
             />
 
             {isLoggedIn && userOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-[var(--background-color)] shadow-lg rounded-xl border border-[var(--border-color)] overflow-hidden transform transition-all duration-200 origin-top-right">
+              <div className="absolute right-0 mt-2 w-64 bg-[var(--background-color)] shadow-lg rounded-xl border border-[var(--border-color)] overflow-hidden transform transition-all duration-200 origin-top-right">
+                <div className="px-4 py-3 border-b border-[var(--border-color)] ">
+                  <p className="font-semibold text-[var(--text-color)] capitalize">
+                    {user?.name || "User"}
+                  </p>
+                  <p className="text-sm text-gray-500 truncate">
+                    {user?.email || ""}
+                  </p>
+                </div>
                 <ul className="flex flex-col">
                   <li>
                     <Link
@@ -214,8 +243,6 @@ export default function Navbar() {
                 </Link>
               </li>
             ))}
-
-           
           </ul>
         </div>
       )}

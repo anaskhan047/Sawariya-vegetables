@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/app/context/AuthContext";
 
 export default function Auth() {
@@ -21,7 +21,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
+  const [image, setImage] = useState<string | null>(null);
   const { setUserDirect } = useAuth();
 
   // LOGIN / REGISTER
@@ -128,6 +128,22 @@ export default function Auth() {
     }
   }
 
+  useEffect(() => {
+      async function fetchUser() {
+        try {
+          const res = await fetch("/api/auth/me");
+          const data = await res.json();
+          if (data.loggedIn) {
+            setImage(data.user.image || null);
+          }
+        } catch (err) {
+          console.error("Error fetching user:", err);
+        } finally {
+          setLoading(false);
+        }
+      }
+      fetchUser();
+    }, []);
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--background-color)] px-4">
       <div className="w-full max-w-md bg-[var(--background-color)] border border-[var(--border-color)] shadow-lg rounded-lg p-6 sm:p-8">
