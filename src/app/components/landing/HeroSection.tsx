@@ -1,11 +1,12 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Slider from "react-slick";
+
 interface SlideItem {
   url: string;
 }
+
 export default function HeroSection() {
   const [slides, setSlides] = useState<SlideItem[]>([]);
 
@@ -14,11 +15,19 @@ export default function HeroSection() {
       try {
         const res = await fetch("/api/hero");
         const data = await res.json();
+
         if (data && data.length > 0) {
-          setSlides(data.map((item: SlideItem) => ({ url: item.url })));
+          // Local image + API images
+          setSlides([
+            { url: "/hero/hero.png" }, 
+            ...data.map((item: SlideItem) => ({ url: item.url })),
+          ]);
+        } else {
+          setSlides([{ url: "/hero/hero.png" }]);
         }
       } catch (error) {
         console.error("Error loading hero images:", error);
+        setSlides([{ url: "/hero/hero.png" }]);
       }
     };
     fetchHeroImages();
@@ -33,7 +42,7 @@ export default function HeroSection() {
     slidesToScroll: 1,
     arrows: false,
     pauseOnHover: false,
-    fade: true, // smooth fade effect for background
+    fade: true,
   };
 
   return (

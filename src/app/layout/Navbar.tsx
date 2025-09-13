@@ -99,7 +99,7 @@ export default function Navbar() {
     );
 
   return (
-    <nav className="w-full fixed top-0 left-0 z-50 bg-[var(--background-color)] shadow-sm">
+    <nav className="w-full sticky top-0 left-0 z-50 bg-[var(--background-color)] shadow-sm">
       <div className="container mx-auto flex items-center justify-between py-4 px-6">
         {/* Logo */}
         <div className="flex items-center space-x-2">

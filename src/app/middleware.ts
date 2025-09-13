@@ -7,7 +7,7 @@ export function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
 
   if (!token) {
-    console.log("❌ No token found, redirecting to /login");
+    console.log(" No token found, redirecting to /login");
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
@@ -21,27 +21,27 @@ export function middleware(req: NextRequest) {
 
     const decoded = verify(token, process.env.JWT_SECRET!) as JwtPayload;
 
-    console.log("✅ Middleware: Decoded JWT:", decoded);
+    console.log(" Middleware: Decoded JWT:", decoded);
 
     if (url.pathname.startsWith("/admin") && decoded.role !== "admin") {
-      console.log("❌", decoded.role, "tried to access /admin");
+      console.log("", decoded.role, "tried to access /admin");
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
     if (url.pathname.startsWith("/deliveryBoy") && decoded.role !== "delivery") {
-      console.log("❌", decoded.role, "tried to access /deliveryBoy");
+      console.log("", decoded.role, "tried to access /deliveryBoy");
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
     if (url.pathname.startsWith("/shop") && !["user", "admin", "delivery"].includes(decoded.role)) {
-      console.log("❌", decoded.role, "tried to access /shop");
+      console.log("", decoded.role, "tried to access /shop");
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
-    console.log("✅ Access granted to", url.pathname, "for role", decoded.role);
+    console.log("Access granted to", url.pathname, "for role", decoded.role);
     return NextResponse.next();
   } catch (err) {
-    console.error("❌ Token verification failed:", err);
+    console.error(" Token verification failed:", err);
     return NextResponse.redirect(new URL("/login", req.url));
   }
 }
