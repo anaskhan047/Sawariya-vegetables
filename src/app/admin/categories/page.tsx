@@ -1,7 +1,9 @@
 "use client";
+
 import Image from "next/image";
 import { useEffect, useState } from "react";
-
+import Swal from "sweetalert2";
+import CircularLoader from '../../components/Loader/Loader'
 interface Category {
   _id: string;
   name: string;
@@ -15,11 +17,21 @@ export default function CategoriesPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(false);
 
   const fetchCategories = async () => {
-    const res = await fetch("/api/categories");
-    const data = await res.json();
-    if (data.success) setCategories(data.data as Category[]);
+    setFetching(true);
+    try {
+      const res = await fetch("/api/categories");
+      const data = await res.json();
+      if (data.success) setCategories(data.data as Category[]);
+      else Swal.fire("Error", "Failed to fetch categories", "error");
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Error", "Something went wrong while fetching categories", "error");
+    } finally {
+      setFetching(false);
+    }
   };
 
   useEffect(() => {
@@ -28,7 +40,10 @@ export default function CategoriesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return alert("Name required");
+    if (!name.trim()) {
+      Swal.fire("Warning", "Category name is required", "warning");
+      return;
+    }
 
     setLoading(true);
     const form = new FormData();
@@ -38,24 +53,53 @@ export default function CategoriesPage() {
     const url = editId ? `/api/categories/${editId}` : `/api/categories`;
     const method = editId ? "PUT" : "POST";
 
-    const res = await fetch(url, { method, body: form });
-    const data = await res.json();
-    if (data.success) {
-      setName("");
-      setFile(null);
-      setPreview(null);
-      setEditId(null);
-      fetchCategories();
-    } else {
-      alert("Error: " + JSON.stringify(data.error));
+    try {
+      const res = await fetch(url, { method, body: form });
+      const data = await res.json();
+      if (data.success) {
+        Swal.fire("Success", `Category ${editId ? "updated" : "created"} successfully`, "success");
+        setName("");
+        setFile(null);
+        setPreview(null);
+        setEditId(null);
+        fetchCategories();
+      } else {
+        Swal.fire("Error", JSON.stringify(data.error), "error");
+      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Error", "Something went wrong!", "error");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this category?")) return;
-    await fetch(`/api/categories/${id}`, { method: "DELETE" });
-    fetchCategories();
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const res = await fetch(`/api/categories/${id}`, { method: "DELETE" });
+        const data = await res.json();
+        if (data.success) {
+          Swal.fire("Deleted!", "Category has been deleted.", "success");
+          fetchCategories();
+        } else {
+          Swal.fire("Error", "Failed to delete category", "error");
+        }
+      } catch (err) {
+        console.error(err);
+        Swal.fire("Error", "Something went wrong!", "error");
+      }
+    }
   };
 
   const handleEdit = (cat: Category) => {
@@ -101,44 +145,51 @@ export default function CategoriesPage() {
         )}
         <button
           disabled={loading}
-          className="px-4 py-2 rounded text-white"
+          className="px-4 py-2 rounded text-white flex items-center justify-center gap-2"
           style={{ backgroundColor: "var(--primary-color)" }}
         >
+          {loading && <CircularLoader size={30} />}
           {editId ? "Update" : "Create"}
         </button>
       </form>
 
-      {/* List */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {categories.map((cat) => (
-          <div key={cat._id} className="bg-white shadow rounded p-2 flex flex-col items-center">
-            {cat.imageUrl && (
-              <Image
-                src={cat.imageUrl}
-                alt={cat.name}
-                width={300}
-                height={200}
-                className="h-32 w-full object-cover rounded"
-              />
-            )}
-            <p className="mt-2 font-semibold">{cat.name}</p>
-            <div className="flex gap-2 mt-2">
-              <button
-                className="px-2 py-1 bg-yellow-500 text-white rounded"
-                onClick={() => handleEdit(cat)}
-              >
-                Edit
-              </button>
-              <button
-                className="px-2 py-1 bg-red-500 text-white rounded"
-                onClick={() => handleDelete(cat._id)}
-              >
-                Delete
-              </button>
+      {/* Loader while fetching categories */}
+      {fetching ? (
+        <div className="flex justify-center py-20">
+          <CircularLoader size={60} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {categories.map((cat) => (
+            <div key={cat._id} className="bg-white shadow rounded p-2 flex flex-col items-center">
+              {cat.imageUrl && (
+                <Image
+                  src={cat.imageUrl}
+                  alt={cat.name}
+                  width={300}
+                  height={200}
+                  className="h-32 w-full object-cover rounded"
+                />
+              )}
+              <p className="mt-2 font-semibold">{cat.name}</p>
+              <div className="flex gap-2 mt-2">
+                <button
+                  className="px-2 py-1 bg-yellow-500 text-white rounded"
+                  onClick={() => handleEdit(cat)}
+                >
+                  Edit
+                </button>
+                <button
+                  className="px-2 py-1 bg-red-500 text-white rounded"
+                  onClick={() => handleDelete(cat._id)}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -2,8 +2,9 @@
 
 import { useEffect, useState, ChangeEvent } from "react";
 import { User } from "@/app/lib/types";
-import { Eye, EyeOff } from "lucide-react"; // 👁 icons
+import { Eye, EyeOff, Loader } from "lucide-react"; // 👁 icons
 import { useAuth } from "@/app/context/AuthContext";
+import CircularLoader from "../components/Loader/Loader";
 
 
 export default function ProfilePage() {
@@ -145,7 +146,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <p>Loading profile...</p>
+        <CircularLoader />
       </main>
     );
   }
