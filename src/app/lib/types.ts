@@ -1,4 +1,5 @@
 export type Unit = "kg" | "piece" | "dozen";
+export type Grade = "Premium" | "Gold" | "Silver" | "Standard";
 
 export type ImageRef = {
   url: string;
@@ -20,6 +21,9 @@ export interface Product {
   maxQty: number;
   stockQty: number;
 
+  grade: Grade;
+  popular: boolean;
+
   createdAt?: string;
   updatedAt?: string;
 }
@@ -31,4 +35,4 @@ export interface User {
   phone?: string;
   address?: string;
   image?: string;
-} 
+}

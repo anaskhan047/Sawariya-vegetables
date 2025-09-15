@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-// Helper: preprocess string → number, then validate
 const toNumber = (int = false, opts?: { nonnegative?: boolean; positive?: boolean }) =>
-  z.preprocess((v) => (typeof v === "string" && v !== "" ? Number(v) : v),
+  z.preprocess(
+    (v) => (typeof v === "string" && v !== "" ? Number(v) : v),
     int ? z.number().int() : z.number()
   ).refine((val) => {
     if (typeof val !== "number" || isNaN(val)) return false;
@@ -24,7 +24,7 @@ export const productSchema = z
     name: z.string().min(1),
     description: z.string().optional().default(""),
 
-    price: toNumber(false, { nonnegative: true }), // ≥ 0
+    price: toNumber(false, { nonnegative: true }),
     category: z.string().optional().default(""),
 
     stockQty: toNumber(true, { nonnegative: true }).optional().default(0),
@@ -35,7 +35,9 @@ export const productSchema = z
 
     images: z.array(imageRef).optional().default([]),
 
-    // helpers: accept base64 uploads
+    grade: z.enum(["Premium", "Gold", "Silver", "Standard"]).default("Standard"),
+    popular: z.boolean().default(false),
+
     imageBase64: z.string().optional(),
     imagesBase64: z.array(z.string()).optional(),
   })

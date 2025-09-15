@@ -1,4 +1,3 @@
-// src/app/models/Product.ts
 import mongoose, { Schema, Document } from "mongoose";
 
 export type ImageRef = {
@@ -17,6 +16,8 @@ export interface IProduct extends Document {
   minQty: number;
   maxQty: number;
   images: ImageRef[];
+  grade: "Premium" | "Gold" | "Silver" | "Standard";
+  popular: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,6 +42,12 @@ const ProductSchema = new Schema<IProduct>(
     minQty: { type: Number, default: 1 },
     maxQty: { type: Number, default: 10 },
     images: { type: [ImageSchema], default: [] },
+    grade: {
+      type: String,
+      enum: ["Premium", "Gold", "Silver", "Standard"],
+      default: "Standard",
+    },
+    popular: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

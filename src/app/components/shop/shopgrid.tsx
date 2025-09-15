@@ -20,12 +20,13 @@ interface Product {
   minQty: number;
   maxQty: number;
   images: ProductImage[];
+   popular?: boolean; 
 }
 
 export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
-
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -50,6 +51,7 @@ export default function ShopPage() {
     fetchProducts();
   }, []);
 
+
   return (
     <section className="container mx-auto px-4 py-8">
       <h2 className="text-3xl font-bold mb-8 text-center">Our Products</h2>
@@ -68,7 +70,7 @@ export default function ShopPage() {
             <div
               key={product._id}
               className="border border-gray-200 rounded-lg p-4 flex flex-col items-center shadow-sm 
-              hover:shadow-lg hover:-translate-y-2 transition-all duration-300 bg-white group"
+  hover:shadow-lg hover:-translate-y-2 transition-all duration-300 bg-white group"
             >
               {/* Product Image */}
               <div className="relative w-full h-40 overflow-hidden rounded-md">
@@ -79,9 +81,18 @@ export default function ShopPage() {
                   alt={product.name}
                   className="w-full h-full object-cover rounded-md group-hover:scale-110 transition-transform duration-500"
                 />
+
+                {/* Out of Stock Badge */}
                 {product.stockQty <= 0 && (
                   <span className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
                     Out of Stock
+                  </span>
+                )}
+
+                {/* Popular Badge */}
+                {product.popular && (
+                  <span className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded shadow">
+                    ⭐ Popular
                   </span>
                 )}
               </div>
@@ -93,7 +104,7 @@ export default function ShopPage() {
 
               {/* Price */}
               <p className="text-green-700 font-bold mt-1">
-                ₹{product.price}
+                ₹{product.price} /
                 <span className="text-sm text-gray-500 font-normal ml-1">
                   {product.unit}
                 </span>
@@ -154,15 +165,15 @@ export default function ShopPage() {
               <button
                 disabled={product.stockQty <= 0}
                 className={`mt-4 w-full py-2 rounded text-white font-semibold transition-all duration-300 transform 
-                  ${
-                    product.stockQty > 0
-                      ? "bg-green-600 hover:bg-green-700 hover:scale-105"
-                      : "bg-gray-400 cursor-not-allowed"
+      ${product.stockQty > 0
+                    ? "bg-green-600 hover:bg-green-700 hover:scale-105"
+                    : "bg-gray-400 cursor-not-allowed"
                   }`}
               >
                 Add to Cart
               </button>
             </div>
+
           );
         })}
       </div>

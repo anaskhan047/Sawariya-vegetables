@@ -118,6 +118,8 @@ export async function PUT(
     if (parsed.data.unit !== undefined) doc.unit = parsed.data.unit;
     if (parsed.data.minQty !== undefined) doc.minQty = parsed.data.minQty;
     if (parsed.data.maxQty !== undefined) doc.maxQty = parsed.data.maxQty;
+    if (parsed.data.grade !== undefined) doc.grade = parsed.data.grade;
+if (parsed.data.popular !== undefined) doc.popular = parsed.data.popular;
 
     doc.images = finalImages;
     await doc.save();

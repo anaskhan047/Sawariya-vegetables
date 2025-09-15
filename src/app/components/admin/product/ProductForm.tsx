@@ -29,6 +29,8 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
   const [newImagesBase64, setNewImagesBase64] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [grade, setGrade] = useState<Product["grade"]>(initial?.grade ?? "Standard");
+const [popular, setPopular] = useState<boolean>(initial?.popular ?? false);
 
   // --- MOBILE VH FIX: set --vh (to handle mobile keyboard / address bar resizing) ---
   useEffect(() => {
@@ -129,6 +131,8 @@ useEffect(() => {
       maxQty,
       description: description.trim() || undefined,
       images: existingImages.map(i => ({ url: i.url, public_id: i.public_id })),
+       grade,
+  popular,
     };
 
     if (newImagesBase64.length === 1) payload.imageBase64 = newImagesBase64[0];
@@ -273,6 +277,34 @@ useEffect(() => {
             />
             {errors.stock && <p className="text-xs text-red-600 mt-1">{errors.stock}</p>}
           </div>
+
+          <div>
+  <label className="block text-sm mb-1">Grade</label>
+  <select
+    value={grade}
+    onChange={(e) => setGrade(e.target.value as Product["grade"])}
+    className="w-full rounded-lg border px-3 py-2"
+    style={{ borderColor: "var(--border-color)" }}
+  >
+    <option value="Premium">Premium</option>
+    <option value="Gold">Gold</option>
+    <option value="Silver">Silver</option>
+    <option value="Standard">Standard</option>
+  </select>
+</div>
+
+<div>
+  <label className="block text-sm mb-1">Popular</label>
+  <select
+    value={popular ? "true" : "false"}
+    onChange={(e) => setPopular(e.target.value === "true")}
+    className="w-full rounded-lg border px-3 py-2"
+    style={{ borderColor: "var(--border-color)" }}
+  >
+    <option value="false">No</option>
+    <option value="true">Yes</option>
+  </select>
+</div>
 
           {/* Images */}
           <div className="md:col-span-2">
