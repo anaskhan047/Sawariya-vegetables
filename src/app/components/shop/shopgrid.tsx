@@ -12,6 +12,7 @@ interface Product {
   _id: string;
   id: string;
   name: string;
+  hindiName?: string;
   description: string;
   price: number;
   category: string;
@@ -20,7 +21,7 @@ interface Product {
   minQty: number;
   maxQty: number;
   images: ProductImage[];
-   popular?: boolean; 
+  popular?: boolean;
 }
 
 export default function ShopPage() {
@@ -99,7 +100,7 @@ export default function ShopPage() {
 
               {/* Product Name */}
               <h3 className="mt-3 text-lg font-semibold text-gray-800 group-hover:text-green-700 transition-colors">
-                {product.name}
+                {product.name} / {product.hindiName}
               </h3>
 
               {/* Price */}

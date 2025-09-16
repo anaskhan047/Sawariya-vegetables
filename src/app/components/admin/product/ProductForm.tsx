@@ -30,8 +30,8 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [grade, setGrade] = useState<Product["grade"]>(initial?.grade ?? "Standard");
-const [popular, setPopular] = useState<boolean>(initial?.popular ?? false);
-
+  const [popular, setPopular] = useState<boolean>(initial?.popular ?? false);
+  const [hindiName, setHindiName] = useState(initial?.hindiName ?? "");
   // --- MOBILE VH FIX: set --vh (to handle mobile keyboard / address bar resizing) ---
   useEffect(() => {
     function setVhVar() {
@@ -53,36 +53,36 @@ const [popular, setPopular] = useState<boolean>(initial?.popular ?? false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unit]);
-interface Category {
-  id: string;
-  name: string;
-}
+  interface Category {
+    id: string;
+    name: string;
+  }
 
   // Fetch categories
-useEffect(() => {
-  async function fetchCategories() {
-    try {
-      const res = await fetch("/api/categories");
-      const data: { success: boolean; data: Category[]; error?: string } = await res.json();
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const res = await fetch("/api/categories");
+        const data: { success: boolean; data: Category[]; error?: string } = await res.json();
 
-      if (data?.success) {
-        const names = data.data.map((c: Category) => c.name);
-        setCategories(names);
+        if (data?.success) {
+          const names = data.data.map((c: Category) => c.name);
+          setCategories(names);
 
-        if (!initial?.category && names.length > 0) {
-          setCategory(names[0]);
+          if (!initial?.category && names.length > 0) {
+            setCategory(names[0]);
+          }
+        } else {
+          console.error("Failed to fetch categories", data?.error);
         }
-      } else {
-        console.error("Failed to fetch categories", data?.error);
+      } catch (err) {
+        console.error("Error fetching categories", err);
+      } finally {
+        setLoadingCategories(false);
       }
-    } catch (err) {
-      console.error("Error fetching categories", err);
-    } finally {
-      setLoadingCategories(false);
     }
-  }
-  fetchCategories();
-}, [initial]);
+    fetchCategories();
+  }, [initial]);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -118,27 +118,35 @@ useEffect(() => {
   }
 
   async function submit() {
-    if (!validate()) return;
+    try {
 
-    const payload: ProductPayload = {
-      id: initial?.id,
-      name: name.trim(),
-      category,
-      price,
-      unit,
-      stockQty,
-      minQty,
-      maxQty,
-      description: description.trim() || undefined,
-      images: existingImages.map(i => ({ url: i.url, public_id: i.public_id })),
-       grade,
-  popular,
-    };
 
-    if (newImagesBase64.length === 1) payload.imageBase64 = newImagesBase64[0];
-    if (newImagesBase64.length > 1) payload.imagesBase64 = newImagesBase64;
+      if (!validate()) return;
 
-    onSubmit(payload);
+      const payload: ProductPayload = {
+        id: initial?.id,
+        name: name.trim(),
+          hindiName: hindiName.trim() || undefined, 
+        category,
+        price,
+        unit,
+        stockQty,
+        minQty,
+        maxQty,
+        description: description.trim() || undefined,
+        images: existingImages.map(i => ({ url: i.url, public_id: i.public_id })),
+        grade,
+        popular,
+      };
+
+      if (newImagesBase64.length === 1) payload.imageBase64 = newImagesBase64[0];
+      if (newImagesBase64.length > 1) payload.imagesBase64 = newImagesBase64;
+
+      onSubmit(payload);
+      console.log("payload:", payload);
+    } catch (error) {
+      console.error("ProductForm submit error:", error);
+    }
   }
 
   return (
@@ -196,13 +204,22 @@ useEffect(() => {
             {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
           </div>
 
+          <div className="md:col-span-2">
+            <label className="block text-sm mb-1">Hindi Name</label>
+            <input
+              value={hindiName}
+              onChange={(e) => setHindiName(e.target.value)}
+              className="w-full rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--border-color)" }}
+            />
+          </div>
           {/* Category */}
           <div>
             <label className="block text-sm mb-1">Category</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-lg border px-3 py-2"
+              className="w-full rounded-lg border px-3 py-2 capitalize"
               style={{ borderColor: "var(--border-color)" }}
               disabled={loadingCategories}
             >
@@ -279,32 +296,32 @@ useEffect(() => {
           </div>
 
           <div>
-  <label className="block text-sm mb-1">Grade</label>
-  <select
-    value={grade}
-    onChange={(e) => setGrade(e.target.value as Product["grade"])}
-    className="w-full rounded-lg border px-3 py-2"
-    style={{ borderColor: "var(--border-color)" }}
-  >
-    <option value="Premium">Premium</option>
-    <option value="Gold">Gold</option>
-    <option value="Silver">Silver</option>
-    <option value="Standard">Standard</option>
-  </select>
-</div>
+            <label className="block text-sm mb-1">Grade</label>
+            <select
+              value={grade}
+              onChange={(e) => setGrade(e.target.value as Product["grade"])}
+              className="w-full rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--border-color)" }}
+            >
+              <option value="Premium">Premium</option>
+              <option value="Gold">Gold</option>
+              <option value="Silver">Silver</option>
+              <option value="Standard">Standard</option>
+            </select>
+          </div>
 
-<div>
-  <label className="block text-sm mb-1">Popular</label>
-  <select
-    value={popular ? "true" : "false"}
-    onChange={(e) => setPopular(e.target.value === "true")}
-    className="w-full rounded-lg border px-3 py-2"
-    style={{ borderColor: "var(--border-color)" }}
-  >
-    <option value="false">No</option>
-    <option value="true">Yes</option>
-  </select>
-</div>
+          <div>
+            <label className="block text-sm mb-1">Popular</label>
+            <select
+              value={popular ? "true" : "false"}
+              onChange={(e) => setPopular(e.target.value === "true")}
+              className="w-full rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--border-color)" }}
+            >
+              <option value="false">No</option>
+              <option value="true">Yes</option>
+            </select>
+          </div>
 
           {/* Images */}
           <div className="md:col-span-2">

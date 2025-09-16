@@ -221,7 +221,7 @@ export default function ProductsPage() {
             <select
               value={cat}
               onChange={(e) => setCat(e.target.value as Product["category"] | "")}
-              className="w-full rounded-lg border px-3 py-2"
+              className="w-full rounded-lg border px-3 py-2 capitalize"
               style={{ borderColor: "var(--border-color)" }}
               disabled={loadingCategories}
             >

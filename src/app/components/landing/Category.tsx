@@ -47,7 +47,7 @@ export default function Categories() {
         <h2 className="text-center text-3xl font-bold text-[var(--text-color)] mb-8">
           Explore Our Categories
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5 gap-6 capitalize">
           {categories.map((category) => (
             <div
               key={category._id}

@@ -8,28 +8,28 @@ const grades = [
     name: "Standard",
     description: "Affordable everyday essentials with reliable quality.",
     color: "from-gray-100 to-gray-200 border-gray-300",
-    image: "/images/standard.png", // 👉 place images in /public/images
+    image: "/grade/1.jpg", 
     link: "/shop?grade=Standard",
   },
   {
     name: "Silver",
     description: "Better quality products for those who want more value.",
     color: "from-gray-200 to-gray-300 border-gray-400",
-    image: "/images/silver.png",
+    image: "/grade/2.jpg",
     link: "/shop?grade=Silver",
   },
   {
     name: "Gold",
     description: "Premium collection with top-notch quality and features.",
     color: "from-yellow-100 to-yellow-200 border-yellow-400",
-    image: "/images/gold.png",
+    image: "/grade/3.jpg",
     link: "/shop?grade=Gold",
   },
   {
     name: "Premium",
     description: "Exclusive products for the finest experience.",
     color: "from-green-100 to-green-200 border-green-600",
-    image: "/images/premium.png",
+    image: "/grade/4.jpg",
     link: "/shop?grade=Premium",
   },
 ];
@@ -53,7 +53,7 @@ export default function Grade() {
             className={`group relative border rounded-2xl p-6 shadow-md bg-gradient-to-b ${grade.color} transition-all duration-300 transform hover:-translate-y-2 hover:shadow-2xl`}
           >
             {/* Grade Image */}
-            <div className="w-20 h-20 mx-auto mb-6 relative">
+            <div className="w-50 h-50 mx-auto mb-6 relative">
               <Image
                 src={grade.image}
                 alt={grade.name}

@@ -9,6 +9,7 @@ import {
 } from "@/app/lib/cloudinary";
 
 import { NextRequest, NextResponse } from "next/server";
+
 interface ImageObj {
   url: string;
   public_id: string;
@@ -19,7 +20,6 @@ interface IncomingImage {
   public_id?: string;
   publicId?: string;
 }
-
 
 // ---------- GET ----------
 export async function GET(
@@ -60,7 +60,7 @@ function normalizeIncoming(images: (string | IncomingImage)[] | undefined): Imag
 
 // ---------- PUT ----------
 export async function PUT(
-   req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -110,7 +110,9 @@ export async function PUT(
       finalImages = [...finalImages, ...uploaded];
     }
 
+    // ---------- Assign fields ----------
     if (parsed.data.name !== undefined) doc.name = parsed.data.name;
+    if (parsed.data.hindiName !== undefined) doc.hindiName = parsed.data.hindiName;
     if (parsed.data.description !== undefined) doc.description = parsed.data.description;
     if (parsed.data.price !== undefined) doc.price = parsed.data.price;
     if (parsed.data.category !== undefined) doc.category = parsed.data.category;
@@ -119,7 +121,7 @@ export async function PUT(
     if (parsed.data.minQty !== undefined) doc.minQty = parsed.data.minQty;
     if (parsed.data.maxQty !== undefined) doc.maxQty = parsed.data.maxQty;
     if (parsed.data.grade !== undefined) doc.grade = parsed.data.grade;
-if (parsed.data.popular !== undefined) doc.popular = parsed.data.popular;
+    if (parsed.data.popular !== undefined) doc.popular = parsed.data.popular;
 
     doc.images = finalImages;
     await doc.save();
@@ -134,7 +136,7 @@ if (parsed.data.popular !== undefined) doc.popular = parsed.data.popular;
 
 // ---------- DELETE ----------
 export async function DELETE(
-   req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {

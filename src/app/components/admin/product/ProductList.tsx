@@ -21,8 +21,8 @@ export default function ProductList({ products, onEdit, onDelete }: Props) {
               <th className="p-3">Price</th>
               <th className="p-3">Unit</th>
               <th className="p-3">Limits</th>
-               <th className="p-3">Grade</th>
-    <th className="p-3">Popular</th>
+              <th className="p-3">Grade</th>
+              <th className="p-3">Popular</th>
               <th className="p-3">Stock</th>
               <th className="p-3 text-right">Actions</th>
             </tr>
@@ -42,17 +42,18 @@ export default function ProductList({ products, onEdit, onDelete }: Props) {
                         )}
                       </div>
                       <div>
-                        <div className="font-medium">{p.name}</div>
+                        <div className="font-medium">{p.name} </div>
+                         {p.hindiName && <div className="text-xs text-gray-600">{p.hindiName}</div>}
                         <div className="text-xs" style={{ color: "var(--text-light)" }}>{p.description}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="p-3">{p.category}</td>
+                  <td className="p-3 capitalize">{p.category}</td>
                   <td className="p-3">₹ {p.price.toFixed(2)}</td>
                   <td className="p-3">{p.unit}</td>
                   <td className="p-3">{p.minQty} – {p.maxQty} {p.unit}</td>
-                    <td className="p-3">{p.grade}</td>
-      <td className="p-3">{p.popular ? "Yes" : "No"}</td>
+                  <td className="p-3">{p.grade}</td>
+                  <td className="p-3">{p.popular ? "Yes" : "No"}</td>
                   <td className="p-3">
                     {p.stockQty > 0 ? (
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">{p.stockQty} {p.unit} left</span>
@@ -87,7 +88,7 @@ export default function ProductList({ products, onEdit, onDelete }: Props) {
                   {imageUrl ? <img src={imageUrl} alt={p.name} className="h-14 w-14 object-cover" /> : <div className="h-full w-full flex items-center justify-center text-xs text-gray-400">No Image</div>}
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold">{p.name}</div>
+                  <div className="font-semibold">{p.name} / {p.hindiName}</div>
                   <div className="text-sm font-medium">₹ {p.price.toFixed(2)} / {p.unit}</div>
                   <div className="text-xs" style={{ color: "var(--text-light)" }}>Limit: {p.minQty} – {p.maxQty} {p.unit}</div>
                   <div className="mt-1">

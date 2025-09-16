@@ -9,12 +9,13 @@ export type ImageRef = {
 export interface Product {
   id: string;
   name: string;
+    hindiName?: string;
   description?: string;
   category: string;
   price: number;
 
-  images?: ImageRef[];   // from backend
-  imageData?: string;    // for frontend preview (not stored in DB)
+  images?: ImageRef[];  
+  imageData?: string;   
 
   unit: Unit;
   minQty: number;

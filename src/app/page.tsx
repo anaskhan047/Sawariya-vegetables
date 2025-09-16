@@ -1,3 +1,4 @@
+import AboutUs from "./components/landing/About";
 import Categories from "./components/landing/Category";
 import Grade from "./components/landing/Grade";
 import HeroSection from "./components/landing/HeroSection";
@@ -10,6 +11,7 @@ export default function Home() {
     <>
       <HeroSection />
       <Categories />
+      <AboutUs />
       <Grade />
       <ProductGrid />
       <WhyChoose />
