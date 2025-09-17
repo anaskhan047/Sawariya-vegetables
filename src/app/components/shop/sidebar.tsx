@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { FiChevronDown, FiChevronUp } from "react-icons/fi";
+import { useState, useEffect, useRef } from "react";
+import { FiChevronDown, FiChevronUp, FiX } from "react-icons/fi";
 import { FaStar, FaStarHalfAlt, FaRegStar } from "react-icons/fa";
 
 type FilterSectionProps = {
@@ -25,11 +25,13 @@ const FilterSection = ({ title, children }: FilterSectionProps) => {
 };
 
 type ShopSidebarProps = {
-  onClose?: () => void;
+  isOpen: boolean;
+  onClose: () => void;
 };
 
-export default function ShopSidebar({ onClose }: ShopSidebarProps) {
+export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
   const [selectedRating, setSelectedRating] = useState<number>(0);
+  const ref = useRef<HTMLDivElement>(null);
 
   const handleStarClick = (value: number) => setSelectedRating(value);
 
@@ -65,83 +67,78 @@ export default function ShopSidebar({ onClose }: ShopSidebarProps) {
     return stars;
   };
 
+  // Close on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) document.addEventListener("mousedown", handleClickOutside);
+    else document.removeEventListener("mousedown", handleClickOutside);
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen, onClose]);
+
   return (
-    <aside className="fixed w-64 h-[calc(100vh-64px)] sticky top-16 left-0 bg-[var(--background-color)] border-r border-[var(--border-color)] p-4 space-y-4 overflow-y-auto">
+    <>
+      {/* Overlay for mobile */}
+      <div
+        className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${isOpen ? "opacity-100 visible" : "opacity-0 invisible"
+          } md:hidden`}
+      />
 
-      <h2 className="text-lg font-semibold text-[var(--primary-color)]">Filters</h2>
-
-      {/* Filters Sections */}
-      <FilterSection title="Availability" >
-        {["Available Today", "All Products"].map((item) => (
-          <label key={item} className="flex items-center space-x-2 text-[var(--text-light)]">
-            <input type="radio" name="availability" /> <span>{item}</span>
-          </label>
-        ))}
-      </FilterSection>
-
-      <FilterSection title="Category">
-        {["Vegetables", "Fruits", "Dairy"].map((cat) => (
-          <label key={cat} className="flex items-center space-x-2 text-[var(--text-light)]">
-            <input type="checkbox" /> <span>{cat}</span>
-          </label>
-        ))}
-      </FilterSection>
-
-      <FilterSection title="Price">
-        <input type="range" min={0} max={1000} className="w-full accent-[var(--primary-color)]" />
-        <div className="flex justify-between text-sm text-[var(--text-light)]">
-          <span>0</span>
-          <span>1000</span>
-        </div>
-      </FilterSection>
-
-      <FilterSection title="Weight (KG)">
-        {["0-1 KG", "1-5 KG", "5+ KG"].map((weight) => (
-          <label key={weight} className="flex items-center space-x-2 text-[var(--text-light)]">
-            <input type="checkbox" /> <span>{weight}</span>
-          </label>
-        ))}
-      </FilterSection>
-
-      <FilterSection title="Customer Rating">
-        <div className="flex space-x-1 text-lg">{renderStars()}</div>
-        <p className="text-sm text-[var(--text-light)] mt-1">Selected: {selectedRating} Stars</p>
-      </FilterSection>
-
-      <FilterSection title="Discount">
-        {["10% or more", "25% or more", "50% or more"].map((discount) => (
-          <label key={discount} className="flex items-center space-x-2 text-[var(--text-light)]">
-            <input type="checkbox" /> <span>{discount}</span>
-          </label>
-        ))}
-      </FilterSection>
-
-      <FilterSection title="Area Availability">
-        {["Local", "Nationwide", "International"].map((area) => (
-          <label key={area} className="flex items-center space-x-2 text-[var(--text-light)]">
-            <input type="checkbox" /> <span>{area}</span>
-          </label>
-        ))}
-      </FilterSection>
-
-      {/* Seasonal Delights */}
-      <div className="bg-[var(--secondary-color)]/10 p-4 rounded-lg text-center">
-        <h3 className="font-semibold text-[var(--primary-color)]">Seasonal Delights!</h3>
-        <p className="text-sm text-[var(--text-light)]">
-          Discover fresh seasonal produce at amazing prices. Limited time offer!
-        </p>
-        <button className="mt-3 bg-[var(--primary-color)] text-white px-4 py-2 rounded">
-          Shop Now
-        </button>
-      </div>
-
-      {/* Apply Filters */}
-      <button
-        onClick={onClose}
-        className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white py-2 rounded"
+      <aside
+        ref={ref}
+        className={`fixed top-15 left-0 h-full w-64 bg-[var(--background-color)] z-50 p-4 space-y-4 transform transition-transform duration-300 md:relative md:translate-x-0 overflow-y-auto ${isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
-        Apply Filters
-      </button>
-    </aside>
+        {/* Close Button for mobile */}
+        <div className="flex justify-end md:hidden">
+          <button onClick={onClose} className="text-gray-600 text-xl">
+            <FiX />
+          </button>
+        </div>
+
+        <h2 className="text-lg font-semibold text-[var(--primary-color)] ">Filters</h2>
+
+        <FilterSection title="Availability">
+          {["Available Today", "All Products"].map((item) => (
+            <label key={item} className="flex items-center space-x-2 text-[var(--text-light)]">
+              <input type="radio" name="availability" /> <span>{item}</span>
+            </label>
+          ))}
+        </FilterSection>
+
+        <FilterSection title="Category">
+          {["Vegetables", "Fruits", "Dairy"].map((cat) => (
+            <label key={cat} className="flex items-center space-x-2 text-[var(--text-light)]">
+              <input type="checkbox" /> <span>{cat}</span>
+            </label>
+          ))}
+        </FilterSection>
+
+        <FilterSection title="Price">
+          <input type="range" min={0} max={1000} className="w-full accent-[var(--primary-color)]" />
+          <div className="flex justify-between text-sm text-[var(--text-light)]">
+            <span>0</span>
+            <span>1000</span>
+          </div>
+        </FilterSection>
+
+        <FilterSection title="Customer Rating">
+          <div className="flex space-x-1 text-lg">{renderStars()}</div>
+          <p className="text-sm text-[var(--text-light)] mt-1">Selected: {selectedRating} Stars</p>
+        </FilterSection>
+
+        <button
+          onClick={onClose}
+          className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white py-2 rounded"
+        >
+          Apply Filters
+        </button>
+      </aside>
+    </>
   );
 }

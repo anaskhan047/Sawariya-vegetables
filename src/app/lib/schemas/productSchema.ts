@@ -22,9 +22,9 @@ export const productSchema = z
   .object({
     id: z.string().optional(),
     name: z.string().min(1),
-     hindiName: z.string().optional().default(""), 
+    inHindi: z.string().optional().default(""),
     description: z.string().optional().default(""),
-    
+
     price: toNumber(false, { nonnegative: true }),
     category: z.string().optional().default(""),
 

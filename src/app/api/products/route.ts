@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     const doc = await Product.create({
       id,
       name: data.name,
-      hindiName: data.hindiName,
+      inHindi: data.inHindi,
       description: data.description,
       price: data.price,
       category: data.category,

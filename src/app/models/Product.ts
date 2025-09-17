@@ -8,7 +8,7 @@ export type ImageRef = {
 export interface IProduct extends Document {
   id: string;
   name: string;
-   hindiName?: string; 
+  inHindi?: string;
   description?: string;
   price: number;
   category?: string;
@@ -35,7 +35,7 @@ const ProductSchema = new Schema<IProduct>(
   {
     id: { type: String, required: true, unique: true, index: true },
     name: { type: String, required: true },
-     hindiName: { type: String, default: "" },
+    inHindi: { type: String, default: "" },
     description: { type: String, default: "" },
     price: { type: Number, required: true },
     category: { type: String, default: "" },

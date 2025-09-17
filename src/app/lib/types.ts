@@ -9,7 +9,7 @@ export type ImageRef = {
 export interface Product {
   id: string;
   name: string;
-    hindiName?: string;
+  inHindi?: string;
   description?: string;
   category: string;
   price: number;

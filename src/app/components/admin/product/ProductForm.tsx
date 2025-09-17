@@ -31,7 +31,7 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [grade, setGrade] = useState<Product["grade"]>(initial?.grade ?? "Standard");
   const [popular, setPopular] = useState<boolean>(initial?.popular ?? false);
-  const [hindiName, setHindiName] = useState(initial?.hindiName ?? "");
+  const [inHindi, setInHindi] = useState(initial?.inHindi ?? "");
   // --- MOBILE VH FIX: set --vh (to handle mobile keyboard / address bar resizing) ---
   useEffect(() => {
     function setVhVar() {
@@ -126,7 +126,7 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
       const payload: ProductPayload = {
         id: initial?.id,
         name: name.trim(),
-          hindiName: hindiName.trim() || undefined, 
+        inHindi: inHindi.trim() || undefined,
         category,
         price,
         unit,
@@ -207,8 +207,8 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
           <div className="md:col-span-2">
             <label className="block text-sm mb-1">Hindi Name</label>
             <input
-              value={hindiName}
-              onChange={(e) => setHindiName(e.target.value)}
+              value={inHindi}
+              onChange={(e) => setInHindi(e.target.value)}
               className="w-full rounded-lg border px-3 py-2"
               style={{ borderColor: "var(--border-color)" }}
             />

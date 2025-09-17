@@ -12,7 +12,7 @@ interface Product {
   _id: string;
   id: string;
   name: string;
-  hindiName?: string;
+  inHindi?: string;
   description: string;
   price: number;
   category: string;
@@ -22,6 +22,7 @@ interface Product {
   maxQty: number;
   images: ProductImage[];
   popular?: boolean;
+  grade?: string;
 }
 
 export default function ShopPage() {
@@ -92,15 +93,34 @@ export default function ShopPage() {
 
                 {/* Popular Badge */}
                 {product.popular && (
-                  <span className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded shadow">
-                    ⭐ Popular
+                  <span className="absolute top-2 right-2 bg-yellow-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md flex items-center space-x-1">
+                    <span>⭐</span>
+                    <span>Popular</span>
                   </span>
                 )}
+
+                {/* Grade Badge */}
+                {product.grade && (
+                  <span
+                    className={`absolute right-2 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md flex items-center space-x-1 ${product.popular ? "top-12" : "top-2"
+                      } ${product.grade === "Standard" ? "bg-gray-500" :
+                        product.grade === "Silver" ? "bg-slate-400" :
+                          product.grade === "Gold" ? "bg-yellow-400" :
+                            product.grade === "Premium" ? "bg-purple-600" :
+                              "bg-blue-500"
+                      }`}
+                  >
+                    <span>⭐</span>
+                    <span>{product.grade}</span>
+                  </span>
+                )}
+
+
               </div>
 
               {/* Product Name */}
               <h3 className="mt-3 text-lg font-semibold text-gray-800 group-hover:text-green-700 transition-colors">
-                {product.name} / {product.hindiName}
+                {product.name} / {product.inHindi}
               </h3>
 
               {/* Price */}

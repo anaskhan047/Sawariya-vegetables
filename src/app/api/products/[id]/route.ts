@@ -78,6 +78,7 @@ export async function PUT(
     }
 
     const doc = await Product.findOne({ id });
+    console.log(doc, "food api data =========================================>");
     if (!doc) {
       return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     }
@@ -109,10 +110,12 @@ export async function PUT(
       );
       finalImages = [...finalImages, ...uploaded];
     }
-
+    console.log(parsed.data.inHindi, "parsed data ===================>");
+    console.log(doc.inHindi, "doc data ===================>");
+    // console.log(parsed.data.inHindi, "doc data ===================>");
     // ---------- Assign fields ----------
     if (parsed.data.name !== undefined) doc.name = parsed.data.name;
-    if (parsed.data.hindiName !== undefined) doc.hindiName = parsed.data.hindiName;
+    if (parsed.data.inHindi !== undefined) doc.inHindi = parsed.data.inHindi;
     if (parsed.data.description !== undefined) doc.description = parsed.data.description;
     if (parsed.data.price !== undefined) doc.price = parsed.data.price;
     if (parsed.data.category !== undefined) doc.category = parsed.data.category;
