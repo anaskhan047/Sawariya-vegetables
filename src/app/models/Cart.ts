@@ -8,7 +8,7 @@ export interface ICartItem {
 
 export interface ICart extends Document {
   cartId: string;
-  userId?: Types.ObjectId;
+userId: mongoose.Types.ObjectId;
   items: ICartItem[];
   createdAt: Date;
   updatedAt: Date;
@@ -26,7 +26,7 @@ const CartItemSchema = new Schema<ICartItem>(
 const CartSchema = new Schema<ICart>(
   {
     cartId: { type: String, required: true, unique: true, index: true },
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: false },
+    userId: { type: Schema.Types.ObjectId, ref: "User" },
     items: { type: [CartItemSchema], default: [] },
   },
   { timestamps: true }

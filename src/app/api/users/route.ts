@@ -2,31 +2,53 @@ import { NextRequest, NextResponse } from "next/server";
 import User from "@/app/models/User";
 import Cart from "@/app/models/Cart";
 import dbConnect from "@/app/lib/mongodb";
+import { Types } from "mongoose";
 
-// Secure this route (only admins)
+interface PopulatedCartItem {
+  productId: {
+    _id: Types.ObjectId;
+    name: string;
+    price: number;
+  };
+  quantity: number;
+}
+
+interface CartWithPopulatedItems {
+  items: PopulatedCartItem[];
+}
+
+/** Fetch all users with their cart details */
 async function getUsers() {
   await dbConnect();
 
   // Fetch all users
   const users = await User.find().lean();
 
-  // Map through users to add cart and order stats
   const usersWithStats = await Promise.all(
     users.map(async (user) => {
-      // Cart items count
-      const cart = await Cart.findOne({ userId: user._id });
-      const cartItemsCount = cart ? cart.items.length : 0;
+      // Fetch cart by userId
+      const cartDoc = await Cart.findOne({ userId: user._id })
+        .populate<{ items: PopulatedCartItem[] }>("items.productId")
+        .lean<CartWithPopulatedItems | null>();
 
-      // Orders
-    //   const orders = await Order.find({ userId: user._id });
-    //   const ordersPlaced = orders.length;
-    //   const ordersCancelled = orders.filter((o) => o.status === "cancelled").length;
+      const cartItems = cartDoc?.items ?? [];
 
       return {
-        ...user,
-        cartItemsCount,
-        // ordersPlaced,
-        // ordersCancelled,
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        address: user.address,
+        image: user.image,
+        role: user.role,
+        cartItemsCount: cartItems.length,
+        cartItems: cartItems.map((it) => ({
+          productId: it.productId?._id.toString() || null,
+          name: it.productId?.name || "",
+          price: it.productId?.price || 0,
+          quantity: it.quantity,
+        })),
+        orders: "", // leave blank for now
       };
     })
   );
@@ -36,17 +58,10 @@ async function getUsers() {
 
 export async function GET(req: NextRequest) {
   try {
-    // Optional: check if admin (you must implement isAdmin)
-    // const user = await getCurrentUser(req);
-    // if (!user?.isAdmin) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-
     const users = await getUsers();
-    return NextResponse.json({ success: true, users });
+    return NextResponse.json({ success: true, users }, { status: 200 });
   } catch (error) {
     console.error("Error fetching users:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch users" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: "Failed to fetch users" }, { status: 500 });
   }
 }
