@@ -1,4 +1,5 @@
 'use client';
+import { useRouter } from "next/navigation";
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 // 👇 Define your User type here (customize fields as per your backend response)
@@ -27,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
-
+  const router = useRouter();
   useEffect(() => {
   const savedToken = localStorage.getItem("token");
   console.log("Loaded token:", savedToken);  // ✅ check karo
@@ -35,23 +36,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   refresh();
 }, []);
   const login = async (email: string, password: string) => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
 
-    const data = await res.json();
+  const data = await res.json();
 
-    if (res.ok && data.token) {
-      setToken(data.token);               // ✅ context me save
-      localStorage.setItem("token", data.token); // persist bhi
-      await refresh();
-    } else {
-      throw new Error(data.error || "Login failed");
-    }
-    console.log("Saved token in context:", data.token);
-  };
+  if (res.ok && data.token) {
+    setToken(data.token);
+    localStorage.setItem("token", data.token);
+    await refresh();
+
+    // ✅ Login ke baad profile/home par bhejo
+    router.push("/shop"); 
+  } else {
+    throw new Error(data.error || "Login failed");
+  }
+};
 
   const setUserDirect = (user: User | null) => {
     setUser(user);
@@ -67,8 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refresh = async () => {
-
     try {
+      
       const res = await fetch("/api/auth/me");
       const data = await res.json();
 

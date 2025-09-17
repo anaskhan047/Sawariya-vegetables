@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 interface ProductImage {
   url: string;
@@ -29,6 +30,8 @@ export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -47,12 +50,35 @@ export default function ShopPage() {
         }
       } catch (error) {
         console.error("Error loading products:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchProducts();
   }, []);
 
+  const handleAddToCart = async (product: Product) => {
+    try {
+      const res = await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          quantity: quantities[product.id] || product.minQty || 1,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+      } else {
+        alert(data.message || "Failed to add to cart");
+      }
+    } catch (error) {
+      console.error("Add to cart error:", error);
+      alert("Something went wrong");
+    }
+  };
 
   return (
     <section className="container mx-auto px-4 py-8">
@@ -114,8 +140,6 @@ export default function ShopPage() {
                     <span>{product.grade}</span>
                   </span>
                 )}
-
-
               </div>
 
               {/* Product Name */}
@@ -131,59 +155,73 @@ export default function ShopPage() {
                 </span>
               </p>
 
-              {/* Quantity Control */}
-              <div className="flex items-center mt-3">
-                <button
-                  onClick={() =>
-                    setQuantities((prev) => ({
-                      ...prev,
-                      [product.id]: Math.max(
-                        (prev[product.id] || minQty) - 0.5,
-                        minQty
-                      ),
-                    }))
-                  }
-                  className="px-2 py-1 bg-gray-200 rounded-l hover:bg-gray-300 transition-colors"
-                >
-                  -
-                </button>
+           {/* Quantity Control */}
+<div className="flex items-center mt-3">
+  <button
+    onClick={() =>
+      setQuantities((prev) => {
+        const step = product.unit === "kg" ? 0.5 : 1;
+        return {
+          ...prev,
+          [product.id]: Math.max(
+            (prev[product.id] || minQty) - step,
+            minQty
+          ),
+        };
+      })
+    }
+    className="px-2 py-1 bg-gray-200 rounded-l hover:bg-gray-300 transition-colors"
+  >
+    -
+  </button>
 
-                <input
-                  type="number"
-                  step={0.5}
-                  min={minQty}
-                  max={maxQty}
-                  value={quantities[product.id] || minQty}
-                  onChange={(e) =>
-                    setQuantities((prev) => ({
-                      ...prev,
-                      [product.id]: Math.min(
-                        Math.max(parseFloat(e.target.value) || minQty, minQty),
-                        maxQty
-                      ),
-                    }))
-                  }
-                  className="w-16 text-center border-t border-b border-gray-300"
-                />
+  <input
+    type="number"
+    step={product.unit === "kg" ? 0.5 : 1}
+    min={minQty}
+    max={maxQty}
+    value={quantities[product.id] || minQty}
+    onChange={(e) =>
+      setQuantities((prev) => {
+        const step = product.unit === "kg" ? 0.5 : 1;
+        const val = parseFloat(e.target.value) || minQty;
+        // Ensure step alignment
+        const alignedVal =
+          product.unit === "kg"
+            ? Math.round(val * 2) / 2 // rounds to nearest 0.5
+            : Math.round(val); // rounds to nearest integer
+        return {
+          ...prev,
+          [product.id]: Math.min(Math.max(alignedVal, minQty), maxQty),
+        };
+      })
+    }
+    className="w-16 text-center border-t border-b border-gray-300"
+  />
 
-                <button
-                  onClick={() =>
-                    setQuantities((prev) => ({
-                      ...prev,
-                      [product.id]: Math.min(
-                        (prev[product.id] || minQty) + 0.5,
-                        maxQty
-                      ),
-                    }))
-                  }
-                  className="px-2 py-1 bg-gray-200 rounded-r hover:bg-gray-300 transition-colors"
-                >
-                  +
-                </button>
-              </div>
+  <button
+    onClick={() =>
+      setQuantities((prev) => {
+        const step = product.unit === "kg" ? 0.5 : 1;
+        return {
+          ...prev,
+          [product.id]: Math.min(
+            (prev[product.id] || minQty) + step,
+            maxQty
+          ),
+        };
+      })
+    }
+    className="px-2 py-1 bg-gray-200 rounded-r hover:bg-gray-300 transition-colors"
+  >
+    +
+  </button>
+</div>
+
 
               {/* Add to Cart Button */}
               <button
+                onClick={() => handleAddToCart(product)}
                 disabled={product.stockQty <= 0}
                 className={`mt-4 w-full py-2 rounded text-white font-semibold transition-all duration-300 transform 
       ${product.stockQty > 0
@@ -194,7 +232,6 @@ export default function ShopPage() {
                 Add to Cart
               </button>
             </div>
-
           );
         })}
       </div>

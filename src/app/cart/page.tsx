@@ -1,150 +1,272 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
+import { useAuth } from "@/app/context/AuthContext";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useMemo } from "react";
 
-type CartItem = {
+type Product = {
+  _id: string;
   id: string;
   name: string;
-  image: string;
+  inHindi?: string;
   price: number;
-  mrp?: number;
-  qty: number;
   unit: string;
+  images: { url: string }[];
 };
 
-const initialItems: CartItem[] = [
-  {
-    id: '1',
-    name: 'Fresh Tomatoes',
-    image: 'https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcQ7UH64K2_JbWj--JEDbWcTUfrwSvo7Xuk1tm4NYExO2VhZTWm8Qs1YdW1IctLimuJqONWxfLEUk3IIrtluNW1nDg',
-    price: 45,
-    mrp: 60,
-    qty: 2,
-    unit: '500g',
-  },
-  {
-    id: '2 ',
-    name: 'Potato (New Crop)',
-    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT1BPTx1JMtuUs1JxjjhtvnO2FW6InTUoumUg&s',
-    price: 30,
-    qty: 1,
-    unit: '1kg',
-  },
-  {
-    id: '2',
-    name: 'Potato (New Crop)',
-    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT1BPTx1JMtuUs1JxjjhtvnO2FW6InTUoumUg&s',
-    price: 30,
-    qty: 1,
-    unit: '1kg',
-  },
-];
+type CartItem = {
+  _id: string;
+  productId: Product;
+  quantity: number;
+  priceAtAdd: number;
+};
 
 export default function CartPage() {
-  const [items, setItems] = useState<CartItem[]>(initialItems);
+  const { isLoggedIn, isLoading } = useAuth();
+  const router = useRouter();
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [loadingCart, setLoadingCart] = useState(false);
 
-  const priceSummary = useMemo(() => {
-    const subTotal = items.reduce((sum, it) => sum + it.price * it.qty, 0);
-    const mrpTotal = items.reduce((sum, it) => sum + (it.mrp ?? it.price) * it.qty, 0);
-    const savings = Math.max(0, mrpTotal - subTotal);
-    const delivery = subTotal >= 299 ? 0 : 29;
-    const total = subTotal + delivery;
-    return { subTotal, mrpTotal, savings, delivery, total };
-  }, [items]);
-
-  const updateQty = (id: string, delta: number) => {
-    setItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, qty: Math.max(1, it.qty + delta) } : it))
-    );
+  const fetchCart = async () => {
+    if (!isLoggedIn) return;
+    try {
+      setLoadingCart(true);
+      const res = await fetch("/api/cart");
+      const data = await res.json();
+      if (res.ok && data.success) setItems(data.items);
+    } catch (err) {
+      console.error("Failed to fetch cart:", err);
+    } finally {
+      setLoadingCart(false);
+    }
   };
 
-  const removeItem = (id: string) => setItems((prev) => prev.filter((it) => it.id !== id));
+  useEffect(() => {
+    if (isLoggedIn) fetchCart();
+  }, [isLoggedIn]);
+
+  const updateQty = async (productId: string, newQty: number) => {
+    try {
+      setLoadingCart(true);
+      const res = await fetch("/api/cart", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, quantity: newQty }),
+      });
+      if (res.ok) fetchCart();
+    } catch (err) {
+      console.error(err);
+      setLoadingCart(false);
+    }
+  };
+
+  const removeItem = async (productId: string) => {
+    try {
+      setLoadingCart(true);
+      const res = await fetch("/api/cart", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId }),
+      });
+      if (res.ok) fetchCart();
+    } catch (err) {
+      console.error(err);
+      setLoadingCart(false);
+    }
+  };
+
+  const priceSummary = useMemo(() => {
+    const subTotal = items.reduce(
+      (sum, it) => sum + it.productId.price * it.quantity,
+      0
+    );
+    const delivery = subTotal >= 300 ? 0 : 29;
+    const total = subTotal + delivery;
+    return { subTotal, delivery, total };
+  }, [items]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <h2 className="text-xl font-bold text-gray-700 mb-4">
+          Please login to view your cart 🛒
+        </h2>
+        <button
+          onClick={() => router.push("/login")}
+          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <h2 className="text-lg text-gray-600 mb-4">Your cart is empty 🛍️</h2>
+        <button
+          onClick={() => router.push("/shop")}
+          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+        >
+          Go to Shop
+        </button>
+      </div>
+    );
+  }
+
+  // Free delivery calculation
+  const freeDeliveryThreshold = 300;
+  const remainingForFreeDelivery =
+    priceSummary.subTotal >= freeDeliveryThreshold
+      ? 0
+      : freeDeliveryThreshold - priceSummary.subTotal;
+  const progressPercent =
+    priceSummary.subTotal >= freeDeliveryThreshold
+      ? 100
+      : (priceSummary.subTotal / freeDeliveryThreshold) * 100;
 
   return (
-    <div className="bg-[var(--background-color)] text-[var(--text-color)] px-4 py-6 max-w-7xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Your Cart</h1>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Cart items */}
-        <div className="lg:col-span-2 space-y-4">
-          {items.map((it) => (
-            <div
-              key={it.id}
-              className="flex flex-col sm:flex-row items-center sm:items-start gap-4 border border-[var(--border-color)] rounded-xl p-4 bg-white"
-            >
-              <img
-                src={it.image}
-                alt={it.name}
-                className="w-28 h-24 object-cover rounded-lg border border-[var(--border-color)]"
-              />
-              <div className="flex-1 w-full">
-                <div className="flex flex-col sm:flex-row sm:justify-between w-full">
-                  <div>
-                    <h3 className="font-semibold">{it.name}</h3>
-                    <p className="text-sm text-[var(--text-light)]">Pack: {it.unit}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-lg font-bold text-[var(--primary-color)]">₹ {it.price}</span>
-                      {it.mrp && it.mrp > it.price && (
-                        <span className="text-sm text-[var(--text-light)] line-through">₹ {it.mrp}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 mt-3 sm:mt-0">
-                    <button
-                      onClick={() => updateQty(it.id, -1)}
-                      className="px-2 py-1 border border-[var(--border-color)] rounded-lg hover:bg-[var(--secondary-color)] hover:text-white"
-                    >
-                      -
-                    </button>
-                    <span className="px-3">{it.qty}</span>
-                    <button
-                      onClick={() => updateQty(it.id, +1)}
-                      className="px-2 py-1 border border-[var(--border-color)] rounded-lg hover:bg-[var(--secondary-color)] hover:text-white"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-                <button
-                  onClick={() => removeItem(it.id)}
-                  className="mt-2 text-sm text-[var(--secondary-color)] hover:text-[var(--primary-color)]"
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Summary */}
-        <div className="border border-[var(--border-color)] rounded-xl p-4 bg-white h-fit">
-          <h2 className="text-lg font-semibold mb-4">Bill Details</h2>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Items total</span>
-              <span>₹ {priceSummary.subTotal}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Delivery</span>
-              <span>{priceSummary.delivery === 0 ? 'Free' : `₹ ${priceSummary.delivery}`}</span>
-            </div>
-            {priceSummary.savings > 0 && (
-              <div className="flex justify-between text-green-700">
-                <span>Savings</span>
-                <span>- ₹ {priceSummary.savings}</span>
-              </div>
+    <div className="px-4 py-6 max-w-7xl mx-auto relative">
+      {/* Fixed Free Delivery Bar */}
+      <div className="fixed top-14 left-1/2 transform -translate-x-1/2 w-11/12 md:w-3/4 lg:w-2/3 z-50">
+        <div className="p-4 bg-green-50 rounded-lg border border-green-200 shadow-md">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-medium text-green-800">
+              {priceSummary.subTotal >= freeDeliveryThreshold
+                ? "🎉 Free delivery applied!"
+                : `Add ₹${remainingForFreeDelivery} more for free delivery`}
+            </span>
+            {priceSummary.subTotal >= freeDeliveryThreshold && (
+              <span className="text-green-700 font-bold text-xl">✔️</span>
             )}
-            <div className="border-t border-[var(--border-color)] my-2"></div>
-            <div className="flex justify-between font-semibold">
-              <span>Total</span>
-              <span>₹ {priceSummary.total}</span>
-            </div>
           </div>
-          <button className="mt-4 w-full rounded-lg bg-[var(--primary-color)] py-2 text-white hover:bg-[var(--secondary-color)] transition">
-            Proceed to Checkout
-          </button>
+          <div className="w-full h-3 bg-green-200 rounded-full overflow-hidden">
+            <div
+              className="h-3 bg-green-600 rounded-full transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            ></div>
+          </div>
         </div>
       </div>
+
+      <h1 className="text-3xl font-bold mb-6 mt-32">Your Cart</h1>
+
+      {/* Responsive Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 capitalize">
+        {items.map((it) => (
+          <div
+            key={it._id}
+            className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition transform hover:-translate-y-1"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <img
+                src={it.productId.images[0]?.url || "/placeholder.png"}
+                alt={it.productId.name}
+                className="w-16 h-16 object-cover rounded-md"
+              />
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg">
+                  {it.productId.name} / {it.productId.inHindi}
+                </h3>
+                <p className="text-gray-500">{it.productId.unit}</p>
+              </div>
+              <p className="font-semibold text-green-700">
+                ₹ {it.productId.price * it.quantity}
+              </p>
+            </div>
+           <div className="flex items-center gap-2 mt-2">
+  <button
+    onClick={() => {
+      const step = it.productId.unit === "kg" ? 0.5 : 1;
+      updateQty(it.productId.id, Math.max(step, it.quantity - step));
+    }}
+    className="px-3 py-1 border rounded hover:bg-gray-100 transition"
+  >
+    -
+  </button>
+
+  <span>{it.quantity}</span>
+
+  <button
+    onClick={() => {
+      const step = it.productId.unit === "kg" ? 0.5 : 1;
+      updateQty(it.productId.id, it.quantity + step);
+    }}
+    className="px-3 py-1 border rounded hover:bg-gray-100 transition"
+  >
+    +
+  </button>
+
+  <button
+    onClick={() => removeItem(it.productId.id)}
+    className="ml-auto text-red-600 hover:underline transition"
+  >
+    Remove
+  </button>
+</div>
+
+          </div>
+        ))}
+      </div>
+
+      {/* Summary */}
+      <div className="mt-6 border rounded-lg p-4 bg-white shadow-md max-w-md relative">
+        {loadingCart && (
+          <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center rounded-lg">
+            <div className="loader border-4 border-green-500 border-t-transparent rounded-full w-8 h-8 animate-spin"></div>
+          </div>
+        )}
+        <h2 className="text-lg font-semibold mb-4">Bill Details</h2>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span>Items total</span>
+            <span>₹ {priceSummary.subTotal}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Delivery</span>
+            <span>
+              {priceSummary.delivery === 0
+                ? "Free"
+                : `₹ ${priceSummary.delivery}`}
+            </span>
+          </div>
+          <div className="border-t my-2"></div>
+          <div className="flex justify-between font-semibold">
+            <span>Total</span>
+            <span>₹ {priceSummary.total}</span>
+          </div>
+        </div>
+        <button className="mt-4 w-full rounded-lg bg-green-600 py-2 text-white hover:bg-green-700 transition">
+          Proceed to Checkout
+        </button>
+      </div>
+
+      {/* Loader CSS */}
+      <style jsx>{`
+        .loader {
+          border-width: 3px;
+          border-color: #16a34a;
+          border-top-color: transparent;
+          border-radius: 50%;
+          width: 2rem;
+          height: 2rem;
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </div>
   );
 }
