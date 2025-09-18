@@ -183,36 +183,36 @@ export default function CartPage() {
                 ₹ {it.productId.price * it.quantity}
               </p>
             </div>
-           <div className="flex items-center gap-2 mt-2">
-  <button
-    onClick={() => {
-      const step = it.productId.unit === "kg" ? 0.5 : 1;
-      updateQty(it.productId.id, Math.max(step, it.quantity - step));
-    }}
-    className="px-3 py-1 border rounded hover:bg-gray-100 transition"
-  >
-    -
-  </button>
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                onClick={() => {
+                  const step = it.productId.unit === "kg" ? 0.5 : 1;
+                  updateQty(it.productId.id, Math.max(step, it.quantity - step));
+                }}
+                className="px-3 py-1 border rounded hover:bg-gray-100 transition"
+              >
+                -
+              </button>
 
-  <span>{it.quantity}</span>
+              <span>{it.quantity}</span>
 
-  <button
-    onClick={() => {
-      const step = it.productId.unit === "kg" ? 0.5 : 1;
-      updateQty(it.productId.id, it.quantity + step);
-    }}
-    className="px-3 py-1 border rounded hover:bg-gray-100 transition"
-  >
-    +
-  </button>
+              <button
+                onClick={() => {
+                  const step = it.productId.unit === "kg" ? 0.5 : 1;
+                  updateQty(it.productId.id, it.quantity + step);
+                }}
+                className="px-3 py-1 border rounded hover:bg-gray-100 transition"
+              >
+                +
+              </button>
 
-  <button
-    onClick={() => removeItem(it.productId.id)}
-    className="ml-auto text-red-600 hover:underline transition"
-  >
-    Remove
-  </button>
-</div>
+              <button
+                onClick={() => removeItem(it.productId.id)}
+                className="ml-auto text-red-600 hover:underline transition"
+              >
+                Remove
+              </button>
+            </div>
 
           </div>
         ))}

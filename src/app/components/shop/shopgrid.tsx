@@ -155,68 +155,68 @@ export default function ShopPage() {
                 </span>
               </p>
 
-           {/* Quantity Control */}
-<div className="flex items-center mt-3">
-  <button
-    onClick={() =>
-      setQuantities((prev) => {
-        const step = product.unit === "kg" ? 0.5 : 1;
-        return {
-          ...prev,
-          [product.id]: Math.max(
-            (prev[product.id] || minQty) - step,
-            minQty
-          ),
-        };
-      })
-    }
-    className="px-2 py-1 bg-gray-200 rounded-l hover:bg-gray-300 transition-colors"
-  >
-    -
-  </button>
+              {/* Quantity Control */}
+              <div className="flex items-center mt-3">
+                <button
+                  onClick={() =>
+                    setQuantities((prev) => {
+                      const step = product.unit === "kg" ? 0.5 : 1;
+                      return {
+                        ...prev,
+                        [product.id]: Math.max(
+                          (prev[product.id] || minQty) - step,
+                          minQty
+                        ),
+                      };
+                    })
+                  }
+                  className="px-2 py-1 bg-gray-200 rounded-l hover:bg-gray-300 transition-colors"
+                >
+                  -
+                </button>
 
-  <input
-    type="number"
-    step={product.unit === "kg" ? 0.5 : 1}
-    min={minQty}
-    max={maxQty}
-    value={quantities[product.id] || minQty}
-    onChange={(e) =>
-      setQuantities((prev) => {
-        const step = product.unit === "kg" ? 0.5 : 1;
-        const val = parseFloat(e.target.value) || minQty;
-        // Ensure step alignment
-        const alignedVal =
-          product.unit === "kg"
-            ? Math.round(val * 2) / 2 // rounds to nearest 0.5
-            : Math.round(val); // rounds to nearest integer
-        return {
-          ...prev,
-          [product.id]: Math.min(Math.max(alignedVal, minQty), maxQty),
-        };
-      })
-    }
-    className="w-16 text-center border-t border-b border-gray-300"
-  />
+                <input
+                  type="number"
+                  step={product.unit === "kg" ? 0.5 : 1}
+                  min={minQty}
+                  max={maxQty}
+                  value={quantities[product.id] || minQty}
+                  onChange={(e) =>
+                    setQuantities((prev) => {
+                      const step = product.unit === "kg" ? 0.5 : 1;
+                      const val = parseFloat(e.target.value) || minQty;
+                      // Ensure step alignment
+                      const alignedVal =
+                        product.unit === "kg"
+                          ? Math.round(val * 2) / 2 // rounds to nearest 0.5
+                          : Math.round(val); // rounds to nearest integer
+                      return {
+                        ...prev,
+                        [product.id]: Math.min(Math.max(alignedVal, minQty), maxQty),
+                      };
+                    })
+                  }
+                  className="w-16 text-center border-t border-b border-gray-300"
+                />
 
-  <button
-    onClick={() =>
-      setQuantities((prev) => {
-        const step = product.unit === "kg" ? 0.5 : 1;
-        return {
-          ...prev,
-          [product.id]: Math.min(
-            (prev[product.id] || minQty) + step,
-            maxQty
-          ),
-        };
-      })
-    }
-    className="px-2 py-1 bg-gray-200 rounded-r hover:bg-gray-300 transition-colors"
-  >
-    +
-  </button>
-</div>
+                <button
+                  onClick={() =>
+                    setQuantities((prev) => {
+                      const step = product.unit === "kg" ? 0.5 : 1;
+                      return {
+                        ...prev,
+                        [product.id]: Math.min(
+                          (prev[product.id] || minQty) + step,
+                          maxQty
+                        ),
+                      };
+                    })
+                  }
+                  className="px-2 py-1 bg-gray-200 rounded-r hover:bg-gray-300 transition-colors"
+                >
+                  +
+                </button>
+              </div>
 
 
               {/* Add to Cart Button */}
