@@ -3,11 +3,12 @@
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { Product } from "@/app/lib/types"; // <-- yeh aapke types.ts se le rahe hain
+import { useCart } from "@/app/context/CartContext";
 
 export default function ProductGrid() {
   const [products, setProducts] = useState<Product[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-
+  const { refreshCart } = useCart();
   // ✅ API se products fetch karo
   useEffect(() => {
     async function fetchProducts() {
@@ -50,6 +51,30 @@ export default function ProductGrid() {
     });
   };
 
+  // ✅ Add to Cart API
+  const handleAddToCart = async (product: Product) => {
+    try {
+      const res = await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          quantity: quantities[product.id] || product.minQty || 1,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        await refreshCart();
+      } else {
+        alert(data.message || "Failed to add to cart");
+      }
+    } catch (error) {
+      console.error("Add to cart error:", error);
+      alert("Something went wrong");
+    }
+  };
+
   return (
     <section className="bg-[var(--background-color)] py-10 max-w-6xl mx-auto">
       <h2 className="text-center text-3xl font-bold text-[var(--text-color)] mb-8">
@@ -69,38 +94,50 @@ export default function ProductGrid() {
                 fill
                 className="object-cover"
               />
+
               {/* Popular Badge */}
-                {product.popular && (
-                  <span className="absolute top-2 right-2 bg-yellow-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md flex items-center space-x-1">
-                    <span>⭐</span>
-                    <span>Popular</span>
-                  </span>
-                )}
+              {product.popular && (
+                <span className="absolute top-2 right-2 bg-yellow-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md flex items-center space-x-1">
+                  <span>⭐</span>
+                  <span>Popular</span>
+                </span>
+              )}
 
-                {/* Grade Badge */}
-                {product.grade && (
-                  <span
-                    className={`absolute right-2 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md flex items-center space-x-1 ${product.popular ? "top-12" : "top-2"
-                      } ${product.grade === "Standard" ? "bg-gray-500" :
-                        product.grade === "Silver" ? "bg-slate-400" :
-                          product.grade === "Gold" ? "bg-yellow-400" :
-                            product.grade === "Premium" ? "bg-purple-600" :
-                              "bg-blue-500"
-                      }`}
-                  >
-                    <span>⭐</span>
-                    <span>{product.grade}</span>
-                  </span>
-                )}
-
+              {/* Grade Badge */}
+              {product.grade && (
+                <span
+                  className={`absolute right-2 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md flex items-center space-x-1 ${
+                    product.popular ? "top-12" : "top-2"
+                  } ${
+                    product.grade === "Standard"
+                      ? "bg-gray-500"
+                      : product.grade === "Silver"
+                      ? "bg-slate-400"
+                      : product.grade === "Gold"
+                      ? "bg-yellow-400"
+                      : product.grade === "Premium"
+                      ? "bg-purple-600"
+                      : "bg-blue-500"
+                  }`}
+                >
+                  <span>⭐</span>
+                  <span>{product.grade}</span>
+                </span>
+              )}
             </div>
+
             <div className="p-4">
               <h3 className="text-lg font-semibold text-[var(--text-color)] mb-1">
-                {product.name}
+                {product.name} 
+              </h3>
+              <h3 className="text-lg font-semibold text-[var(--text-color)] mb-1">
+                {product.inHindi} 
               </h3>
               <p className="text-sm text-[var(--text-light)] mb-3">
                 ${product.price} / {product.unit}
               </p>
+
+              {/* Quantity */}
               <div className="flex items-center gap-2 mb-3">
                 <button
                   className="px-2 py-1 border border-[var(--border-color)] rounded"
@@ -108,7 +145,9 @@ export default function ProductGrid() {
                 >
                   -
                 </button>
-                <span className="w-8 text-center">{quantities[product.id]}</span>
+                <span className="w-8 text-center">
+                  {quantities[product.id]}
+                </span>
                 <button
                   className="px-2 py-1 border border-[var(--border-color)] rounded"
                   onClick={() => updateQuantity(product.id, 0.5)}
@@ -116,7 +155,18 @@ export default function ProductGrid() {
                   +
                 </button>
               </div>
-              <button className="w-full bg-[var(--primary-color)] hover:bg-[var(--secondary-color)] text-white font-medium py-2 rounded transition-colors duration-200">
+
+              {/* Add to Cart Button with API + hover/click effects */}
+              <button
+                onClick={() => handleAddToCart(product)}
+                disabled={product.stockQty !== undefined && product.stockQty <= 0}
+                className={`w-full py-2 rounded font-medium transition-all duration-200 transform
+                  ${
+                    product.stockQty === undefined || product.stockQty > 0
+                      ? "bg-[var(--primary-color)] text-white hover:bg-[var(--secondary-color)] hover:scale-105 active:scale-95"
+                      : "bg-gray-400 text-white cursor-not-allowed"
+                  }`}
+              >
                 Add to Cart
               </button>
             </div>
@@ -130,7 +180,7 @@ export default function ProductGrid() {
              bg-transparent hover:bg-[var(--primary-color)] hover:text-white
              hover:border-[var(--secondary-color)]
              rounded transition-all duration-300 ease-in-out transform hover:scale-105"
-          onClick={() => window.location.href = "/shop"}
+          onClick={() => (window.location.href = "/shop")}
         >
           View All Products
         </button>

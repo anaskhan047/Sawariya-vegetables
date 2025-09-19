@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useCart } from "@/app/context/CartContext";
 
 interface ProductImage {
   url: string;
@@ -31,7 +32,7 @@ export default function ShopPage() {
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-
+const { refreshCart } = useCart();
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -71,6 +72,7 @@ export default function ShopPage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
+        await refreshCart();
       } else {
         alert(data.message || "Failed to add to cart");
       }
@@ -84,7 +86,7 @@ export default function ShopPage() {
     <section className="container mx-auto px-4 py-8">
       <h2 className="text-3xl font-bold mb-8 text-center">Our Products</h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {products.map((product) => {
           const imgUrl =
             product.images && product.images.length > 0
@@ -223,14 +225,15 @@ export default function ShopPage() {
               <button
                 onClick={() => handleAddToCart(product)}
                 disabled={product.stockQty <= 0}
-                className={`mt-4 w-full py-2 rounded text-white font-semibold transition-all duration-300 transform 
-      ${product.stockQty > 0
-                    ? "bg-green-600 hover:bg-green-700 hover:scale-105"
+                className={`mt-4 w-full py-2 rounded text-white font-semibold transition-all duration-200 transform
+    ${product.stockQty > 0
+                    ? "bg-green-600 hover:bg-green-700 hover:scale-105 active:scale-95 active:bg-green-800"
                     : "bg-gray-400 cursor-not-allowed"
                   }`}
               >
                 Add to Cart
               </button>
+
             </div>
           );
         })}

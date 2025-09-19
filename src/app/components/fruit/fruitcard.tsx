@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
+import { useCart } from "@/app/context/CartContext";
 
 type SortOrder = "newest" | "oldest" | "low-high" | "high-low";
 
@@ -20,13 +21,14 @@ interface Product {
   createdAt: string;
   minQty: number;
   maxQty: number;
+  stockQty?: number;
 }
 
 export default function FruitsPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("low-high");
   const [fruits, setFruits] = useState<Product[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-
+  const { refreshCart } = useCart();
   // ✅ Fetch fruits from API
   useEffect(() => {
     const fetchFruits = async () => {
@@ -85,10 +87,28 @@ export default function FruitsPage() {
     });
   };
 
-  // ✅ Add to Cart
-  const handleAddToCart = (fruit: Product) => {
-    const qty = quantities[fruit.id] || fruit.minQty;
-    alert(`${fruit.name} (${qty} ${fruit.unit}) added to cart!`);
+  // ✅ Add to Cart (API integration)
+  const handleAddToCart = async (fruit: Product) => {
+    try {
+      const res = await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: fruit.id,
+          quantity: quantities[fruit.id] || fruit.minQty || 1,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        await refreshCart();
+      } else {
+        alert(data.message || "Failed to add to cart");
+      }
+    } catch (error) {
+      console.error("Add to cart error:", error);
+      alert("Something went wrong");
+    }
   };
 
   return (
@@ -142,7 +162,9 @@ export default function FruitsPage() {
                 {/* Quantity Counter */}
                 <div className="flex items-center justify-center gap-3 mt-3">
                   <button
-                    onClick={() => handleQuantityChange(fruit, fruit.unit === "kg" ? -0.5 : -1)}
+                    onClick={() =>
+                      handleQuantityChange(fruit, fruit.unit === "kg" ? -0.5 : -1)
+                    }
                     className="p-2 border rounded-md hover:bg-gray-100"
                   >
                     <Minus size={18} />
@@ -151,7 +173,9 @@ export default function FruitsPage() {
                     {quantities[fruit.id] || fruit.minQty} {fruit.unit}
                   </span>
                   <button
-                    onClick={() => handleQuantityChange(fruit, fruit.unit === "kg" ? 0.5 : 1)}
+                    onClick={() =>
+                      handleQuantityChange(fruit, fruit.unit === "kg" ? 0.5 : 1)
+                    }
                     className="p-2 border rounded-md hover:bg-gray-100"
                   >
                     <Plus size={18} />
@@ -161,8 +185,13 @@ export default function FruitsPage() {
                 {/* Add to Cart */}
                 <button
                   onClick={() => handleAddToCart(fruit)}
-                  className="mt-4 px-4 py-2 bg-[var(--primary-color)] text-white rounded-md hover:opacity-90 
-                             flex items-center gap-2 mx-auto shadow-md hover:shadow-lg transition"
+                  disabled={fruit.stockQty !== undefined && fruit.stockQty <= 0}
+                  className={`mt-4 px-4 py-2 rounded-md flex items-center gap-2 mx-auto shadow-md transition transform duration-200
+                    ${
+                      fruit.stockQty === undefined || fruit.stockQty > 0
+                        ? "bg-[var(--primary-color)] text-white hover:opacity-90 hover:scale-105 active:scale-95"
+                        : "bg-gray-400 text-white cursor-not-allowed"
+                    }`}
                 >
                   <ShoppingCart size={18} /> Add to Cart
                 </button>

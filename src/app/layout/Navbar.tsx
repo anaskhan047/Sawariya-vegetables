@@ -9,7 +9,7 @@ import Swal from "sweetalert2";
 import { useAuth } from "@/app/context/AuthContext";
 import { ArrowBigDown } from "lucide-react";
 import { BiUpArrow } from "react-icons/bi";
-
+import { useCart } from "../context/CartContext";
 interface NavLink {
   name: string;
   href: string;
@@ -28,7 +28,7 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState<boolean>(false);
   const [searchValue, setSearchValue] = useState<string>("");
 
-  const [cartCount] = useState<number>(3);
+  const [cartCounts, setCartCounts] = useState<number>(0);
   const [userOpen, setUserOpen] = useState<boolean>(false);
 
   const searchRef = useRef<HTMLDivElement>(null);
@@ -36,6 +36,36 @@ export default function Navbar() {
   const router = useRouter();
   const { user, isLoading, isLoggedIn, logout, refresh } = useAuth();
   const [image, setImage] = useState<string | null>(null);
+  const { cartCount } = useCart();
+  // listen for cart update events
+  useEffect(() => {
+    async function fetchCart() {
+      if (!isLoggedIn) {
+        setCartCounts(0);
+        return;
+      }
+      try {
+        const res = await fetch("/api/cart");
+        if (res.ok) {
+          const data = await res.json();
+          setCartCounts(data.items?.length || 0);
+        }
+      } catch (err) {
+        console.error("Error fetching cart:", err);
+      }
+    }
+
+    fetchCart();
+
+    // subscribe to custom event
+    window.addEventListener("cartUpdated", fetchCart);
+
+    return () => {
+      window.removeEventListener("cartUpdated", fetchCart);
+    };
+  }, [isLoggedIn]);
+
+
 
   // Loading state while fetching user data
   const [loading, setLoading] = useState(true);
@@ -147,16 +177,25 @@ export default function Navbar() {
 
           {/* Cart */}
           <div
-            className="relative cursor-pointer"
+            className="relative cursor-pointer group"
             onClick={() => router.push("/cart")}
           >
             <FiShoppingCart className="text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]" />
-            {cartCount > 0 && (
+
+            {/* Tooltip */}
+            <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-xs bg-[var(--text-color)] text-white px-2 py-1 rounded-md shadow transition w-20">
+              Add to cart
+            </span>
+
+            {/* Cart Count (only if logged in) */}
+            {isLoggedIn && (
               <span className="absolute -top-2 -right-2 bg-[var(--primary-color)] text-white text-xs font-bold rounded-full px-2 py-0.5">
                 {cartCount}
               </span>
             )}
           </div>
+
+
 
           {/* User Dropdown */}
           <div ref={userRef} className="relative md:block">

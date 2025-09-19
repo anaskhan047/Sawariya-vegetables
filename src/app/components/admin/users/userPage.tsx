@@ -12,7 +12,6 @@ type User = {
   role: string;
   createdAt?: string;
   updatedAt?: string;
-  cartItemsCount: number;
   orders: string | number;
 };
 
@@ -138,9 +137,6 @@ export default function UsersPage() {
             </p>
             <p className="text-sm text-gray-600 mb-1">
               <strong>Role:</strong> {user.role}
-            </p>
-            <p className="text-sm text-gray-600 mb-1">
-              <strong>Cart Items:</strong> {user.cartItemsCount}
             </p>
             <p className="text-sm text-gray-600">
               <strong>Orders:</strong> {user.orders || "-"}

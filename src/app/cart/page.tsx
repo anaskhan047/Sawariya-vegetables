@@ -3,6 +3,7 @@
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
+import { useCart } from "../context/CartContext";
 
 type Product = {
   _id: string;
@@ -26,7 +27,7 @@ export default function CartPage() {
   const router = useRouter();
   const [items, setItems] = useState<CartItem[]>([]);
   const [loadingCart, setLoadingCart] = useState(false);
-
+  const { refreshCart } = useCart();
   const fetchCart = async () => {
     if (!isLoggedIn) return;
     try {
@@ -68,7 +69,10 @@ export default function CartPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ productId }),
       });
-      if (res.ok) fetchCart();
+      if (res.ok) {
+        await refreshCart();
+        fetchCart();
+      }
     } catch (err) {
       console.error(err);
       setLoadingCart(false);
@@ -219,36 +223,50 @@ export default function CartPage() {
       </div>
 
       {/* Summary */}
-      <div className="mt-6 border rounded-lg p-4 bg-white shadow-md max-w-md relative">
-        {loadingCart && (
-          <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center rounded-lg">
-            <div className="loader border-4 border-green-500 border-t-transparent rounded-full w-8 h-8 animate-spin"></div>
-          </div>
-        )}
-        <h2 className="text-lg font-semibold mb-4">Bill Details</h2>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span>Items total</span>
-            <span>₹ {priceSummary.subTotal}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Delivery</span>
-            <span>
-              {priceSummary.delivery === 0
-                ? "Free"
-                : `₹ ${priceSummary.delivery}`}
-            </span>
-          </div>
-          <div className="border-t my-2"></div>
-          <div className="flex justify-between font-semibold">
-            <span>Total</span>
-            <span>₹ {priceSummary.total}</span>
-          </div>
-        </div>
-        <button className="mt-4 w-full rounded-lg bg-green-600 py-2 text-white hover:bg-green-700 transition">
-          Proceed to Checkout
-        </button>
-      </div>
+<div className="mt-6 border rounded-lg p-4 bg-white shadow-md max-w-md relative">
+  {loadingCart && (
+    <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center rounded-lg">
+      <div className="loader border-4 border-green-500 border-t-transparent rounded-full w-8 h-8 animate-spin"></div>
+    </div>
+  )}
+  <h2 className="text-lg font-semibold mb-4">Bill Details</h2>
+  <div className="space-y-2 text-sm">
+    <div className="flex justify-between">
+      <span>Items total</span>
+      <span>₹ {priceSummary.subTotal}</span>
+    </div>
+    <div className="flex justify-between">
+      <span>Delivery</span>
+      <span>
+        {priceSummary.delivery === 0 ? "Free" : `₹ ${priceSummary.delivery}`}
+      </span>
+    </div>
+    <div className="border-t my-2"></div>
+    <div className="flex justify-between font-semibold">
+      <span>Total</span>
+      <span>₹ {priceSummary.total}</span>
+    </div>
+  </div>
+
+  {/* ✅ Minimum Order Restriction */}
+  {priceSummary.subTotal < 50 ? (
+    <p className="mt-3 text-sm text-red-600 font-medium text-center">
+      Add ₹{50 - priceSummary.subTotal} more to checkout 🚀
+    </p>
+  ) : null}
+
+  <button
+    disabled={priceSummary.subTotal < 50}
+    className={`mt-4 w-full rounded-lg py-2 transition ${
+      priceSummary.subTotal < 50
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-green-600 text-white hover:bg-green-700"
+    }`}
+  >
+    Proceed to Checkout
+  </button>
+</div>
+
 
       {/* Loader CSS */}
       <style jsx>{`
