@@ -6,14 +6,23 @@ import { Autoplay, EffectFade } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/effect-fade";
 import gsap from "gsap";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Slide item interface
 interface SlideItem {
   url: string;
 }
 
+interface Area {
+  _id: string;
+  name: string;
+  pincode: string;
+}
+
 export default function HeroSection() {
   const [slides, setSlides] = useState<SlideItem[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [showAreas, setShowAreas] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   // Load slides (local + API)
@@ -32,6 +41,20 @@ export default function HeroSection() {
       }
     };
     fetchHeroImages();
+  }, []);
+
+  // Load delivery areas
+  useEffect(() => {
+    const fetchAreas = async () => {
+      try {
+        const res = await fetch("/api/delivery-area");
+        const data = await res.json();
+        if (res.ok) setAreas(data);
+      } catch (err) {
+        console.error("Failed to fetch delivery areas", err);
+      }
+    };
+    fetchAreas();
   }, []);
 
   // GSAP animation for content
@@ -55,8 +78,6 @@ export default function HeroSection() {
     slidesPerGroup: 1,
     loop: slides.length > 1,
     fadeEffect: { crossFade: true },
-    // arrows: true,
-    // pauseOnHover: false,
   };
 
   return (
@@ -93,13 +114,49 @@ export default function HeroSection() {
         <p className="text-lg md:text-xl mb-6">
           Fresh vegetables and fruits delivered directly from the farm.
         </p>
-        <div className="flex flex-wrap justify-center gap-4">
+        <div className="flex flex-col items-center gap-4 relative">
           <button className="bg-[var(--primary-color)] hover:bg-[var(--primary-hover)] text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition">
             Shop Now
           </button>
-          <button className="bg-white hover:bg-gray-100 text-[var(--primary-color)] font-semibold py-3 px-6 rounded-lg shadow-lg transition">
-            Check Delivery Area
-          </button>
+          <div className="relative w-full">
+            <button
+              onClick={() => setShowAreas(!showAreas)}
+              className="bg-white hover:bg-gray-100 text-[var(--primary-color)] font-semibold py-3 px-6 rounded-lg shadow-lg transition w-full"
+            >
+              {showAreas ? "Hide Delivery Areas" : "Check Delivery Area"}
+            </button>
+
+            <AnimatePresence>
+              {showAreas && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute top-full mt-2 w-full bg-white rounded-lg shadow-lg p-4 text-gray-800 h-40 overflow-y-auto z-50"
+                >
+                  <h3 className="font-semibold mb-2 text-[var(--primary-color)]">
+                    Available Areas
+                  </h3>
+                  {areas.length > 0 ? (
+                    <ul className="space-y-2 text-left">
+                      {areas.map((area) => (
+                        <li
+                          key={area._id}
+                          className="px-3 py-2 border-b last:border-none text-sm"
+                        >
+                          {area.name}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-500">No areas available.</p>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+          </div>
         </div>
       </div>
     </section>

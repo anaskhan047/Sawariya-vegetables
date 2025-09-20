@@ -1,20 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+type Area = {
+  _id: string;
+  name: string;
+  pincode: string;
+};
 
 export default function DeliveryAreasPage() {
-  const [areas, setAreas] = useState<string[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
   const [newArea, setNewArea] = useState("");
+  const [newPincode, setNewPincode] = useState("");
 
-  const addArea = () => {
-    if (!newArea.trim()) return;
-    if (areas.includes(newArea.trim())) return; // Prevent duplicates
-    setAreas([...areas, newArea.trim()]);
-    setNewArea("");
+  // 🔹 Fetch Areas from API
+  const fetchAreas = async () => {
+    try {
+      const res = await fetch("/api/delivery-area");
+      const data = await res.json();
+      if (res.ok) setAreas(data);
+    } catch (err) {
+      console.error("Failed to fetch areas", err);
+    }
   };
 
-  const deleteArea = (name: string) => {
-    setAreas(areas.filter((a) => a !== name));
+  useEffect(() => {
+    fetchAreas();
+  }, []);
+
+  // 🔹 Add Area
+  const addArea = async () => {
+    if (!newArea.trim() || !newPincode.trim()) return;
+
+    try {
+      const res = await fetch("/api/delivery-area", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newArea.trim(), pincode: newPincode.trim() }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setAreas([...areas, data.area]);
+        setNewArea("");
+        setNewPincode("");
+      } else {
+        alert(data.message || "Failed to add area");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 🔹 Delete Area
+  const deleteArea = async (id: string) => {
+    try {
+      const res = await fetch(`/api/delivery-area?id=${id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setAreas(areas.filter((a) => a._id !== id));
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
@@ -43,6 +93,17 @@ export default function DeliveryAreasPage() {
               color: "var(--text-color)",
             }}
           />
+          <input
+            type="text"
+            value={newPincode}
+            onChange={(e) => setNewPincode(e.target.value)}
+            placeholder="Enter pincode"
+            className="flex-1 px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 text-sm"
+            style={{
+              borderColor: "var(--border-color)",
+              color: "var(--text-color)",
+            }}
+          />
           <button
             onClick={addArea}
             className="px-5 py-2 rounded-lg text-white text-sm font-medium"
@@ -61,20 +122,22 @@ export default function DeliveryAreasPage() {
                 style={{ color: "var(--text-light)" }}
               >
                 <th className="p-3">Area Name</th>
+                <th className="p-3">Pincode</th>
                 <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {areas.map((a, i) => (
+              {areas.map((a) => (
                 <tr
-                  key={i}
+                  key={a._id}
                   className="border-t"
                   style={{ borderColor: "var(--border-color)" }}
                 >
-                  <td className="p-3">{a}</td>
+                  <td className="p-3">{a.name}</td>
+                  <td className="p-3">{a.pincode}</td>
                   <td className="p-3 text-right">
                     <button
-                      onClick={() => deleteArea(a)}
+                      onClick={() => deleteArea(a._id)}
                       className="px-3 py-1.5 rounded-lg text-white text-sm"
                       style={{ backgroundColor: "var(--secondary-color)" }}
                     >
@@ -86,7 +149,7 @@ export default function DeliveryAreasPage() {
               {areas.length === 0 && (
                 <tr>
                   <td
-                    colSpan={2}
+                    colSpan={3}
                     className="p-6 text-center text-sm"
                     style={{ color: "var(--text-light)" }}
                   >
@@ -100,15 +163,17 @@ export default function DeliveryAreasPage() {
 
         {/* Card View (mobile) */}
         <div className="grid gap-4 md:hidden">
-          {areas.map((a, i) => (
+          {areas.map((a) => (
             <div
-              key={i}
+              key={a._id}
               className="border rounded-lg p-4 bg-white flex justify-between items-center"
               style={{ borderColor: "var(--border-color)" }}
             >
-              <span className="font-medium">{a}</span>
+              <span className="font-medium">
+                {a.name} ({a.pincode})
+              </span>
               <button
-                onClick={() => deleteArea(a)}
+                onClick={() => deleteArea(a._id)}
                 className="px-3 py-1.5 rounded-lg text-white text-sm"
                 style={{ backgroundColor: "var(--secondary-color)" }}
               >

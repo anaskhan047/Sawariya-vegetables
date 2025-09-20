@@ -1,89 +1,199 @@
-"use client";
+'use client';
+import { useEffect, useState } from "react";
+import Swal from "sweetalert2";
+import 'sweetalert2/dist/sweetalert2.min.css';
 
-import React from "react";
-
-interface Order {
-  id: string;
-  date: string;
-  status: "Pending" | "Processing" | "Delivered" | "Cancelled";
-  total: number;
-  items: number;
-}
-
-const orders: Order[] = [
-  { id: "ORD123456", date: "30 Aug 2025", status: "Delivered", total: 190, items: 3 },
-  { id: "ORD123457", date: "25 Aug 2025", status: "Processing", total: 250, items: 4 },
-  { id: "ORD123458", date: "20 Aug 2025", status: "Pending", total: 120, items: 2 },
-  { id: "ORD123459", date: "15 Aug 2025", status: "Cancelled", total: 80, items: 1 },
+const ORDER_STATUSES = [
+  { key: "placed", label: "Placed", color: "bg-gray-400" },
+  { key: "packed", label: "Packed", color: "bg-yellow-400" },
+  { key: "in_transit", label: "In Transit", color: "bg-blue-400" },
+  { key: "delivered", label: "Delivered", color: "bg-green-500" },
+  { key: "cancelled", label: "Cancelled", color: "bg-red-500" },
+  { key: "refunded", label: "Refunded", color: "bg-purple-500" },
 ];
 
-export default function UserOrderList() {
-  const userName = "Rahul Sharma";
+type OrderStatus = typeof ORDER_STATUSES[number]['key'];
 
-  const getStatusColor = (status: Order["status"]) => {
-    switch (status) {
-      case "Delivered":
-        return "bg-green-100 text-green-700 border-green-300";
-      case "Processing":
-        return "bg-yellow-100 text-yellow-700 border-yellow-300";
-      case "Pending":
-        return "bg-blue-100 text-blue-700 border-blue-300";
-      case "Cancelled":
-        return "bg-red-100 text-red-700 border-red-300";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-300";
-    }
+type Order = {
+  _id: string;
+  user: string;
+  items: { name: string; quantity: number; price: number; unit: string; inHindi: string }[];
+  address: {
+    name: string;
+    phone: string;
+    address: string;
+    area: string | { name: string; pincode: string };
+    inHindi: string;
   };
+  subTotal: number;
+  deliveryCharge: number;
+  total: number;
+  status: OrderStatus;
+  paymentMethod: "online" | "cod" | "upi";
+  paymentStatus: string;
+  createdAt: string;
+  otp?: string;
+  otpExpiresAt?: string;
+};
+
+function getOrderTimelineHtml(order: Order) {
+  const statusIdx = ORDER_STATUSES.findIndex(s => s.key === order.status);
+  return `
+    <div class="flex flex-col gap-4 py-2">
+      ${ORDER_STATUSES.map((s, idx) => `
+        <div class="flex items-center gap-3">
+          <div class="flex items-center justify-center h-5 w-5 rounded-full ${idx <= statusIdx ? s.color : 'bg-gray-200'}">
+            ${idx <= statusIdx ? `
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <circle cx="7" cy="7" r="5" fill="white" />
+              </svg>
+            ` : ``}
+          </div>
+          <div class="text-sm ${idx <= statusIdx ? 'font-bold text-black' : 'text-gray-400'}">${s.label}</div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+export default function UserOrderList() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    fetch("/api/orders", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (data.success) {
+          setOrders(data.orders || []);
+        }
+      })
+      .catch((err) => console.error("❌ Fetch Error:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center">
+        <p className="text-gray-600">Loading your orders...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[var(--background-color)] p-6 flex justify-center">
-      <div className="w-full max-w-6xl bg-white rounded-2xl shadow-lg border border-[var(--border-color)] p-6">
-        
-        {/* Header */}
-        <div className="border-b pb-4 mb-6">
-          <h1 className="text-2xl font-bold text-[var(--primary-color)]">
-            {userName} - Recent Orders
-          </h1>
-          <p className="text-[var(--text-light)] mt-1">
-            Here is a list of all recent orders placed by the user.
-          </p>
-        </div>
+    <div className="min-h-screen p-2 md:p-6 flex justify-center bg-gray-50">
+      <div className="w-full max-w-6xl bg-white rounded-2xl shadow-lg p-2 md:p-6">
+        <h1 className="text-2xl font-bold mb-4">📦 My Orders</h1>
 
-        {/* TABLE for large screens */}
+        {orders.length === 0 && <p>No orders yet</p>}
+
+        {/* Table for Desktop, Cards for Mobile */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full border border-[var(--border-color)] rounded-xl overflow-hidden">
-            <thead className="bg-[var(--primary-color)] text-white">
-              <tr>
-                <th className="text-left py-3 px-4">Order ID</th>
-                <th className="text-left py-3 px-4">Date</th>
-                <th className="text-left py-3 px-4">Items</th>
-                <th className="text-left py-3 px-4">Total (₹)</th>
-                <th className="text-left py-3 px-4">Status</th>
-                <th className="text-left py-3 px-4">Action</th>
+          <table className="min-w-full border-separate border-spacing-y-2 text-sm md:text-base">
+            <thead>
+              <tr className="bg-green-600 text-white">
+                <th className="px-4 py-2 text-left">Customer</th>
+                <th className="px-4 py-2 text-left">Items</th>
+                <th className="px-4 py-2 text-left">Total</th>
+                <th className="px-4 py-2 text-left">Status</th>
+                <th className="px-4 py-2 text-left">Payment</th>
+                <th className="px-4 py-2 text-left">Address</th>
+                <th className="px-4 py-2 text-left">Area</th>
+                <th className="px-4 py-2 text-left">OTP</th>
+                <th className="px-4 py-2 text-left">Action</th>
               </tr>
             </thead>
             <tbody>
               {orders.map((order) => (
-                <tr
-                  key={order.id}
-                  className="border-b border-[var(--border-color)] hover:bg-gray-50 transition-colors"
-                >
-                  <td className="py-3 px-4 font-medium text-[var(--text-color)]">{order.id}</td>
-                  <td className="py-3 px-4 text-[var(--text-light)]">{order.date}</td>
-                  <td className="py-3 px-4 text-[var(--text-light)]">{order.items}</td>
-                  <td className="py-3 px-4 text-[var(--primary-color)] font-semibold">₹{order.total}</td>
-                  <td className="py-3 px-4">
-                    <span
-                      className={`px-3 py-1 rounded-full border text-sm font-medium ${getStatusColor(
-                        order.status
-                      )}`}
-                    >
+                <tr key={order._id} className="bg-white border rounded-xl hover:bg-gray-50 transition">
+                  <td className="px-4 py-2"><div className="font-medium">{order.address.name}</div><div className="text-xs text-gray-500">📞 {order.address.phone}</div></td>
+                  <td className="px-4 py-2 text-gray-600">
+                    {order.items.map((i, idx) => (
+                      <div key={idx}>{i.name}{i.inHindi ? ` / ${i.inHindi}` : ""} ({i.quantity} {i.unit}) – ₹{i.price}</div>
+                    ))}
+                  </td>
+                  <td className="px-4 py-2 font-medium">₹ {order.total}</td>
+                  <td className="px-4 py-2">
+                    <span className={`
+                      rounded-full px-3 py-1 text-xs
+                      ${order.status === "delivered"
+                        ? "bg-green-100 text-green-700"
+                        : order.status === "packed"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : order.status === "placed"
+                            ? "bg-gray-100 text-gray-700"
+                            : order.status === "in_transit"
+                              ? "bg-blue-100 text-blue-700"
+                              : order.status === "cancelled"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-purple-100 text-purple-700"
+                      }`
+                    }>
                       {order.status}
                     </span>
                   </td>
-                  <td className="py-3 px-4">
-                    <button className="text-sm px-4 py-1 rounded-lg bg-[var(--accent-color)] text-black hover:scale-105 transition">
-                      View
+                  <td className="px-4 py-2">
+                    {order.paymentMethod === "online" ? (
+                      <span className="rounded-full bg-indigo-100 text-indigo-700 px-3 py-1 text-xs">Online</span>
+                    ) : order.paymentMethod === "upi" ? (
+                      <span className="rounded-full bg-purple-100 text-purple-700 px-3 py-1 text-xs">UPI</span>
+                    ) : (
+                      <span className="rounded-full bg-orange-100 text-orange-700 px-3 py-1 text-xs">COD</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">{order.address.address}</td>
+                  <td className="px-4 py-2">
+                    {typeof order.address.area === "object"
+                      ? `${order.address.area.name} (${order.address.area.pincode})`
+                      : order.address.area || "- -"}
+                  </td>
+                  <td className="px-4 py-2">
+                    {order.otp ? (
+                      <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded font-mono">{order.otp}</span>
+                    ) : "- -"}
+                    {order.otpExpiresAt && (
+                      <div className="text-xs text-gray-400">
+                        Exp: {new Date(order.otpExpiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    <button
+                      className="text-white bg-blue-500 hover:bg-blue-700 rounded px-3 py-1"
+                      onClick={() => {
+                        Swal.fire({
+                          title: 'Order Details',
+                          html: `
+                            ${getOrderTimelineHtml(order)}
+                            <div class="mt-4 text-left capitalize">
+                              <b>Name:</b> ${order.address.name} <br/>
+                              <b>Phone:</b> ${order.address.phone} <br/>
+                              <b>Address:</b> ${order.address.address} <br/>
+                              <b>Area:</b> ${typeof order.address.area === "object"
+                                ? `${order.address.area.name} (${order.address.area.pincode})`
+                                : order.address.area || "- -"} <br/>
+                              <b>Product(s):</b> ${order.items.map((i) =>
+                                `${i.name} ${i.inHindi ? `/ ${i.inHindi}` : ""} (${i.quantity} ${i.unit}) - ₹${i.price}`
+                              ).join(", ")} <br/>
+                              <b>Total:</b> ₹${order.total} <br/>
+                              <b>Payment:</b> ${order.paymentMethod.toUpperCase()}<br/>
+                              <b>Status:</b> ${order.status}<br/>
+                              <b>Placed at:</b> ${new Date(order.createdAt).toLocaleString()}<br/>
+                            </div>
+                          `,
+                          showCloseButton: true,
+                          confirmButtonText: "Close",
+                          width: 400,
+                          customClass: { popup: 'swal2-rounded' },
+                        });
+                      }}
+                    >
+                      Details
                     </button>
                   </td>
                 </tr>
@@ -92,35 +202,93 @@ export default function UserOrderList() {
           </table>
         </div>
 
-        {/* CARD/GRID for small screens */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
+        {/* Cards for Mobile */}
+        <div className="md:hidden flex flex-col gap-4">
           {orders.map((order) => (
-            <div
-              key={order.id}
-              className="border border-[var(--border-color)] rounded-xl p-4 shadow-sm hover:shadow-md hover:scale-[1.01] transition bg-white"
-            >
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-lg font-semibold text-[var(--text-color)]">{order.id}</h2>
-                <span
-                  className={`px-2 py-1 rounded-full border text-xs font-medium ${getStatusColor(
-                    order.status
-                  )}`}
-                >
+            <div key={order._id} className="rounded-xl shadow border bg-white px-4 py-3">
+              <div className="font-bold text-lg mb-1">{order.address.name}</div>
+              <div className="text-sm text-gray-500 mb-1">📞 {order.address.phone}</div>
+              <div className="mb-2">
+                <span className="font-medium">Address: </span>{order.address.address}
+              </div>
+              <div className="mb-2">
+                <span className="font-medium">Area: </span>
+                {typeof order.address.area === "object"
+                  ? `${order.address.area.name} (${order.address.area.pincode})`
+                  : order.address.area || "- -"}
+              </div>
+              <div className="mb-2">
+                <span className="font-medium">Products: </span>
+                <ul className="list-disc pl-4">
+                  {order.items.map((i, idx) => (
+                    <li key={idx}>{i.name}{i.inHindi ? ` / ${i.inHindi}` : ""} ({i.quantity} {i.unit}) – ₹{i.price}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mb-2">
+                <span className="font-medium">Total: </span>₹ {order.total}
+              </div>
+              <div className="mb-2">
+                <span className="font-medium ">OTP: </span >₹  <span className="bg-yellow-100 text-yellow-700 px-2">{order.otp}</span>
+              </div>
+              <div className="mb-2">
+                <span className="font-medium">Payment: </span>
+                {order.paymentMethod === "online" ? "Online" : order.paymentMethod === "upi" ? "UPI" : "COD"}
+              </div>
+              <div className="mb-2">
+                <span className="font-medium">Status: </span>
+                <span className={`rounded-full px-3 py-1 text-xs ${order.status === "delivered"
+                  ? "bg-green-100 text-green-700"
+                  : order.status === "packed"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : order.status === "placed"
+                      ? "bg-gray-100 text-gray-700"
+                      : order.status === "in_transit"
+                        ? "bg-blue-100 text-blue-700"
+                        : order.status === "cancelled"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-purple-100 text-purple-700"
+                }`}>
                   {order.status}
                 </span>
               </div>
-              <p className="text-sm text-[var(--text-light)]">📅 {order.date}</p>
-              <p className="text-sm text-[var(--text-light)]">🛒 Items: {order.items}</p>
-              <p className="text-base font-semibold text-[var(--primary-color)] mt-2">
-                ₹{order.total}
-              </p>
-              <button className="mt-3 w-full py-2 rounded-lg bg-[var(--accent-color)] text-black font-medium hover:scale-105 transition">
-                View Details
-              </button>
+              <div className="flex justify-end mt-2">
+                <button
+                  className="text-white bg-blue-500 hover:bg-blue-700 rounded px-3 py-1"
+                  onClick={() => {
+                    Swal.fire({
+                      title: 'Order Details',
+                      html: `
+                        ${getOrderTimelineHtml(order)}
+                        <div class="mt-4 text-left capitalize">
+                          <b>Name:</b> ${order.address.name} <br/>
+                          <b>Phone:</b> ${order.address.phone} <br/>
+                          <b>Address:</b> ${order.address.address} <br/>
+                          <b>Area:</b> ${typeof order.address.area === "object"
+                            ? `${order.address.area.name} (${order.address.area.pincode})`
+                            : order.address.area || "- -"} <br/>
+                          <b>Product(s):</b> ${order.items.map((i) =>
+                            `${i.name} ${i.inHindi ? `/ ${i.inHindi}` : ""} (${i.quantity} ${i.unit}) - ₹${i.price}`
+                          ).join(", ")} <br/>
+                          <b>Total:</b> ₹${order.total} <br/>
+                          <b>Payment:</b> ${order.paymentMethod.toUpperCase()}<br/>
+                          <b>Status:</b> ${order.status}<br/>
+                          <b>Placed at:</b> ${new Date(order.createdAt).toLocaleString()}<br/>
+                        </div>
+                      `,
+                      showCloseButton: true,
+                      confirmButtonText: "Close",
+                      width: 400,
+                      customClass: { popup: 'swal2-rounded' },
+                    });
+                  }}
+                >
+                  Details
+                </button>
+              </div>
             </div>
           ))}
         </div>
-
       </div>
     </div>
   );

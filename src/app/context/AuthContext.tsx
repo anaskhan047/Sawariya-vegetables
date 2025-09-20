@@ -1,12 +1,20 @@
-'use client';
-import { useRouter } from "next/navigation";
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+"use client";
 
-// 👇 Define your User type here (customize fields as per your backend response)
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
+import { useRouter } from "next/navigation";
+
 interface User {
-  id: string;
-  name: string;
-  email: string;
+  id?: string;
+  _id?: string;
+  name?: string;
+  email?: string;
   role?: string;
 }
 
@@ -18,64 +26,105 @@ interface AuthContextType {
   setUserDirect: (user: User | null) => void;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
-  token: string | null
+  token: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
+
   const [user, setUser] = useState<User | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
-  const router = useRouter();
+
+  /* 🔹 Load token from localStorage on mount */
   useEffect(() => {
-  const savedToken = localStorage.getItem("token");
-  console.log("Loaded token:", savedToken);  // ✅ check karo
-  if (savedToken) setToken(savedToken);
-  refresh();
-}, []);
-  const login = async (email: string, password: string) => {
-  const res = await fetch("/api/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
+    const savedToken =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (savedToken) {
+      console.log("🔑 Loaded token from storage:", savedToken);
+      setToken(savedToken);
+    }
+    refresh();
+  }, []);
 
-  const data = await res.json();
+  /* 🔹 Login */
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-  if (res.ok && data.token) {
-    setToken(data.token);
-    localStorage.setItem("token", data.token);
-    await refresh();
-
-    // ✅ Login ke baad profile/home par bhejo
-    router.push("/shop"); 
-  } else {
-    throw new Error(data.error || "Login failed");
-  }
-};
-
-  const setUserDirect = (user: User | null) => {
-    setUser(user);
-    setIsLoggedIn(!!user);
-  };
-
-  const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setUser(null);
-    setIsLoggedIn(false);
-    setToken(null);
-    localStorage.removeItem("token");  // ✅ clear
-  };
-
-  const refresh = async () => {
-    try {
-      
-      const res = await fetch("/api/auth/me");
       const data = await res.json();
 
-      if (data.loggedIn) {
+      if (res.ok && data?.token) {
+        // ✅ Token save to localStorage
+        localStorage.setItem("token", data.token);
+        setToken(data.token);
+
+        console.log("✅ Token saved in localStorage:", data.token);
+
+        await refresh();
+        router.push("/shop");
+      } else {
+        throw new Error(data?.error || "Login failed");
+      }
+    },
+    [router]
+  );
+
+  /* 🔹 Logout */
+  const logout = useCallback(async () => {
+    try {
+      const storedToken = localStorage.getItem("token");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (storedToken) headers.Authorization = `Bearer ${storedToken}`;
+
+      await fetch("/api/auth/logout", { method: "POST", headers });
+    } catch (err) {
+      console.warn("Logout request failed:", err);
+    } finally {
+      localStorage.removeItem("token");
+      setToken(null);
+      setUser(null);
+      setIsLoggedIn(false);
+      router.push("/login");
+    }
+  }, [router]);
+
+  /* 🔹 Refresh user from token */
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const storedToken =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+      if (!storedToken) {
+        setUser(null);
+        setIsLoggedIn(false);
+        return;
+      }
+
+      setToken(storedToken);
+
+      const res = await fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      });
+
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        setToken(null);
+        setUser(null);
+        setIsLoggedIn(false);
+        return;
+      }
+
+      const data = await res.json();
+      if (res.ok && data?.user) {
         setUser(data.user as User);
         setIsLoggedIn(true);
       } else {
@@ -83,21 +132,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoggedIn(false);
       }
     } catch (err) {
+      console.error("❌ Refresh error:", err);
       setUser(null);
       setIsLoggedIn(false);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  // 👇 Run refresh on mount
-  useEffect(() => {
-    refresh();
+  const setUserDirect = useCallback((u: User | null) => {
+    setUser(u);
+    setIsLoggedIn(!!u);
   }, []);
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, isLoggedIn, login, setUserDirect, logout, refresh, token }}
+      value={{
+        user,
+        isLoading,
+        isLoggedIn,
+        login,
+        setUserDirect,
+        logout,
+        refresh,
+        token,
+      }}
     >
       {children}
     </AuthContext.Provider>
@@ -105,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within AuthProvider");
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }

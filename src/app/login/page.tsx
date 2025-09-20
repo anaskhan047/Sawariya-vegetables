@@ -43,8 +43,10 @@ export default function Auth() {
         credentials: "include",
         body: JSON.stringify(body),
       });
-
+      
       const data = await res.json();
+      console.log(data.token)
+      localStorage.setItem("token", data.token);
 
       if (!res.ok) {
         setError(data.error || "Something went wrong");
