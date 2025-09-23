@@ -3,7 +3,7 @@ import dbConnect from "@/app/lib/mongodb";
 import Orders from "@/app/models/Orders";
 import User from "@/app/models/User";
 import jwt from "jsonwebtoken";
-import "@/app/models/DeliveryArea"; 
+import "@/app/models/DeliveryArea";
 async function getUserFromReq(req: Request) {
   try {
     const authHeader = req.headers.get("authorization") || "";
@@ -90,6 +90,19 @@ export async function PATCH(req: Request) {
     await order.save();
     return NextResponse.json({ success: true, order });
   }
+  if (body.utr) {
+    order.upiTxnInfo = {
+      ...(order.upiTxnInfo || {}),
+      txnRef: body.utr,     // ✅ UTR entered by user
+      paidTo: body.upiId,   // ✅ kaunsa UPI ID select hua
+      userClaimed: true,
+      claimedAt: new Date(),
+    };
+    order.paymentStatus = "pending";
+    await order.save();
+    return NextResponse.json({ success: true, order });
+  }
+
 
   return NextResponse.json({ success: false, message: "Unknown action" }, { status: 400 });
 }

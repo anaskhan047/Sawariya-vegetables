@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import Swal from "sweetalert2";
 import Image from "next/image";
-
+import QRCode from "qrcode";
 type Product = {
   _id: string;
   id: string;
@@ -40,10 +40,10 @@ type UserResponse = {
 };
 
 const UPI_IDS = [
-  process.env.NEXT_PUBLIC_UPI_1 || "user1@upi",
-  process.env.NEXT_PUBLIC_UPI_2 || "user2@upi",
-  process.env.NEXT_PUBLIC_UPI_3 || "user3@upi",
-  process.env.NEXT_PUBLIC_UPI_4 || "user4@upi",
+  process.env.NEXT_PUBLIC_UPI_1 || "9301893055@ybl",
+  process.env.NEXT_PUBLIC_UPI_2 || "7489988065@ibl",
+  process.env.NEXT_PUBLIC_UPI_3 || "7869600155@ybl",
+  process.env.NEXT_PUBLIC_UPI_4 || "9893404617@ybl",
 ];
 
 export default function CartPage() {
@@ -143,88 +143,125 @@ export default function CartPage() {
   }, []);
 
   // ✅ Checkout Flow
-  const handleCheckout = async () => {
-    if (priceSummary.subTotal < 50) return;
+  // ✅ Checkout Flow
+const handleCheckout = async () => {
+  if (priceSummary.subTotal < 50) return;
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      return Swal.fire("Error", "Please login again!", "error");
-    }
+  const token = localStorage.getItem("token");
+  if (!token) {
+    return Swal.fire("Error", "Please login again!", "error");
+  }
 
-    try {
-      // Confirm order
-      const confirm = await Swal.fire({
-        title: "Confirm Your Order",
-        html: `<p><b>Total:</b> ₹${priceSummary.total}</p><p>Are you sure?</p>`,
-        showCancelButton: true,
-        confirmButtonText: "Yes, Proceed",
-      });
-      if (!confirm.isConfirmed) return;
+  try {
+    // Confirm order
+    const confirm = await Swal.fire({
+      title: "Confirm Your Order",
+      html: `<p><b>Total:</b> ₹${priceSummary.total}</p><p>Are you sure?</p>`,
+      showCancelButton: true,
+      confirmButtonText: "Yes, Proceed",
+    });
+    if (!confirm.isConfirmed) return;
 
-      // ✅ Fetch logged-in user
-      const resUser = await fetch("/api/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const userData: UserResponse = await resUser.json();
-      if (!resUser.ok) throw new Error("Please login again!");
+    // ✅ Fetch logged-in user
+    const resUser = await fetch("/api/auth/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const userData: UserResponse = await resUser.json();
+    if (!resUser.ok) throw new Error("Please login again!");
 
-      // ✅ Get Address
-      const { value: addressForm } = await Swal.fire({
-        title: "Enter Delivery Details",
-        html: `
-          <input id="swalName" class="swal2-input" placeholder="Name" value="${
-            userData.user?.name || ""
-          }" />
-          <input id="swalPhone" class="swal2-input" placeholder="Phone" value="${
-            userData.user?.phone || ""
-          }" />
-          <input id="swalAddress" class="swal2-input" placeholder="House No, Street" value="${
-            userData.user?.address || ""
-          }" />
-          <select id="swalArea" class="swal2-input">
-            <option value="">Select Delivery Area</option>
-            ${areas
-              .map((a) => `<option value="${a._id}">${a.name} - ${a.pincode}</option>`)
-              .join("")}
-          </select>
-        `,
-        focusConfirm: false,
-        preConfirm: () => ({
-          name: (document.getElementById("swalName") as HTMLInputElement)?.value,
-          phone: (document.getElementById("swalPhone") as HTMLInputElement)?.value,
-          address: (document.getElementById("swalAddress") as HTMLInputElement)?.value,
-          area: (document.getElementById("swalArea") as HTMLSelectElement)?.value,
-        }),
-      });
+    // ✅ Get Address
+    const { value: addressForm } = await Swal.fire({
+      title: "Enter Delivery Details",
+      html: `
+        <input id="swalName" class="swal2-input" placeholder="Name" value="${userData.user?.name || ""}" />
+        <input id="swalPhone" class="swal2-input" placeholder="Phone" value="${userData.user?.phone || ""}" />
+        <input id="swalAddress" class="swal2-input" placeholder="House No, Street" value="${userData.user?.address || ""}" />
+        <select id="swalArea" class="swal2-input">
+          <option value="">Select Delivery Area</option>
+          ${areas.map((a) => `<option value="${a._id}">${a.name} - ${a.pincode}</option>`).join("")}
+        </select>
+      `,
+      focusConfirm: false,
+      preConfirm: () => ({
+        name: (document.getElementById("swalName") as HTMLInputElement)?.value,
+        phone: (document.getElementById("swalPhone") as HTMLInputElement)?.value,
+        address: (document.getElementById("swalAddress") as HTMLInputElement)?.value,
+        area: (document.getElementById("swalArea") as HTMLSelectElement)?.value,
+      }),
+    });
 
-      if (!addressForm || !addressForm.area)
-        return Swal.fire("Error", "Please select delivery area.", "error");
+    if (!addressForm || !addressForm.area)
+      return Swal.fire("Error", "Please select delivery area.", "error");
 
-      // ✅ Payment Method
-      const { value: paymentMethod } = await Swal.fire({
-        title: "Select Payment Method",
-        input: "radio",
-        inputOptions: { cod: "Cash on Delivery", upi: "UPI (QR + Apps)" },
-        inputValidator: (v) => (!v ? "Select one option" : undefined),
-      });
-      if (!paymentMethod) return;
+    // ✅ Payment Method
+    const { value: paymentMethod } = await Swal.fire({
+      title: "Select Payment Method",
+      input: "radio",
+      inputOptions: { cod: "Cash on Delivery", upi: "UPI (QR + Apps)" },
+      inputValidator: (v) => (!v ? "Select one option" : undefined),
+    });
+    if (!paymentMethod) return;
 
-      // ✅ Prepare order items
-      const orderItems = items.map((it) => ({
-        productId: it.productId._id,
-        name: it.productId.name,
-        inHindi: it.productId.inHindi || "",
-        price: it.productId.price,
-        quantity: it.quantity,
-        unit: it.productId.unit,
-      }));
+    // ✅ Prepare order items
+    const orderItems = items.map((it) => ({
+      productId: it.productId._id,
+      name: it.productId.name,
+      inHindi: it.productId.inHindi || "",
+      price: it.productId.price,
+      quantity: it.quantity,
+      unit: it.productId.unit,
+    }));
 
+    if (paymentMethod === "upi") {
       const chosenUpiId =
-        paymentMethod === "upi"
-          ? UPI_IDS[Math.floor(Math.random() * UPI_IDS.length)]
-          : null;
+        UPI_IDS[Math.floor(Math.random() * UPI_IDS.length)];
 
-      // ✅ Send Order API
+      // build UPI URL (client side)
+      const upiUrl = `upi://pay?pa=${chosenUpiId}&am=${priceSummary.total}&cu=INR&tn=Order`;
+
+      // Show QR + apps + UTR input
+      const result = await Swal.fire({
+        title: "UPI Payment",
+        html: `
+          <p>Pay ₹${priceSummary.total} using any UPI app:</p>
+          <div style="display:flex; justify-content:center; margin:12px 0;">
+            <canvas id="swal-qr-canvas"></canvas>
+          </div>
+          <div class="flex justify-center gap-4 mt-2">
+            <a href="${upiUrl}" target="_blank" class="px-3 py-1 bg-green-500 text-white rounded">Google Pay</a>
+            <a href="${upiUrl}" target="_blank" class="px-3 py-1 bg-purple-600 text-white rounded">PhonePe</a>
+            <a href="${upiUrl}" target="_blank" class="px-3 py-1 bg-blue-600 text-white rounded">Paytm</a>
+          </div>
+          <input id="utrInput" class="swal2-input mt-4" placeholder="Enter UTR/Txn ID" />
+        `,
+        confirmButtonText: "Submit Payment",
+        cancelButtonText: "Back",
+        showCancelButton: true,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+          const canvas = document.getElementById("swal-qr-canvas") as HTMLCanvasElement | null;
+          if (canvas) {
+            QRCode.toCanvas(canvas, upiUrl, { width: 220 });
+          }
+        },
+        preConfirm: () => {
+          const utr = ((document.getElementById("utrInput") as HTMLInputElement)?.value || "").trim();
+          if (!utr) {
+            Swal.showValidationMessage("Please enter your UTR / Transaction ID");
+          }
+          return utr;
+        },
+      });
+
+      if (result.dismiss === Swal.DismissReason.cancel) {
+        return handleCheckout(); // restart flow if back pressed
+      }
+      if (!result.isConfirmed) return;
+
+      const utrNumber = result.value as string;
+
+      // ✅ Now create order only after UTR is given
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: {
@@ -236,65 +273,51 @@ export default function CartPage() {
           address: addressForm,
           paymentMethod,
           deliveryCharge: priceSummary.delivery,
-          upiId: chosenUpiId ?? undefined,
+          upiId: chosenUpiId,
+          utr: utrNumber,
         }),
       });
 
-      const data: Record<string, unknown> = await res.json();
-      if (!res.ok) {
-        throw new Error((data as { message?: string }).message || "Server error! Please try again.");
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Payment failed!");
 
-      // ✅ If UPI Payment
-      if (paymentMethod === "upi" && (data as { upiPayload?: { upiUrl: string; amount: number } }).upiPayload) {
-        const upiPayload = (data as { upiPayload: { upiUrl: string; amount: number } }).upiPayload;
-        const upiUrl = upiPayload.upiUrl;
-
-        const result = await Swal.fire({
-          title: "UPI Payment",
-          html: `
-            <p>Pay ₹${upiPayload.amount} using any UPI app:</p>
-            <img src="https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(
-              upiUrl
-            )}" alt="UPI QR" class="mx-auto mb-3"/>
-            <div class="flex justify-center gap-4 mt-2">
-              <a href="${upiUrl}" target="_blank" class="px-3 py-1 bg-green-500 text-white rounded">Google Pay</a>
-              <a href="${upiUrl}" target="_blank" class="px-3 py-1 bg-purple-600 text-white rounded">PhonePe</a>
-              <a href="${upiUrl}" target="_blank" class="px-3 py-1 bg-blue-600 text-white rounded">Paytm</a>
-            </div>
-          `,
-          confirmButtonText: "I have Paid",
-          showCancelButton: false,
-          allowOutsideClick: false,
-          allowEscapeKey: false,
-        });
-
-        if (!result.isConfirmed) {
-          return Swal.fire("Error", "Payment not completed!", "error");
-        }
-      }
-
-      Swal.fire("Success", "Your order has been placed!", "success");
-
-      // ✅ Clear frontend cart state
-      setItems([]);
-
-      // ✅ Clear server-side cart
-      await fetch("/api/cart", {
-        method: "DELETE",
+      Swal.fire("Success", "Payment recorded. Your order is placed!", "success");
+    } else {
+      // ✅ COD directly creates order
+      const res = await fetch("/api/orders", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({
+          items: orderItems,
+          address: addressForm,
+          paymentMethod,
+          deliveryCharge: priceSummary.delivery,
+        }),
       });
 
-      await refreshCart();
-      router.push("/order");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Something went wrong";
-      Swal.fire("Error", message, "error");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Server error!");
+
+      Swal.fire("Success", "Your order has been placed!", "success");
     }
-  };
+
+    // ✅ Clear cart both sides
+    setItems([]);
+    await fetch("/api/cart", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    await refreshCart();
+    router.push("/order");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Something went wrong";
+    Swal.fire("Error", message, "error");
+  }
+};
+
 
   // ✅ UI States
   if (isLoading)
@@ -461,11 +484,10 @@ export default function CartPage() {
         <button
           disabled={priceSummary.subTotal < 50}
           onClick={handleCheckout}
-          className={`mt-4 w-full rounded-lg py-2 transition ${
-            priceSummary.subTotal < 50
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-green-600 text-white hover:bg-green-700"
-          }`}
+          className={`mt-4 w-full rounded-lg py-2 transition ${priceSummary.subTotal < 50
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-green-600 text-white hover:bg-green-700"
+            }`}
         >
           Proceed to Checkout
         </button>

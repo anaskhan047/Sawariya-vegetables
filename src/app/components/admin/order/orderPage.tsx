@@ -16,7 +16,8 @@ type Order = {
   deliveryCharge: number;
   total: number;
   status: OrderStatus;
-  paymentMethod: "online" | "cod";
+  paymentMethod: string;
+  upiTxnInfo?: { paidTo?: string; txnRef?: string };
   paymentStatus: string;
   createdAt: string;
   otp?: string;
@@ -248,12 +249,29 @@ export default function AdminOrdersPage() {
                     </select>
                   </td>
                   <td className="px-4 py-3">
-                    {order.paymentMethod === "online" ? (
-                      <span className="rounded-full bg-indigo-100 text-indigo-700 px-3 py-1 text-xs">Online</span>
+                    {order.paymentMethod === "upi" ? (
+                      <div className="text-xs">
+                        <span className="rounded-full bg-indigo-100 text-indigo-700 px-3 py-1">
+                          UPI
+                        </span>
+                        {order.upiTxnInfo?.txnRef && (
+                          <div className="mt-1 text-gray-600">
+                            <b>UTR:</b> {order.upiTxnInfo.txnRef}
+                          </div>
+                        )}
+                        {order.upiTxnInfo?.paidTo && (
+                          <div className="text-gray-600">
+                            <b>Paid To:</b> {order.upiTxnInfo.paidTo}
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                      <span className="rounded-full bg-orange-100 text-orange-700 px-3 py-1 text-xs">{order.paymentMethod}.</span>
+                      <span className="rounded-full bg-orange-100 text-orange-700 px-3 py-1">
+                        COD
+                      </span>
                     )}
                   </td>
+
                   <td className="px-4 py-3">{order.address.address}</td>
                   <td className="px-4 py-3">
                     {typeof order.address.area === "object"
