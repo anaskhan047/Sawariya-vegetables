@@ -10,6 +10,7 @@ import {
   updateProduct,
   deleteProduct,
 } from "@/app/lib/api/products";
+
 interface Category {
   id: string;
   name: string;
@@ -45,25 +46,24 @@ function useCategories() {
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
- useEffect(() => {
-  (async () => {
-    try {
-      const res = await fetch("/api/categories");
-      const data: { success: boolean; data: Category[]; error?: string } = await res.json();
-      
-      if (data.success) {
-        setCategories(data.data.map((c) => c.name));
-      } else {
-        console.error("Failed to fetch categories:", data.error);
-      }
-    } catch (err) {
-      console.error("Error fetching categories:", err);
-    } finally {
-      setLoading(false);
-    }
-  })();
-}, []);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/categories");
+        const data: { success: boolean; data: Category[]; error?: string } = await res.json();
 
+        if (data.success) {
+          setCategories(data.data.map((c) => c.name));
+        } else {
+          console.error("Failed to fetch categories:", data.error);
+        }
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   return { categories, loading };
 }
@@ -163,6 +163,48 @@ export default function ProductsPage() {
       alert("❌ Could not save product");
     }
   };
+
+  // ===== New: Decrease stock after order =====
+  const decreaseStock = async (orderItems: { productId: string; quantity: number }[]) => {
+  // Update frontend optimistically
+  setProducts((prev: Product[]) =>
+    prev.map((p: Product) => {
+      const orderedItem = orderItems.find((i) => i.productId === p.id);
+      if (orderedItem) {
+        const newStock = Math.max(0, (p.stockQty || 0) - orderedItem.quantity);
+        return { ...p, stockQty: newStock };
+      }
+      return p;
+    })
+  );
+
+  // Update backend in one go
+  try {
+    await Promise.all(
+      orderItems.map(async (item) => {
+        const product = await fetchProducts().then((prods) =>
+          prods.find((p: Product) => p.id === item.productId)
+        );
+        if (!product) return;
+
+        const newStock = Math.max(0, (product.stockQty || 0) - item.quantity);
+
+        // Important: update only stockQty field
+        await updateProduct(item.productId, { stockQty: newStock });
+      })
+    );
+  } catch (err) {
+    console.error("Failed to update stock", err);
+    // Optionally, refetch products to ensure frontend matches backend
+  }
+};
+
+
+
+  // ==========================================
+
+  // Example usage after an order (replace this with your actual order placement code)
+  // decreaseStock([{ productId: "68ceec644cdeb18e71c44145", quantity: 2 }]);
 
   // UI
   return (

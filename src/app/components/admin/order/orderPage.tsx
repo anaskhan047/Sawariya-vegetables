@@ -17,6 +17,8 @@ type Order = {
   total: number;
   status: OrderStatus;
   paymentMethod: string;
+  upiId?: string;
+  utr?: string;            // ✅ add this
   upiTxnInfo?: { paidTo?: string; txnRef?: string };
   paymentStatus: string;
   createdAt: string;
@@ -250,18 +252,26 @@ export default function AdminOrdersPage() {
                   </td>
                   <td className="px-4 py-3">
                     {order.paymentMethod === "upi" ? (
-                      <div className="text-xs">
+                      <div className="text-xs space-y-1">
                         <span className="rounded-full bg-indigo-100 text-indigo-700 px-3 py-1">
                           UPI
                         </span>
-                        {order.upiTxnInfo?.txnRef && (
-                          <div className="mt-1 text-gray-600">
-                            <b>UTR:</b> {order.upiTxnInfo.txnRef}
+
+                        {order.upiId && (
+                          <div className="text-gray-600">
+                            <b>UPI ID:</b> {order.upiId}
                           </div>
                         )}
-                        {order.upiTxnInfo?.paidTo && (
+
+                        {order.utr && ( // ✅ utr direct show
                           <div className="text-gray-600">
-                            <b>Paid To:</b> {order.upiTxnInfo.paidTo}
+                            <b>UTR:</b> {order.utr}
+                          </div>
+                        )}
+
+                        {order.upiTxnInfo?.txnRef && (
+                          <div className="text-gray-600">
+                            <b>UTR:</b> {order.upiTxnInfo.txnRef}
                           </div>
                         )}
                       </div>
@@ -271,6 +281,8 @@ export default function AdminOrdersPage() {
                       </span>
                     )}
                   </td>
+
+
 
                   <td className="px-4 py-3">{order.address.address}</td>
                   <td className="px-4 py-3">
@@ -321,12 +333,32 @@ export default function AdminOrdersPage() {
               <div className="font-medium">₹ {order.total}</div>
 
               <div>
-                {order.paymentMethod === "online" ? (
-                  <span className="rounded-full bg-indigo-100 text-indigo-700 px-2 py-1 text-xs">Online</span>
-                ) : (
-                  <span className="rounded-full bg-orange-100 text-orange-700 px-2 py-1 text-xs">COD</span>
-                )}
-              </div>
+  {order.paymentMethod === "upi" ? (
+    <div className="text-xs space-y-1">
+      <span className="rounded-full bg-indigo-100 text-indigo-700 px-2 py-1 text-xs">
+        UPI
+      </span>
+
+      {order.upiId && (
+        <div className="text-gray-600">
+          <b>UPI ID:</b> {order.upiId}
+        </div>
+      )}
+
+      {order.utr && ( // ✅ utr show here too
+        <div className="text-gray-600">
+          <b>UTR:</b> {order.utr}
+        </div>
+      )}
+    </div>
+  ) : (
+    <span className="rounded-full bg-orange-100 text-orange-700 px-2 py-1 text-xs">
+      COD
+    </span>
+  )}
+</div>
+
+
 
               <div className="text-xs text-[var(--text-light)]">📍 {order.address.address}</div>
 

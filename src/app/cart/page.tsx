@@ -15,6 +15,8 @@ type Product = {
   price: number;
   unit: string;
   images: { url: string }[];
+  minQty: number;
+  maxQty: number;
 };
 
 type CartItem = {
@@ -144,35 +146,35 @@ export default function CartPage() {
 
   // ✅ Checkout Flow
   // ✅ Checkout Flow
-const handleCheckout = async () => {
-  if (priceSummary.subTotal < 50) return;
+  const handleCheckout = async () => {
+    if (priceSummary.subTotal < 50) return;
 
-  const token = localStorage.getItem("token");
-  if (!token) {
-    return Swal.fire("Error", "Please login again!", "error");
-  }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      return Swal.fire("Error", "Please login again!", "error");
+    }
 
-  try {
-    // Confirm order
-    const confirm = await Swal.fire({
-      title: "Confirm Your Order",
-      html: `<p><b>Total:</b> ₹${priceSummary.total}</p><p>Are you sure?</p>`,
-      showCancelButton: true,
-      confirmButtonText: "Yes, Proceed",
-    });
-    if (!confirm.isConfirmed) return;
+    try {
+      // Confirm order
+      const confirm = await Swal.fire({
+        title: "Confirm Your Order",
+        html: `<p><b>Total:</b> ₹${priceSummary.total}</p><p>Are you sure?</p>`,
+        showCancelButton: true,
+        confirmButtonText: "Yes, Proceed",
+      });
+      if (!confirm.isConfirmed) return;
 
-    // ✅ Fetch logged-in user
-    const resUser = await fetch("/api/auth/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const userData: UserResponse = await resUser.json();
-    if (!resUser.ok) throw new Error("Please login again!");
+      // ✅ Fetch logged-in user
+      const resUser = await fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const userData: UserResponse = await resUser.json();
+      if (!resUser.ok) throw new Error("Please login again!");
 
-    // ✅ Get Address
-    const { value: addressForm } = await Swal.fire({
-      title: "Enter Delivery Details",
-      html: `
+      // ✅ Get Address
+      const { value: addressForm } = await Swal.fire({
+        title: "Enter Delivery Details",
+        html: `
         <input id="swalName" class="swal2-input" placeholder="Name" value="${userData.user?.name || ""}" />
         <input id="swalPhone" class="swal2-input" placeholder="Phone" value="${userData.user?.phone || ""}" />
         <input id="swalAddress" class="swal2-input" placeholder="House No, Street" value="${userData.user?.address || ""}" />
@@ -181,48 +183,48 @@ const handleCheckout = async () => {
           ${areas.map((a) => `<option value="${a._id}">${a.name} - ${a.pincode}</option>`).join("")}
         </select>
       `,
-      focusConfirm: false,
-      preConfirm: () => ({
-        name: (document.getElementById("swalName") as HTMLInputElement)?.value,
-        phone: (document.getElementById("swalPhone") as HTMLInputElement)?.value,
-        address: (document.getElementById("swalAddress") as HTMLInputElement)?.value,
-        area: (document.getElementById("swalArea") as HTMLSelectElement)?.value,
-      }),
-    });
+        focusConfirm: false,
+        preConfirm: () => ({
+          name: (document.getElementById("swalName") as HTMLInputElement)?.value,
+          phone: (document.getElementById("swalPhone") as HTMLInputElement)?.value,
+          address: (document.getElementById("swalAddress") as HTMLInputElement)?.value,
+          area: (document.getElementById("swalArea") as HTMLSelectElement)?.value,
+        }),
+      });
 
-    if (!addressForm || !addressForm.area)
-      return Swal.fire("Error", "Please select delivery area.", "error");
+      if (!addressForm || !addressForm.area)
+        return Swal.fire("Error", "Please select delivery area.", "error");
 
-    // ✅ Payment Method
-    const { value: paymentMethod } = await Swal.fire({
-      title: "Select Payment Method",
-      input: "radio",
-      inputOptions: { cod: "Cash on Delivery", upi: "UPI (QR + Apps)" },
-      inputValidator: (v) => (!v ? "Select one option" : undefined),
-    });
-    if (!paymentMethod) return;
+      // ✅ Payment Method
+      const { value: paymentMethod } = await Swal.fire({
+        title: "Select Payment Method",
+        input: "radio",
+        inputOptions: { cod: "Cash on Delivery", upi: "UPI (QR + Apps)" },
+        inputValidator: (v) => (!v ? "Select one option" : undefined),
+      });
+      if (!paymentMethod) return;
 
-    // ✅ Prepare order items
-    const orderItems = items.map((it) => ({
-      productId: it.productId._id,
-      name: it.productId.name,
-      inHindi: it.productId.inHindi || "",
-      price: it.productId.price,
-      quantity: it.quantity,
-      unit: it.productId.unit,
-    }));
+      // ✅ Prepare order items
+      const orderItems = items.map((it) => ({
+        productId: it.productId._id, // MUST use _id
+        name: it.productId.name,
+        inHindi: it.productId.inHindi || "",
+        price: it.productId.price,
+        quantity: it.quantity,
+        unit: it.productId.unit,
+      }));
 
-    if (paymentMethod === "upi") {
-      const chosenUpiId =
-        UPI_IDS[Math.floor(Math.random() * UPI_IDS.length)];
+      if (paymentMethod === "upi") {
+        const chosenUpiId =
+          UPI_IDS[Math.floor(Math.random() * UPI_IDS.length)];
 
-      // build UPI URL (client side)
-      const upiUrl = `upi://pay?pa=${chosenUpiId}&am=${priceSummary.total}&cu=INR&tn=Order`;
+        // build UPI URL (client side)
+        const upiUrl = `upi://pay?pa=${chosenUpiId}&am=${priceSummary.total}&cu=INR&tn=Order`;
 
-      // Show QR + apps + UTR input
-      const result = await Swal.fire({
-        title: "UPI Payment",
-        html: `
+        // Show QR + apps + UTR input
+        const result = await Swal.fire({
+          title: "UPI Payment",
+          html: `
           <p>Pay ₹${priceSummary.total} using any UPI app:</p>
           <div style="display:flex; justify-content:center; margin:12px 0;">
             <canvas id="swal-qr-canvas"></canvas>
@@ -234,89 +236,89 @@ const handleCheckout = async () => {
           </div>
           <input id="utrInput" class="swal2-input mt-4" placeholder="Enter UTR/Txn ID" />
         `,
-        confirmButtonText: "Submit Payment",
-        cancelButtonText: "Back",
-        showCancelButton: true,
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        didOpen: () => {
-          const canvas = document.getElementById("swal-qr-canvas") as HTMLCanvasElement | null;
-          if (canvas) {
-            QRCode.toCanvas(canvas, upiUrl, { width: 220 });
-          }
-        },
-        preConfirm: () => {
-          const utr = ((document.getElementById("utrInput") as HTMLInputElement)?.value || "").trim();
-          if (!utr) {
-            Swal.showValidationMessage("Please enter your UTR / Transaction ID");
-          }
-          return utr;
-        },
-      });
+          confirmButtonText: "Submit Payment",
+          cancelButtonText: "Back",
+          showCancelButton: true,
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          didOpen: () => {
+            const canvas = document.getElementById("swal-qr-canvas") as HTMLCanvasElement | null;
+            if (canvas) {
+              QRCode.toCanvas(canvas, upiUrl, { width: 220 });
+            }
+          },
+          preConfirm: () => {
+            const utr = ((document.getElementById("utrInput") as HTMLInputElement)?.value || "").trim();
+            if (!utr) {
+              Swal.showValidationMessage("Please enter your UTR / Transaction ID");
+            }
+            return utr;
+          },
+        });
 
-      if (result.dismiss === Swal.DismissReason.cancel) {
-        return handleCheckout(); // restart flow if back pressed
+        if (result.dismiss === Swal.DismissReason.cancel) {
+          return handleCheckout(); // restart flow if back pressed
+        }
+        if (!result.isConfirmed) return;
+
+        const utrNumber = result.value as string;
+
+        // ✅ Now create order only after UTR is given
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            items: orderItems,
+            address: addressForm,
+            paymentMethod,
+            deliveryCharge: priceSummary.delivery,
+            upiId: chosenUpiId,
+            utr: utrNumber,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Payment failed!");
+
+        Swal.fire("Success", "Payment recorded. Your order is placed!", "success");
+      } else {
+        // ✅ COD directly creates order
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            items: orderItems,
+            address: addressForm,
+            paymentMethod,
+            deliveryCharge: priceSummary.delivery,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Server error!");
+
+        Swal.fire("Success", "Your order has been placed!", "success");
       }
-      if (!result.isConfirmed) return;
 
-      const utrNumber = result.value as string;
-
-      // ✅ Now create order only after UTR is given
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          items: orderItems,
-          address: addressForm,
-          paymentMethod,
-          deliveryCharge: priceSummary.delivery,
-          upiId: chosenUpiId,
-          utr: utrNumber,
-        }),
+      // ✅ Clear cart both sides
+      setItems([]);
+      await fetch("/api/cart", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Payment failed!");
-
-      Swal.fire("Success", "Payment recorded. Your order is placed!", "success");
-    } else {
-      // ✅ COD directly creates order
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          items: orderItems,
-          address: addressForm,
-          paymentMethod,
-          deliveryCharge: priceSummary.delivery,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Server error!");
-
-      Swal.fire("Success", "Your order has been placed!", "success");
+      await refreshCart();
+      router.push("/order");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      Swal.fire("Error", message, "error");
     }
-
-    // ✅ Clear cart both sides
-    setItems([]);
-    await fetch("/api/cart", {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    await refreshCart();
-    router.push("/order");
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Something went wrong";
-    Swal.fire("Error", message, "error");
-  }
-};
+  };
 
 
   // ✅ UI States
@@ -392,7 +394,7 @@ const handleCheckout = async () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {items.map((it) => (
           <div
-            key={it._id}
+            key={it._id + it.productId._id}
             className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition"
           >
             <div className="flex items-center gap-3 mb-2">
@@ -416,28 +418,29 @@ const handleCheckout = async () => {
 
             <div className="flex items-center gap-2 mt-2">
               <button
-                onClick={() =>
-                  updateQty(
-                    it.productId.id,
-                    Math.max(1, it.quantity - (it.productId.unit === "kg" ? 0.5 : 1))
-                  )
-                }
+                onClick={() => {
+                  const step = it.productId.unit === "kg" ? 0.5 : 1;
+                  const newQty = Math.max(it.productId.minQty, it.quantity - step); // 👈 minQty se kam nahi hoga
+                  updateQty(it.productId._id, newQty);
+                }}
                 className="px-3 py-1 border rounded hover:bg-gray-100 transition"
               >
                 -
               </button>
+
               <span>{it.quantity}</span>
+
               <button
-                onClick={() =>
-                  updateQty(
-                    it.productId.id,
-                    it.quantity + (it.productId.unit === "kg" ? 0.5 : 1)
-                  )
-                }
+                onClick={() => {
+                  const step = it.productId.unit === "kg" ? 0.5 : 1;
+                  const newQty = Math.min(it.productId.maxQty, it.quantity + step); // 👈 maxQty se zyada nahi hoga
+                  updateQty(it.productId._id, newQty);
+                }}
                 className="px-3 py-1 border rounded hover:bg-gray-100 transition"
               >
                 +
               </button>
+
               <button
                 onClick={() => removeItem(it.productId.id)}
                 className="ml-auto text-red-600 hover:underline transition"

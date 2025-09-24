@@ -127,7 +127,14 @@ export async function PUT(
     if (parsed.data.popular !== undefined) doc.popular = parsed.data.popular;
 
     doc.images = finalImages;
-    await doc.save();
+    // Right before doc.save()
+const data = parsed.data as typeof parsed.data & { stockChange?: number };
+
+if (data.stockChange !== undefined && typeof data.stockChange === "number") {
+  doc.stockQty = (doc.stockQty || 0) + data.stockChange; // subtract if negative
+  if (doc.stockQty < 0) doc.stockQty = 0; // prevent negative stock
+}
+await doc.save();
 
     return NextResponse.json({ success: true, product: doc.toObject() });
   } catch (err: unknown) {

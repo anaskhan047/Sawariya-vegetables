@@ -41,6 +41,7 @@ export const productSchema = z
 
     imageBase64: z.string().optional(),
     imagesBase64: z.array(z.string()).optional(),
+stockChange: z.number().optional()
   })
   .refine((d) => (d.minQty ?? 1) <= (d.maxQty ?? 10), {
     message: "maxQty must be >= minQty",
