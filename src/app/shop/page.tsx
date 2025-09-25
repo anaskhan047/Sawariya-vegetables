@@ -1,13 +1,14 @@
+// app/shop/page.tsx
 "use client";
-import { useState } from "react";
-import ShopSidebar from "../components/shop/sidebar";
-import ShopGrid from "../components/shop/shopgrid";
+import React, { useState, Suspense } from "react";
+import ShopSidebarWrapper from "../components/shop/ShopSidebarWrapper";
+import ShopGridWrapper from "../components/shop/ShopGridWrapper";
 
 export default function ShopPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <main className="min-h-screen bg-[var(--background-color)]">
+    <main className="min-h-screen bg-[var(--background-color)] flex flex-col md:flex-row">
       {/* Mobile Filter Button */}
       <div className="md:hidden p-4 flex justify-end">
         <button
@@ -18,14 +19,18 @@ export default function ShopPage() {
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row">
-        {/* Sidebar */}
-        <ShopSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {/* Sidebar (Sticky/Fix on Desktop) */}
+      <div className="md:w-64 md:flex-shrink-0 z-50">
+        <Suspense fallback={null}>
+          <ShopSidebarWrapper isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        </Suspense>
+      </div>
 
-        {/* Products grid */}
-        <div className="flex-1">
-          <ShopGrid />
-        </div>
+      {/* Products Grid */}
+      <div className="flex-1">
+        <Suspense fallback={<div>Loading...</div>}>
+          <ShopGridWrapper />
+        </Suspense>
       </div>
     </main>
   );

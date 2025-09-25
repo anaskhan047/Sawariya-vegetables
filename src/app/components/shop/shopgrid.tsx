@@ -1,9 +1,11 @@
+// ShopPage.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useCart } from "@/app/context/CartContext";
+import OrbitVegetableLoader from "../Loader/Loader";
 
 interface ProductImage {
   url: string;
@@ -31,8 +33,15 @@ export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-const { refreshCart } = useCart();
+
+  const { refreshCart } = useCart();
+  const searchParams = useSearchParams();
+
+  // Extract URL params safely
+  const selectedGrade = searchParams.get("grade");
+  const selectedCategory = searchParams.get("category");
+  const popularOnly = searchParams.get("popular") === "true";
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -40,11 +49,28 @@ const { refreshCart } = useCart();
         const data = await res.json();
 
         if (data.success && data.products) {
-          setProducts(data.products);
+          let filteredProducts = data.products;
 
-          // initialize quantities with minQty
+          // Apply filters
+          if (selectedGrade) {
+            filteredProducts = filteredProducts.filter(
+              (p: Product) => p.grade === selectedGrade
+            );
+          }
+          if (selectedCategory) {
+            filteredProducts = filteredProducts.filter(
+              (p: Product) => p.category === selectedCategory
+            );
+          }
+          if (popularOnly) {
+            filteredProducts = filteredProducts.filter((p: Product) => p.popular);
+          }
+
+          setProducts(filteredProducts);
+
+          // Initialize quantities
           const initialQuantities: { [key: string]: number } = {};
-          data.products.forEach((p: Product) => {
+          filteredProducts.forEach((p: Product) => {
             initialQuantities[p.id] = p.minQty || 0.5;
           });
           setQuantities(initialQuantities);
@@ -57,7 +83,7 @@ const { refreshCart } = useCart();
     };
 
     fetchProducts();
-  }, []);
+  }, [selectedGrade, selectedCategory, popularOnly]);
 
   const handleAddToCart = async (product: Product) => {
     try {
@@ -82,6 +108,15 @@ const { refreshCart } = useCart();
     }
   };
 
+  if (loading)
+    return (
+      <p className="text-center py-10">
+        <OrbitVegetableLoader />
+      </p>
+    );
+  if (!products.length)
+    return <p className="text-center py-10">No products found</p>;
+
   return (
     <section className="container mx-auto px-4 py-8">
       <h2 className="text-3xl font-bold mb-8 text-center">Our Products</h2>
@@ -100,7 +135,7 @@ const { refreshCart } = useCart();
             <div
               key={product._id}
               className="border border-gray-200 rounded-lg p-4 flex flex-col items-center shadow-sm 
-  hover:shadow-lg hover:-translate-y-2 transition-all duration-300 bg-white group"
+              hover:shadow-lg hover:-translate-y-2 transition-all duration-300 bg-white group"
             >
               {/* Product Image */}
               <div className="relative w-full h-40 overflow-hidden rounded-md">
@@ -130,12 +165,17 @@ const { refreshCart } = useCart();
                 {/* Grade Badge */}
                 {product.grade && (
                   <span
-                    className={`absolute right-2 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md flex items-center space-x-1 ${product.popular ? "top-12" : "top-2"
-                      } ${product.grade === "Standard" ? "bg-gray-500" :
-                        product.grade === "Silver" ? "bg-slate-400" :
-                          product.grade === "Gold" ? "bg-yellow-400" :
-                            product.grade === "Premium" ? "bg-purple-600" :
-                              "bg-blue-500"
+                    className={`absolute right-2 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md flex items-center space-x-1 
+                      ${product.popular ? "top-12" : "top-2"} 
+                      ${product.grade === "Standard"
+                        ? "bg-gray-500"
+                        : product.grade === "Silver"
+                        ? "bg-slate-400"
+                        : product.grade === "Gold"
+                        ? "bg-yellow-400"
+                        : product.grade === "Premium"
+                        ? "bg-purple-600"
+                        : "bg-blue-500"
                       }`}
                   >
                     <span>⭐</span>
@@ -187,14 +227,16 @@ const { refreshCart } = useCart();
                     setQuantities((prev) => {
                       const step = product.unit === "kg" ? 0.5 : 1;
                       const val = parseFloat(e.target.value) || minQty;
-                      // Ensure step alignment
                       const alignedVal =
                         product.unit === "kg"
-                          ? Math.round(val * 2) / 2 // rounds to nearest 0.5
-                          : Math.round(val); // rounds to nearest integer
+                          ? Math.round(val * 2) / 2
+                          : Math.round(val);
                       return {
                         ...prev,
-                        [product.id]: Math.min(Math.max(alignedVal, minQty), maxQty),
+                        [product.id]: Math.min(
+                          Math.max(alignedVal, minQty),
+                          maxQty
+                        ),
                       };
                     })
                   }
@@ -220,20 +262,18 @@ const { refreshCart } = useCart();
                 </button>
               </div>
 
-
               {/* Add to Cart Button */}
               <button
                 onClick={() => handleAddToCart(product)}
                 disabled={product.stockQty <= 0}
                 className={`mt-4 w-full py-2 rounded text-white font-semibold transition-all duration-200 transform
-    ${product.stockQty > 0
+                  ${product.stockQty > 0
                     ? "bg-green-600 hover:bg-green-700 hover:scale-105 active:scale-95 active:bg-green-800"
                     : "bg-gray-400 cursor-not-allowed"
                   }`}
               >
                 Add to Cart
               </button>
-
             </div>
           );
         })}

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import CircularLoader from "../Loader/Loader";
 
 interface Category {
@@ -14,6 +15,8 @@ export default function Categories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchCategories() {
@@ -34,9 +37,15 @@ export default function Categories() {
         setLoading(false);
       }
     }
-    
+
     fetchCategories();
   }, []);
+
+  const handleCategoryClick = (categoryName: string) => {
+    const params = new URLSearchParams();
+    params.set("category", categoryName);
+    router.push(`/shop?${params.toString()}`);
+  };
 
   if (loading) return <CircularLoader className="mx-auto" />;
   if (error) return <p className="text-center py-10 text-red-500">{error}</p>;
@@ -51,6 +60,7 @@ export default function Categories() {
           {categories.map((category) => (
             <div
               key={category._id}
+              onClick={() => handleCategoryClick(category.name)}
               className="bg-white rounded-xl overflow-hidden shadow-sm border border-[var(--border-color)] hover:shadow-lg transition-shadow duration-300 cursor-pointer"
             >
               <div className="relative w-full h-40">
