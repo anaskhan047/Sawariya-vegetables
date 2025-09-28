@@ -211,8 +211,10 @@ export default function AdminOrdersPage() {
                 <tr key={order._id} className="border-t border-[var(--border-color)] hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium">{order._id}</td>
                   <td className="px-4 py-3">
-                    <div className="font-medium">{order.address.name} </div>
-                    <div className="text-xs text-[var(--text-light)]">📞 {order.address.phone}</div>
+                    <div className="font-medium">{order.address?.name ?? "No Name"}</div>
+                    <div className="text-xs text-[var(--text-light)]">
+                      📞 {order.address?.phone ?? "N/A"}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-[var(--text-light)]">
                     {order.items.map((i, idx) => (
@@ -284,12 +286,12 @@ export default function AdminOrdersPage() {
 
 
 
-                  <td className="px-4 py-3">{order.address.address}</td>
+                  <td className="px-4 py-3">{order.address?.address ?? "--"}</td>
                   <td className="px-4 py-3">
-                    {typeof order.address.area === "object"
-                      ? `${order.address.area.name} (${order.address.area.pincode})`
-                      : order.address.area || "- -"}
-                  </td>
+  {typeof order.address?.area === "object"
+    ? `${order.address?.area?.name ?? ""} (${order.address?.area?.pincode ?? ""})`
+    : order.address?.area || "--"}
+</td>
 
                 </tr>
               ))}
@@ -333,30 +335,30 @@ export default function AdminOrdersPage() {
               <div className="font-medium">₹ {order.total}</div>
 
               <div>
-  {order.paymentMethod === "upi" ? (
-    <div className="text-xs space-y-1">
-      <span className="rounded-full bg-indigo-100 text-indigo-700 px-2 py-1 text-xs">
-        UPI
-      </span>
+                {order.paymentMethod === "upi" ? (
+                  <div className="text-xs space-y-1">
+                    <span className="rounded-full bg-indigo-100 text-indigo-700 px-2 py-1 text-xs">
+                      UPI
+                    </span>
 
-      {order.upiId && (
-        <div className="text-gray-600">
-          <b>UPI ID:</b> {order.upiId}
-        </div>
-      )}
+                    {order.upiId && (
+                      <div className="text-gray-600">
+                        <b>UPI ID:</b> {order.upiId}
+                      </div>
+                    )}
 
-      {order.utr && ( // ✅ utr show here too
-        <div className="text-gray-600">
-          <b>UTR:</b> {order.utr}
-        </div>
-      )}
-    </div>
-  ) : (
-    <span className="rounded-full bg-orange-100 text-orange-700 px-2 py-1 text-xs">
-      COD
-    </span>
-  )}
-</div>
+                    {order.utr && ( // ✅ utr show here too
+                      <div className="text-gray-600">
+                        <b>UTR:</b> {order.utr}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <span className="rounded-full bg-orange-100 text-orange-700 px-2 py-1 text-xs">
+                    COD
+                  </span>
+                )}
+              </div>
 
 
 
