@@ -288,10 +288,10 @@ export default function AdminOrdersPage() {
 
                   <td className="px-4 py-3">{order.address?.address ?? "--"}</td>
                   <td className="px-4 py-3">
-  {typeof order.address?.area === "object"
-    ? `${order.address?.area?.name ?? ""} (${order.address?.area?.pincode ?? ""})`
-    : order.address?.area || "--"}
-</td>
+                    {typeof order.address?.area === "object"
+                      ? `${order.address?.area?.name ?? ""} (${order.address?.area?.pincode ?? ""})`
+                      : order.address?.area || "--"}
+                  </td>
 
                 </tr>
               ))}

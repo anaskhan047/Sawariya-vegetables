@@ -18,13 +18,13 @@ type Order = {
   _id: string;
   user: string;
   items: { name: string; quantity: number; price: number; unit: string; inHindi: string }[];
-  address: {
-    name: string;
-    phone: string;
-    address: string;
-    area: string | { name: string; pincode: string };
-    inHindi: string;
-  };
+  address?: {
+    name?: string;
+    phone?: string;
+    address?: string;
+    area?: string | { name?: string; pincode?: string };
+    inHindi?: string;
+  } | null;
   subTotal: number;
   deliveryCharge: number;
   total: number;
@@ -88,11 +88,11 @@ export default function UserOrderList() {
   return (
     <div className="min-h-screen p-2 md:p-6 flex justify-center bg-gray-50">
       <div className="w-full max-w-6xl bg-white rounded-2xl shadow-lg p-2 md:p-6">
-        <h1 className="text-2xl font-bold mb-4">📦 My Orders</h1>
+        <h1 className="text-2xl font-bold mb-4 mt-10">📦 My Orders</h1>
 
         {orders.length === 0 && <p>No orders yet</p>}
 
-        {/* Table for Desktop, Cards for Mobile */}
+        {/* Table for Desktop */}
         <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full border-separate border-spacing-y-2 text-sm md:text-base">
             <thead>
@@ -111,10 +111,15 @@ export default function UserOrderList() {
             <tbody>
               {orders.map((order) => (
                 <tr key={order._id} className="bg-white border rounded-xl hover:bg-gray-50 transition">
-                  <td className="px-4 py-2"><div className="font-medium">{order.address.name}</div><div className="text-xs text-gray-500">📞 {order.address.phone}</div></td>
+                  <td className="px-4 py-2">
+                    <div className="font-medium">{order.address?.name ?? "Unknown"}</div>
+                    <div className="text-xs text-gray-500">📞 {order.address?.phone ?? "N/A"}</div>
+                  </td>
                   <td className="px-4 py-2 text-gray-600">
                     {order.items.map((i, idx) => (
-                      <div key={idx}>{i.name}{i.inHindi ? ` / ${i.inHindi}` : ""} ({i.quantity} {i.unit}) – ₹{i.price}</div>
+                      <div key={idx}>
+                        {i.name}{i.inHindi ? ` / ${i.inHindi}` : ""} ({i.quantity} {i.unit}) – ₹{i.price}
+                      </div>
                     ))}
                   </td>
                   <td className="px-4 py-2 font-medium">₹ {order.total}</td>
@@ -132,8 +137,7 @@ export default function UserOrderList() {
                               : order.status === "cancelled"
                                 ? "bg-red-100 text-red-700"
                                 : "bg-purple-100 text-purple-700"
-                      }`
-                    }>
+                      }`}>
                       {order.status}
                     </span>
                   </td>
@@ -146,11 +150,11 @@ export default function UserOrderList() {
                       <span className="rounded-full bg-orange-100 text-orange-700 px-3 py-1 text-xs">COD</span>
                     )}
                   </td>
-                  <td className="px-4 py-2">{order.address.address}</td>
+                  <td className="px-4 py-2">{order.address?.address ?? "--"}</td>
                   <td className="px-4 py-2">
-                    {typeof order.address.area === "object"
-                      ? `${order.address.area.name} (${order.address.area.pincode})`
-                      : order.address.area || "- -"}
+                    {typeof order.address?.area === "object"
+                      ? `${order.address?.area?.name ?? ""} (${order.address?.area?.pincode ?? ""})`
+                      : order.address?.area || "--"}
                   </td>
                   <td className="px-4 py-2">
                     {order.otp ? (
@@ -171,12 +175,12 @@ export default function UserOrderList() {
                           html: `
                             ${getOrderTimelineHtml(order)}
                             <div class="mt-4 text-left capitalize">
-                              <b>Name:</b> ${order.address.name} <br/>
-                              <b>Phone:</b> ${order.address.phone} <br/>
-                              <b>Address:</b> ${order.address.address} <br/>
-                              <b>Area:</b> ${typeof order.address.area === "object"
-                                ? `${order.address.area.name} (${order.address.area.pincode})`
-                                : order.address.area || "- -"} <br/>
+                              <b>Name:</b> ${order.address?.name ?? "N/A"} <br/>
+                              <b>Phone:</b> ${order.address?.phone ?? "N/A"} <br/>
+                              <b>Address:</b> ${order.address?.address ?? "--"} <br/>
+                              <b>Area:</b> ${typeof order.address?.area === "object"
+                                ? `${order.address?.area?.name ?? ""} (${order.address?.area?.pincode ?? ""})`
+                                : order.address?.area || "--"} <br/>
                               <b>Product(s):</b> ${order.items.map((i) =>
                                 `${i.name} ${i.inHindi ? `/ ${i.inHindi}` : ""} (${i.quantity} ${i.unit}) - ₹${i.price}`
                               ).join(", ")} <br/>
@@ -206,30 +210,31 @@ export default function UserOrderList() {
         <div className="md:hidden flex flex-col gap-4">
           {orders.map((order) => (
             <div key={order._id} className="rounded-xl shadow border bg-white px-4 py-3">
-              <div className="font-bold text-lg mb-1">{order.address.name}</div>
-              <div className="text-sm text-gray-500 mb-1">📞 {order.address.phone}</div>
-              <div className="mb-2">
-                <span className="font-medium">Address: </span>{order.address.address}
-              </div>
+              <div className="font-bold text-lg mb-1">{order.address?.name ?? "Unknown"}</div>
+              <div className="text-sm text-gray-500 mb-1">📞 {order.address?.phone ?? "N/A"}</div>
+              <div className="mb-2"><span className="font-medium">Address: </span>{order.address?.address ?? "--"}</div>
               <div className="mb-2">
                 <span className="font-medium">Area: </span>
-                {typeof order.address.area === "object"
-                  ? `${order.address.area.name} (${order.address.area.pincode})`
-                  : order.address.area || "- -"}
+                {typeof order.address?.area === "object"
+                  ? `${order.address?.area?.name ?? ""} (${order.address?.area?.pincode ?? ""})`
+                  : order.address?.area || "- -"}
               </div>
               <div className="mb-2">
                 <span className="font-medium">Products: </span>
                 <ul className="list-disc pl-4">
                   {order.items.map((i, idx) => (
-                    <li key={idx}>{i.name}{i.inHindi ? ` / ${i.inHindi}` : ""} ({i.quantity} {i.unit}) – ₹{i.price}</li>
+                    <li key={idx}>
+                      {i.name}{i.inHindi ? ` / ${i.inHindi}` : ""} ({i.quantity} {i.unit}) – ₹{i.price}
+                    </li>
                   ))}
                 </ul>
               </div>
+              <div className="mb-2"><span className="font-medium">Total: </span>₹ {order.total}</div>
               <div className="mb-2">
-                <span className="font-medium">Total: </span>₹ {order.total}
-              </div>
-              <div className="mb-2">
-                <span className="font-medium ">OTP: </span >₹  <span className="bg-yellow-100 text-yellow-700 px-2">{order.otp}</span>
+                <span className="font-medium ">OTP: </span>
+                {order.otp ? (
+                  <span className="bg-yellow-100 text-yellow-700 px-2">{order.otp}</span>
+                ) : "- -"}
               </div>
               <div className="mb-2">
                 <span className="font-medium">Payment: </span>
@@ -248,9 +253,7 @@ export default function UserOrderList() {
                         : order.status === "cancelled"
                           ? "bg-red-100 text-red-700"
                           : "bg-purple-100 text-purple-700"
-                }`}>
-                  {order.status}
-                </span>
+                  }`}>{order.status}</span>
               </div>
               <div className="flex justify-end mt-2">
                 <button
@@ -261,12 +264,12 @@ export default function UserOrderList() {
                       html: `
                         ${getOrderTimelineHtml(order)}
                         <div class="mt-4 text-left capitalize">
-                          <b>Name:</b> ${order.address.name} <br/>
-                          <b>Phone:</b> ${order.address.phone} <br/>
-                          <b>Address:</b> ${order.address.address} <br/>
-                          <b>Area:</b> ${typeof order.address.area === "object"
-                            ? `${order.address.area.name} (${order.address.area.pincode})`
-                            : order.address.area || "- -"} <br/>
+                          <b>Name:</b> ${order.address?.name ?? "N/A"} <br/>
+                          <b>Phone:</b> ${order.address?.phone ?? "N/A"} <br/>
+                          <b>Address:</b> ${order.address?.address ?? "--"} <br/>
+                          <b>Area:</b> ${typeof order.address?.area === "object"
+                            ? `${order.address?.area?.name ?? ""} (${order.address?.area?.pincode ?? ""})`
+                            : order.address?.area || "--"} <br/>
                           <b>Product(s):</b> ${order.items.map((i) =>
                             `${i.name} ${i.inHindi ? `/ ${i.inHindi}` : ""} (${i.quantity} ${i.unit}) - ₹${i.price}`
                           ).join(", ")} <br/>
