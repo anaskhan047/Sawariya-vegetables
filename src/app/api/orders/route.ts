@@ -55,14 +55,21 @@ async function getUserFromReq(req: Request): Promise<UserPayload | null> {
 export async function GET(req: Request) {
   try {
     const user = await getUserFromReq(req);
-    if (!user)
+    console.log("✅ User from token:", user);
+
+    if (!user) {
       return NextResponse.json({ success: false, message: "Not authenticated" }, { status: 401 });
+    }
 
     await dbConnect();
-    const orders = await Orders.find({ user: new Types.ObjectId(user._id) })
+    console.log("✅ DB connected");
+
+    const orders = await Orders.find({ user: user._id })
       .populate("address.area", "name pincode")
       .sort({ createdAt: -1 })
       .lean();
+
+    console.log("✅ Orders fetched:", orders.length);
 
     return NextResponse.json({ success: true, orders });
   } catch (err: unknown) {
@@ -71,6 +78,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: false, message }, { status: 500 });
   }
 }
+
+
 
 
 // ---------- POST /api/orders ----------
