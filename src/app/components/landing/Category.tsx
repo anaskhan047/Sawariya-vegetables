@@ -65,11 +65,12 @@ export default function Categories() {
             >
               <div className="relative w-full h-40">
                 <Image
-                  src={category.imageUrl}
+                  src={category.imageUrl || "/default.png"}
                   alt={category.name}
                   fill
                   className="object-cover"
                 />
+
               </div>
               <div className="p-3 text-center">
                 <h3 className="text-lg font-medium text-[var(--text-color)]">

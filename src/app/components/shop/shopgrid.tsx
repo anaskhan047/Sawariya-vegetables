@@ -110,9 +110,9 @@ export default function ShopPage() {
 
   if (loading)
     return (
-      <p className="text-center py-10">
+     <div className="text-center py-10">
         <OrbitVegetableLoader />
-      </p>
+      </div>
     );
   if (!products.length)
     return <p className="text-center py-10">No products found</p>;
