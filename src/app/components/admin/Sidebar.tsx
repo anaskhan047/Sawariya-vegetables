@@ -32,6 +32,7 @@ const menuItems: MenuItem[] = [
   { name: "UI", icon: <MdDraw size={20} />, link: "/admin/ui" },
   { name: "Users", icon: <Users size={20} />, link: "/admin/users" ,notification: true},
   { name: "Messages", icon: <MessageSquare size={20} />, link: "/admin/messages" },
+  { name: "Testimonials", icon: <MessageSquare size={20} />, link: "/admin/testimonials" },
   { name: "Delivery Areas", icon: <MapPin size={20} />, link: "/admin/delivery-areas" },
   { name: "Settings", icon: <Settings size={20} />, link: "/admin/settings" },
 ];
