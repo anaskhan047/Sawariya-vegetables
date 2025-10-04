@@ -240,16 +240,31 @@ export default function AdminOrdersPage() {
 
                     {/* Dropdown to update status */}
                     <select
-                      value={order.status}
+                      value={
+                        order.status === "cancelled" || order.status === "refunded"
+                          ? order.status
+                          : order.status // value always matches rendered options
+                      }
                       onChange={(e) => updateStatus(order._id, e.target.value as OrderStatus)}
                       className="mt-1 rounded border px-2 py-1 text-xs"
+                      disabled={order.status === "delivered" || order.status === "refunded"}
                     >
-                      <option value="placed">Placed</option>
-                      <option value="packed">Packed</option>
-                      <option value="in_transit">In Transit</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="cancelled">Cancelled</option>
-                      <option value="refunded">Refunded</option>
+                      {order.status === "cancelled" ? (
+                        <>
+                          <option value="cancelled">Cancelled</option>
+                          <option value="refunded">Refunded</option>
+                        </>
+                      ) : order.status === "refunded" ? (
+                        <option value="refunded">Refunded</option>
+                      ) : (
+                        <>
+                          <option value="placed">Placed</option>
+                          <option value="packed">Packed</option>
+                          <option value="in_transit">In Transit</option>
+                          <option value="delivered">Delivered</option>
+                          <option value="cancelled">Cancelled</option>
+                        </>
+                      )}
                     </select>
                   </td>
                   <td className="px-4 py-3">
@@ -370,6 +385,7 @@ export default function AdminOrdersPage() {
                   value={order.status}
                   onChange={(e) => updateStatus(order._id, e.target.value as OrderStatus)}
                   className="rounded border px-2 py-1 text-xs w-full"
+                  disabled={order.status === "delivered" || order.status === "refunded"}
                 >
                   <option value="placed">Placed</option>
                   <option value="packed">Packed</option>

@@ -1,4 +1,3 @@
-// src/app/api/utils/sendMail.ts
 import nodemailer from "nodemailer";
 
 const FROM = process.env.EMAIL_FROM || process.env.EMAIL_USER;
@@ -6,12 +5,17 @@ const FROM = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_SMTP_HOST || "smtp.gmail.com",
   port: Number(process.env.EMAIL_SMTP_PORT || 465),
-  secure: (process.env.EMAIL_SMTP_PORT || "465") === "465",
+  secure: true, // true for port 465 (SSL)
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    pass: process.env.EMAIL_PASS, // App Password here
   },
 });
+
+// Optional: test connection
+transporter.verify()
+  .then(() => console.log("SMTP connected successfully"))
+  .catch(err => console.error("SMTP connection error:", err));
 
 export async function sendMail(to: string, subject: string, html: string) {
   return transporter.sendMail({
@@ -28,7 +32,7 @@ export function otpEmailTemplate({ name, otp, purpose = "verification" }: { name
       <p>Hi ${name || "there"},</p>
       <p>Your OTP for ${purpose} is:</p>
       <h2>${otp}</h2>
-      <p>This code expires in 10 minutes.</p>
+      <p>This code expires in 24 hours.</p>
       <p>If you didn't request this, ignore this email.</p>
     </div>
   `;

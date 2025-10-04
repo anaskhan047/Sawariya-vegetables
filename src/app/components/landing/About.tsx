@@ -5,7 +5,7 @@ import React from "react";
 
 export default function AboutUs() {
   return (
-    <section className="relative w-full h-screen flex items-center justify-center text-center overflow-hidden">
+    <section id="about" className="relative w-full h-screen flex items-center justify-center text-center overflow-hidden">
       {/* Background Video */}
       <video
         className="absolute inset-0 w-full h-full object-cover"

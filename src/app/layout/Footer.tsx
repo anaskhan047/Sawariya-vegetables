@@ -48,8 +48,8 @@ export default function Footer() {
               </Link>
             </li>
             <li>
-              <Link href="/categories" className="hover:underline">
-                Categories
+              <Link href="/fruit" className="hover:underline">
+                Fruit
               </Link>
             </li>
             <li>
@@ -65,7 +65,7 @@ export default function Footer() {
           <h3 className="font-semibold mb-3">Company</h3>
           <ul className="space-y-2">
             <li>
-              <Link href="/about" className="hover:underline">
+              <Link href="/#about" className="hover:underline">
                 About Us
               </Link>
             </li>
@@ -92,12 +92,12 @@ export default function Footer() {
               </Link>
             </li>
             <li>
-              <Link href="/customer-service" className="hover:underline">
+              <Link href="/contact" className="hover:underline">
                 Customer Service
               </Link>
             </li>
             <li>
-              <Link href="/track-order" className="hover:underline">
+              <Link href="/order" className="hover:underline">
                 Track Order
               </Link>
             </li>

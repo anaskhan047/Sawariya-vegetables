@@ -110,7 +110,7 @@ export default function ContactInfo() {
                   value={(form as unknown as { [key: string]: string })[name]}
                   onChange={handleChange}
                   placeholder={placeholder}
-                  className="w-30 p-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:border-[var(--primary-color)]"
+                  className="w-full p-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:border-[var(--primary-color)]"
                   required
                 />
               ))}
@@ -121,14 +121,14 @@ export default function ContactInfo() {
                 onChange={handleChange}
                 placeholder="Your Message"
                 rows={4}
-                className="w-30 p-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:border-[var(--primary-color)]"
+                className="w-full p-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:border-[var(--primary-color)]"
                 required
               ></textarea>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-30 bg-[var(--primary-color)] hover:bg-[var(--secondary-color)] text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-300 disabled:opacity-50"
+                className="w-full bg-[var(--primary-color)] hover:bg-[var(--secondary-color)] text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-300 disabled:opacity-50"
               >
                 {loading ? "Sending..." : "Send Message"}
               </button>

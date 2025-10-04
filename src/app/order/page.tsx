@@ -163,7 +163,7 @@ export default function UserOrderList() {
                     ) : "- -"}
                     {order.otpExpiresAt && (
                       <div className="text-xs text-gray-400">
-                        Exp: {new Date(order.otpExpiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        Exp: {new Date(order.otpExpiresAt).toLocaleTimeString([], { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                       </div>
                     )}
                   </td>

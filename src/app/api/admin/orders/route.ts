@@ -21,7 +21,7 @@ async function getUserFromReq(req: Request) {
 export async function GET(req: Request) {
   try {
     const admin = await getUserFromReq(req);
-    if (!admin || admin.role !== "admin")
+    if (!admin || !["admin", "delivery"].includes(admin.role))
       return NextResponse.json({ success: false, message: "Not authorized" }, { status: 403 });
 
     await dbConnect();
@@ -44,7 +44,7 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   const body = await req.json();
   const admin = await getUserFromReq(req);
-  if (!admin || admin.role !== "admin")
+  if (!admin || !["admin", "delivery"].includes(admin.role))
     return NextResponse.json({ success: false, message: "Not authorized" }, { status: 403 });
 
   await dbConnect();

@@ -37,6 +37,8 @@ export default function Navbar() {
   const { user, isLoading, isLoggedIn, logout, refresh } = useAuth();
   const [image, setImage] = useState<string | null>(null);
   const { cartCount } = useCart();
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
   // listen for cart update events
   useEffect(() => {
     async function fetchCart() {
@@ -70,18 +72,22 @@ export default function Navbar() {
   // Loading state while fetching user data
   const [loading, setLoading] = useState(true);
   // close dropdowns on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setSearchOpen(false);
-      }
-      if (userRef.current && !userRef.current.contains(e.target as Node)) {
-        setUserOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+ useEffect(() => {
+  const handleClickOutside = (e: MouseEvent) => {
+    if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+      setSearchOpen(false);
+    }
+    if (userRef.current && !userRef.current.contains(e.target as Node)) {
+      setUserOpen(false);
+    }
+    if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+      setIsOpen(false);
+    }
+  };
+  document.addEventListener("mousedown", handleClickOutside);
+  return () => document.removeEventListener("mousedown", handleClickOutside);
+}, []);
+
 
   useEffect(() => {
     async function fetchUser() {
@@ -265,26 +271,31 @@ export default function Navbar() {
       </div>
 
       {/* Mobile Dropdown Menu */}
-      {isOpen && (
-        <div className="md:hidden bg-[var(--background-color)] border-t border-[var(--border-color)] shadow-md">
-          <ul className="flex flex-col space-y-2 p-4">
-            {navLinks.map((link) => (
-              <li key={link.name}>
-                <Link
-                  href={link.href}
-                  onClick={() => {
-                    setActive(link.name);
-                    setIsOpen(false);
-                  }}
-                  className="block capitalize text-[var(--text-color)] hover:text-[var(--primary-color)] py-2"
-                >
-                  {link.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* Mobile Dropdown Menu */}
+{isOpen && (
+  <div
+    ref={mobileMenuRef}
+    className="md:hidden bg-[var(--background-color)] border-t border-[var(--border-color)] shadow-md"
+  >
+    <ul className="flex flex-col space-y-2 p-4">
+      {navLinks.map((link) => (
+        <li key={link.name}>
+          <Link
+            href={link.href}
+            onClick={() => {
+              setActive(link.name);
+              setIsOpen(false); // Close menu on link click
+            }}
+            className="block capitalize text-[var(--text-color)] hover:text-[var(--primary-color)] py-2"
+          >
+            {link.name}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
+
     </nav>
   );
 }

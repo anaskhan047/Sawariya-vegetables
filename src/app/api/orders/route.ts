@@ -127,7 +127,7 @@ export async function POST(req: Request) {
     statusHistory: [{ status: "placed", by: user._id, at: new Date() }],
     paymentMethod,
     otp: generateOtp(),
-    otpExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+   otpExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), 
     paymentStatus: paymentMethod === "cod" ? "cod" : "pending",
   };
 
