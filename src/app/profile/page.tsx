@@ -57,7 +57,7 @@ export default function ProfilePage() {
     reader.readAsDataURL(file);
   };
 
-  // ✅ change password
+  //  change password
   async function handleChangePassword() {
     if (newPass !== confirmPass) {
       alert("New password and confirm password do not match");
@@ -84,7 +84,7 @@ export default function ProfilePage() {
   }
 
 
-  // ✅ forgot password flow
+  //  forgot password flow
   async function handleSendOtp() {
     const res = await fetch("/api/auth/forgot-password", {
       method: "POST",

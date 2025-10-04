@@ -12,7 +12,7 @@ interface DecodedToken {
 
 export async function GET(req: Request) {
   try {
-    // ✅ 1. Header se token check
+    //  1. Header se token check
     const authHeader = req.headers.get("authorization");
     let token: string | undefined;
 

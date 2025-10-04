@@ -57,7 +57,7 @@ export default function CartPage() {
   const [loadingCart, setLoadingCart] = useState(false);
   const [areas, setAreas] = useState<DeliveryArea[]>([]);
 
-  // ✅ Fetch Cart from API
+  //  Fetch Cart from API
   const fetchCart = useCallback(async () => {
     if (!isLoggedIn) return;
     try {
@@ -78,7 +78,7 @@ export default function CartPage() {
     if (isLoggedIn) fetchCart();
   }, [isLoggedIn, fetchCart]);
 
-  // ✅ Update quantity
+  //  Update quantity
   const updateQty = async (productId: string, newQty: number) => {
     try {
       setLoadingCart(true);
@@ -97,7 +97,7 @@ export default function CartPage() {
     }
   };
 
-  // ✅ Remove item
+  //  Remove item
   const removeItem = async (productId: string) => {
     try {
       setLoadingCart(true);
@@ -119,7 +119,7 @@ export default function CartPage() {
     }
   };
 
-  // ✅ Price Summary
+  //  Price Summary
   const priceSummary = useMemo(() => {
     const subTotal = items.reduce(
       (sum, it) => sum + it.productId.price * it.quantity,
@@ -130,7 +130,7 @@ export default function CartPage() {
     return { subTotal, delivery, total };
   }, [items]);
 
-  // ✅ Fetch delivery areas
+  //  Fetch delivery areas
   useEffect(() => {
     const fetchAreas = async () => {
       try {
@@ -144,8 +144,8 @@ export default function CartPage() {
     fetchAreas();
   }, []);
 
-  // ✅ Checkout Flow
-  // ✅ Checkout Flow
+  //  Checkout Flow
+  //  Checkout Flow
   const handleCheckout = async () => {
     if (priceSummary.subTotal < 50) return;
 
@@ -164,14 +164,14 @@ export default function CartPage() {
       });
       if (!confirm.isConfirmed) return;
 
-      // ✅ Fetch logged-in user
+      //  Fetch logged-in user
       const resUser = await fetch("/api/auth/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const userData: UserResponse = await resUser.json();
       if (!resUser.ok) throw new Error("Please login again!");
 
-      // ✅ Get Address
+      //  Get Address
       const { value: addressForm } = await Swal.fire({
         title: "Enter Delivery Details",
         html: `
@@ -195,7 +195,7 @@ export default function CartPage() {
       if (!addressForm || !addressForm.area)
         return Swal.fire("Error", "Please select delivery area.", "error");
 
-      // ✅ Payment Method
+      //  Payment Method
       const { value: paymentMethod } = await Swal.fire({
         title: "Select Payment Method",
         input: "radio",
@@ -204,7 +204,7 @@ export default function CartPage() {
       });
       if (!paymentMethod) return;
 
-      // ✅ Prepare order items
+      //  Prepare order items
       const orderItems = items.map((it) => ({
         productId: it.productId._id, // MUST use _id
         name: it.productId.name,
@@ -263,7 +263,7 @@ export default function CartPage() {
 
         const utrNumber = result.value as string;
 
-        // ✅ Now create order only after UTR is given
+        //  Now create order only after UTR is given
         const res = await fetch("/api/orders", {
           method: "POST",
           headers: {
@@ -285,7 +285,7 @@ export default function CartPage() {
 
         Swal.fire("Success", "Payment recorded. Your order is placed!", "success");
       } else {
-        // ✅ COD directly creates order
+        //  COD directly creates order
         const res = await fetch("/api/orders", {
           method: "POST",
           headers: {
@@ -306,7 +306,7 @@ export default function CartPage() {
         Swal.fire("Success", "Your order has been placed!", "success");
       }
 
-      // ✅ Clear cart both sides
+      //  Clear cart both sides
       setItems([]);
       await fetch("/api/cart", {
         method: "DELETE",
@@ -321,7 +321,7 @@ export default function CartPage() {
   };
 
 
-  // ✅ UI States
+  //  UI States
   if (isLoading)
     return <div className="flex items-center justify-center min-h-[60vh]">Loading...</div>;
 
@@ -353,7 +353,7 @@ export default function CartPage() {
       </div>
     );
 
-  // ✅ Free delivery bar progress
+  //  Free delivery bar progress
   const freeDeliveryThreshold = 300;
   const remainingForFreeDelivery =
     priceSummary.subTotal >= freeDeliveryThreshold

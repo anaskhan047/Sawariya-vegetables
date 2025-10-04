@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import axios from "axios";
-import Swal from "sweetalert2"; // ✅ Import SweetAlert2
+import Swal from "sweetalert2"; //  Import SweetAlert2
 
 type OrderStatus = "placed" | "packed" | "in_transit" | "delivered" | "cancelled" | "refunded";
 
@@ -18,7 +18,7 @@ type Order = {
   status: OrderStatus;
   paymentMethod: string;
   upiId?: string;
-  utr?: string;            // ✅ add this
+  utr?: string;            //  add this
   upiTxnInfo?: { paidTo?: string; txnRef?: string };
   paymentStatus: string;
   createdAt: string;
@@ -29,7 +29,7 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [statusFilter, setStatusFilter] = useState("All");
 
-  // ✅ Fetch all orders
+  //  Fetch all orders
   useEffect(() => {
     const fetchOrders = async () => {
       try {
@@ -42,7 +42,7 @@ export default function AdminOrdersPage() {
         console.log(res.data)
         if (res.data.success) setOrders(res.data.orders || []);
       } catch (err) {
-        console.error("❌ Error fetching orders:", err);
+        console.error("  Error fetching orders:", err);
       }
     };
     fetchOrders();
@@ -50,7 +50,7 @@ export default function AdminOrdersPage() {
 
   const filteredOrders = statusFilter === "All" ? orders : orders.filter((o) => o.status === statusFilter);
 
-  // ✅ Export to Excel
+  //  Export to Excel
   const exportToExcel = () => {
     const ws = XLSX.utils.json_to_sheet(
       filteredOrders.map((o) => ({
@@ -74,13 +74,13 @@ export default function AdminOrdersPage() {
     XLSX.writeFile(wb, "Orders.xlsx");
   };
 
-  // ✅ Update status with OTP confirmation if delivered
+  //  Update status with OTP confirmation if delivered
   const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      // ✅ If marking as delivered, ask for OTP
+      //  If marking as delivered, ask for OTP
       if (newStatus === "delivered") {
         const { value: otp } = await Swal.fire({
           title: "Enter OTP to confirm delivery",
@@ -99,7 +99,7 @@ export default function AdminOrdersPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ orderId, verifyOtp: otp }), // ✅ FIXED
+          body: JSON.stringify({ orderId, verifyOtp: otp }), //  FIXED
         });
 
         const data = await res.json();
@@ -116,7 +116,7 @@ export default function AdminOrdersPage() {
       }
 
 
-      // ✅ Normal status update (no OTP needed)
+      //  Normal status update (no OTP needed)
       const res = await fetch("/api/admin/orders", {
         method: "PATCH",
         headers: {
@@ -133,7 +133,7 @@ export default function AdminOrdersPage() {
         );
       }
     } catch (err) {
-      console.error("❌ Failed to update status:", err);
+      console.error("  Failed to update status:", err);
       Swal.fire("Error", "Failed to update status", "error");
     }
   };
@@ -265,7 +265,7 @@ export default function AdminOrdersPage() {
                           </div>
                         )}
 
-                        {order.utr && ( // ✅ utr direct show
+                        {order.utr && ( //  utr direct show
                           <div className="text-gray-600">
                             <b>UTR:</b> {order.utr}
                           </div>
@@ -347,7 +347,7 @@ export default function AdminOrdersPage() {
                       </div>
                     )}
 
-                    {order.utr && ( // ✅ utr show here too
+                    {order.utr && ( //  utr show here too
                       <div className="text-gray-600">
                         <b>UTR:</b> {order.utr}
                       </div>

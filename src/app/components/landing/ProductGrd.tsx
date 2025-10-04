@@ -9,7 +9,7 @@ export default function ProductGrid() {
   const [products, setProducts] = useState<Product[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const { refreshCart } = useCart();
-  // ✅ API se products fetch karo
+  //  API se products fetch karo
   useEffect(() => {
     async function fetchProducts() {
       try {
@@ -35,7 +35,7 @@ export default function ProductGrid() {
     fetchProducts();
   }, []);
 
-  // ✅ Quantity update
+  //  Quantity update
   const updateQuantity = (id: string, value: number) => {
     setQuantities((prev) => {
       const current = prev[id] ?? 1;
@@ -51,7 +51,7 @@ export default function ProductGrid() {
     });
   };
 
-  // ✅ Add to Cart API
+  //  Add to Cart API
   const handleAddToCart = async (product: Product) => {
     try {
       const res = await fetch("/api/cart", {

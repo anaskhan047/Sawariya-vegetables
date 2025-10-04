@@ -73,7 +73,7 @@ export default function UserOrderList() {
           setOrders(data.orders || []);
         }
       })
-      .catch((err) => console.error("❌ Fetch Error:", err))
+      .catch((err) => console.error("  Fetch Error:", err))
       .finally(() => setLoading(false));
   }, []);
 

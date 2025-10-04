@@ -2,7 +2,7 @@ import dbConnect from "@/app/lib/mongodb";
 import DeliveryArea from "@/app/models/DeliveryArea";
 import { NextRequest, NextResponse } from "next/server";
 
-// ✅ Add new delivery area
+//  Add new delivery area
 export async function POST(req: NextRequest) {
   await dbConnect();
   try {
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ✅ Get all delivery areas
+//  Get all delivery areas
 export async function GET() {
   await dbConnect();
   try {
@@ -35,7 +35,7 @@ export async function GET() {
   }
 }
 
-// ✅ Delete delivery area
+//  Delete delivery area
 export async function DELETE(req: NextRequest) {
   await dbConnect();
   try {

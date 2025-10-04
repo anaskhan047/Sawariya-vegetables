@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as cookie from "cookie"; // ✅ fixed import
+import * as cookie from "cookie"; //  fixed import
 import { v4 as uuidv4 } from "uuid";
 import dbConnect from "@/app/lib/mongodb";
 import Cart from "@/app/models/Cart";

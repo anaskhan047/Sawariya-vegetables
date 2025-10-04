@@ -32,7 +32,7 @@ export async function PUT(req: Request) {
     if (!user) 
       return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
 
-    // ✅ Use user.set() instead of casting to any
+    //  Use user.set() instead of casting to any
     const allowed: (keyof UpdateUserBody)[] = ["name", "phone", "address", "image"];
     allowed.forEach((key) => {
       if (body[key] !== undefined) {

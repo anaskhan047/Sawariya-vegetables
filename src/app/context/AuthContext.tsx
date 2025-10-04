@@ -62,11 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
 
       if (res.ok && data?.token) {
-        // ✅ Token save to localStorage
+        //  Token save to localStorage
         localStorage.setItem("token", data.token);
         setToken(data.token);
 
-        console.log("✅ Token saved in localStorage:", data.token);
+        console.log(" Token saved in localStorage:", data.token);
 
         await refresh();
         router.push("/shop");
@@ -132,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoggedIn(false);
       }
     } catch (err) {
-      console.error("❌ Refresh error:", err);
+      console.error("  Refresh error:", err);
       setUser(null);
       setIsLoggedIn(false);
     } finally {

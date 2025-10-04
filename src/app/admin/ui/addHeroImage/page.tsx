@@ -24,7 +24,7 @@ export default function HeroImagePage() {
       setImages(data);
     } catch (error) {
       console.error(error);
-      alert("❌ Failed to load images");
+      alert("  Failed to load images");
     }
   };
 
@@ -63,16 +63,16 @@ export default function HeroImagePage() {
 
         const data = await res.json();
         if (data.success) {
-          alert("✅ Image uploaded successfully!");
+          alert(" Image uploaded successfully!");
           setFile(null);
           setPreview(null);
           fetchImages();
         } else {
-          alert("❌ Upload failed");
+          alert("  Upload failed");
         }
       } catch (error) {
         console.error(error);
-        alert("❌ Upload failed");
+        alert("  Upload failed");
       } finally {
         setLoading(false);
       }
@@ -96,11 +96,11 @@ export default function HeroImagePage() {
         alert("🗑 Image deleted");
         fetchImages();
       } else {
-        alert("❌ Delete failed");
+        alert("  Delete failed");
       }
     } catch (error) {
       console.error(error);
-      alert("❌ Delete failed");
+      alert("  Delete failed");
     }
   };
 

@@ -33,7 +33,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ success: true, orders });
   } catch (err: unknown) {
-    console.error("❌ Error fetching orders:", err);
+    console.error("  Error fetching orders:", err);
     const message = err instanceof Error ? err.message : "Unknown server error";
     return NextResponse.json({ success: false, message }, { status: 500 });
   }
@@ -52,7 +52,7 @@ export async function PATCH(req: Request) {
   const order = await Orders.findById(orderId);
   if (!order) return NextResponse.json({ success: false, message: "Order not found" }, { status: 404 });
 
-  // ✅ Handle payment received
+  //  Handle payment received
   if (paymentReceived) {
     order.paymentStatus = "received";
     if (upiTxnInfo) order.upiTxnInfo = { ...(order.upiTxnInfo || {}), ...upiTxnInfo };
@@ -61,7 +61,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ success: true, order });
   }
 
-  // ✅ Handle OTP verification for delivery
+  //  Handle OTP verification for delivery
   if (verifyOtp) {
     if (!order.otp || String(order.otp) !== String(verifyOtp))
       return NextResponse.json({ success: false, message: "Invalid OTP" }, { status: 400 });
@@ -76,7 +76,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ success: true, order });
   }
 
-  // ✅ Handle status update (no OTP generation here)
+  //  Handle status update (no OTP generation here)
   if (status) {
     order.status = status;
     order.statusHistory.push({ status, by: admin._id, at: new Date() });
@@ -93,8 +93,8 @@ export async function PATCH(req: Request) {
   if (body.utr) {
     order.upiTxnInfo = {
       ...(order.upiTxnInfo || {}),
-      txnRef: body.utr,     // ✅ UTR entered by user
-      paidTo: body.upiId,   // ✅ kaunsa UPI ID select hua
+      txnRef: body.utr,     //  UTR entered by user
+      paidTo: body.upiId,   //  kaunsa UPI ID select hua
       userClaimed: true,
       claimedAt: new Date(),
     };

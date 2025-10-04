@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useCart } from "@/app/context/CartContext";
 import OrbitVegetableLoader from "../Loader/Loader";
+import Swal from "sweetalert2";
 
 interface ProductImage {
   url: string;
@@ -86,6 +87,22 @@ export default function ShopPage() {
   }, [selectedGrade, selectedCategory, popularOnly]);
 
   const handleAddToCart = async (product: Product) => {
+    if(localStorage.getItem('token')===null){
+      Swal.fire({
+        title: 'You are not logged in',
+        text: 'Please log in to add items to your cart.',
+        icon: 'warning',
+        confirmButtonText: 'Login',
+        cancelButtonText: 'Cancel',
+        showCancelButton: true,
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // Redirect to login page
+          window.location.href = "/login";
+        }
+      });
+      return;
+    }
     try {
       const res = await fetch("/api/cart", {
         method: "POST",

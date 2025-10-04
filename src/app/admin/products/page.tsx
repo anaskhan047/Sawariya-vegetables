@@ -116,7 +116,7 @@ export default function ProductsPage() {
       await deleteProduct(id);
     } catch (err) {
       console.error("delete failed", err);
-      alert("❌ Could not delete product");
+      alert("  Could not delete product");
       setProducts(prev); // rollback
     }
   };
@@ -136,7 +136,7 @@ export default function ProductsPage() {
         } catch (err) {
           console.error("update failed:", err);
           setProducts(prev);
-          alert("❌ Could not update product");
+          alert("  Could not update product");
         }
       } else {
         const temp = { ...data, id: "TEMP-" + Date.now() } as Product;
@@ -152,7 +152,7 @@ export default function ProductsPage() {
         } catch (err) {
           console.error("create failed:", err);
           setProducts((p) => p.filter((x) => x.id !== temp.id));
-          alert("❌ Could not create product");
+          alert("  Could not create product");
         }
       }
 
@@ -160,7 +160,7 @@ export default function ProductsPage() {
       setEditing(null);
     } catch (err) {
       console.error("save product failed:", err);
-      alert("❌ Could not save product");
+      alert("  Could not save product");
     }
   };
 

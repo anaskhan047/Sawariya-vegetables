@@ -11,5 +11,6 @@ export async function POST() {
     path: "/",
     maxAge: 0,
   });
+  localStorage.removeItem("token");
   return res;
 }

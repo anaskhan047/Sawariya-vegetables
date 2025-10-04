@@ -12,6 +12,7 @@ import {
   MapPin,
   Settings,
   Menu,
+  Subscript,
 } from "lucide-react";
 import { BiCube } from "react-icons/bi";
 import { MdDraw } from "react-icons/md";
@@ -33,6 +34,7 @@ const menuItems: MenuItem[] = [
   { name: "Users", icon: <Users size={20} />, link: "/admin/users" ,notification: true},
   { name: "Messages", icon: <MessageSquare size={20} />, link: "/admin/messages" },
   { name: "Testimonials", icon: <MessageSquare size={20} />, link: "/admin/testimonials" },
+  { name: "Subscribers", icon: <Subscript size={20} />, link: "/admin/subscribe" },
   { name: "Delivery Areas", icon: <MapPin size={20} />, link: "/admin/delivery-areas" },
   { name: "Settings", icon: <Settings size={20} />, link: "/admin/settings" },
 ];

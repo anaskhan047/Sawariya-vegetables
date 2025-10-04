@@ -29,7 +29,7 @@ export default function FruitsPage() {
   const [fruits, setFruits] = useState<Product[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const { refreshCart } = useCart();
-  // ✅ Fetch fruits from API
+  //  Fetch fruits from API
   useEffect(() => {
     const fetchFruits = async () => {
       try {
@@ -57,7 +57,7 @@ export default function FruitsPage() {
     fetchFruits();
   }, []);
 
-  // ✅ Sorting
+  //  Sorting
   const sortedFruits = [...fruits].sort((a, b) => {
     if (sortOrder === "low-high") return a.price - b.price;
     if (sortOrder === "high-low") return b.price - a.price;
@@ -68,7 +68,7 @@ export default function FruitsPage() {
     return 0;
   });
 
-  // ✅ Quantity Change
+  //  Quantity Change
   const handleQuantityChange = (fruit: Product, change: number) => {
     setQuantities((prev) => {
       const current = prev[fruit.id] || fruit.minQty || 1;
@@ -87,7 +87,7 @@ export default function FruitsPage() {
     });
   };
 
-  // ✅ Add to Cart (API integration)
+  //  Add to Cart (API integration)
   const handleAddToCart = async (fruit: Product) => {
     try {
       const res = await fetch("/api/cart", {

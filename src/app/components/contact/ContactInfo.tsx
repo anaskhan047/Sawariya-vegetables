@@ -1,54 +1,88 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 
 export default function ContactInfo() {
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    number: "",
+    message: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("");
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setStatus("");
+
+    try {
+      const res = await fetch("/api/message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setStatus(" Message sent successfully!");
+        setForm({ name: "", email: "", number: "", message: "" });
+      } else {
+        setStatus("  Failed to send message. Try again.");
+      }
+    } catch {
+      setStatus("  Server error. Please try later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const info = [
     {
-      icon: <MapPin size={32} />,
+      icon: MapPin,
       title: "Address",
       detail: "123 Green Street, Fresh City, India",
     },
-    {
-      icon: <Phone size={32} />,
-      title: "Phone",
-      detail: "+91 98765 43210",
-    },
-    {
-      icon: <Mail size={32} />,
-      title: "Email",
-      detail: "contact@sawariyavegetable.com",
-    },
-    {
-      icon: <Clock size={32} />,
-      title: "Timing",
-      detail: "Mon - Sat: 9:00 AM - 8:00 PM",
-    },
+    { icon: Phone, title: "Phone", detail: "+91 98765 43210" },
+    { icon: Mail, title: "Email", detail: "contact@sawariyavegetable.com" },
+    { icon: Clock, title: "Timing", detail: "Mon - Sat: 9:00 AM - 8:00 PM" },
+  ];
+
+  const formFields = [
+    { name: "name", type: "text", placeholder: "Your Name" },
+    { name: "email", type: "email", placeholder: "Your Email" },
+    { name: "number", type: "tel", placeholder: "Your Phone Number" },
   ];
 
   return (
     <section className="py-12 bg-[var(--background-color)] text-[var(--text-color)]">
       <div className="max-w-6xl mx-auto px-4">
-        {/* Top 4 Info Boxes */}
+        {/* Top Info Boxes */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          {info.map((item, i) => (
+          {info.map(({ icon: Icon, title, detail }, i) => (
             <div
               key={i}
               className="flex flex-col items-center p-6 bg-white rounded-2xl border border-[var(--border-color)] shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 hover:bg-[var(--primary-color)] hover:text-white group"
             >
-              <div className="mb-3 text-[var(--primary-color)] group-hover:text-white transition-colors duration-300">
-                {item.icon}
-              </div>
-              <h3 className="text-lg font-semibold mb-1">{item.title}</h3>
+              <Icon
+                size={32}
+                className="mb-3 text-[var(--primary-color)] group-hover:text-white transition-colors duration-300"
+              />
+              <h3 className="text-lg font-semibold mb-1">{title}</h3>
               <p className="text-[var(--text-light)] group-hover:text-white text-center text-sm">
-                {item.detail}
+                {detail}
               </p>
             </div>
           ))}
         </div>
 
-        {/* Bottom Row - Map & Form */}
+        {/* Map & Contact Form */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Google Map */}
           <div className="rounded-2xl overflow-hidden shadow-lg border border-[var(--border-color)]">
@@ -66,38 +100,48 @@ export default function ContactInfo() {
             <h2 className="text-2xl font-bold mb-6 text-[var(--primary-color)]">
               Send Us a Message
             </h2>
-            <form className="space-y-4">
-              <input
-                type="text"
-                placeholder="Your Name"
-                className="w-full p-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:border-[var(--primary-color)]"
-              />
-              <input
-                type="email"
-                placeholder="Your Email"
-                className="w-full p-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:border-[var(--primary-color)]"
-              />
-              <input
-                type="tel"
-                placeholder="Your Phone Number"
-                className="w-full p-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:border-[var(--primary-color)]"
-              />
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {formFields.map(({ name, type, placeholder }) => (
+                <input
+                  key={name}
+                  type={type}
+                  name={name}
+                  value={(form as unknown as { [key: string]: string })[name]}
+                  onChange={handleChange}
+                  placeholder={placeholder}
+                  className="w-30 p-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:border-[var(--primary-color)]"
+                  required
+                />
+              ))}
+
               <textarea
+                name="message"
+                value={form.message}
+                onChange={handleChange}
                 placeholder="Your Message"
                 rows={4}
-                className="w-full p-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:border-[var(--primary-color)]"
+                className="w-30 p-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:border-[var(--primary-color)]"
+                required
               ></textarea>
+
               <button
                 type="submit"
-                className="w-full bg-[var(--primary-color)] hover:bg-[var(--secondary-color)] text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-300"
+                disabled={loading}
+                className="w-30 bg-[var(--primary-color)] hover:bg-[var(--secondary-color)] text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-300 disabled:opacity-50"
               >
-                Send Message
+                {loading ? "Sending..." : "Send Message"}
               </button>
             </form>
+
+            {status && (
+              <p className="text-center mt-4 text-sm font-medium text-[var(--primary-color)]">
+                {status}
+              </p>
+            )}
           </div>
         </div>
       </div>
     </section>
   );
 }
-{/* <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d29449.372780342186!2d75.80101993924276!3d22.68465512206235!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3962fc4df8240b37%3A0x62933de14560b8f0!2sSudama%20Nagar%2C%20Indore%2C%20Madhya%20Pradesh%20452009!5e0!3m2!1sen!2sin!4v1755442156614!5m2!1sen!2sin" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe> */}

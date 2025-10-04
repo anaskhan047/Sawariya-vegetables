@@ -32,7 +32,7 @@ export default function Topbar() {
 
         {/* Logout Button */}
         <button
-          onClick={handleLogout} // ✅ moved here
+          onClick={handleLogout} //  moved here
           className="bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded flex items-center gap-2 transition"
         >
           <LogOut size={16} />

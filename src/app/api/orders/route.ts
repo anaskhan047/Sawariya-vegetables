@@ -55,25 +55,25 @@ async function getUserFromReq(req: Request): Promise<UserPayload | null> {
 export async function GET(req: Request) {
   try {
     const user = await getUserFromReq(req);
-    console.log("✅ User from token:", user);
+    console.log(" User from token:", user);
 
     if (!user) {
       return NextResponse.json({ success: false, message: "Not authenticated" }, { status: 401 });
     }
 
     await dbConnect();
-    console.log("✅ DB connected");
+    console.log(" DB connected");
 
     const orders = await Orders.find({ user: user._id })
       .populate("address.area", "name pincode")
       .sort({ createdAt: -1 })
       .lean();
 
-    console.log("✅ Orders fetched:", orders.length);
+    console.log(" Orders fetched:", orders.length);
 
     return NextResponse.json({ success: true, orders });
   } catch (err: unknown) {
-    console.error("❌ Orders API Error:", err);
+    console.error("  Orders API Error:", err);
     const message = err instanceof Error ? err.message : "Server error";
     return NextResponse.json({ success: false, message }, { status: 500 });
   }
@@ -135,7 +135,7 @@ export async function POST(req: Request) {
     // Save UPI ID (either passed or random fallback)
     orderPayload.upiId = upiId || UPI_IDS[Math.floor(Math.random() * UPI_IDS.length)];
 
-    // ✅ Save UTR directly in order
+    //  Save UTR directly in order
     if (utr) {
       orderPayload.utr = utr;
       orderPayload.upiTxnInfo = {
@@ -162,7 +162,7 @@ for (const it of items) {
       { $inc: { stockQty: -it.quantity } }
     );
   } catch (err) {
-    console.error(`❌ Failed to update stock for product ${it.productId}`, err);
+    console.error(`  Failed to update stock for product ${it.productId}`, err);
   }
 }
 
