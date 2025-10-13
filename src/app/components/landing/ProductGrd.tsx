@@ -134,7 +134,7 @@ export default function ProductGrid() {
                 {product.inHindi} 
               </h3>
               <p className="text-sm text-[var(--text-light)] mb-3">
-                ${product.price} / {product.unit}
+                ₹{product.price} / {product.unit}
               </p>
 
               {/* Quantity */}
