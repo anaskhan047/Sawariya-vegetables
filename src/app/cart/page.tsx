@@ -7,6 +7,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import Swal from "sweetalert2";
 import Image from "next/image";
 import QRCode from "qrcode";
+import OrbitVegetableLoader from "../components/Loader/Loader";
 type Product = {
   _id: string;
   id: string;
@@ -65,6 +66,7 @@ export default function CartPage() {
       const res = await fetch("/api/cart", {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
+
       const data = await res.json();
       if (res.ok && data.success) setItems(data.items);
     } catch (err) {
@@ -80,9 +82,16 @@ export default function CartPage() {
 
   //  Update quantity
   const updateQty = async (productId: string, newQty: number) => {
+    // ✅ Find and update locally first (for instant UI response)
+    setItems((prev) =>
+      prev.map((it) =>
+        it.productId._id === productId ? { ...it, quantity: newQty } : it
+      )
+    );
+
     try {
-      setLoadingCart(true);
-      const res = await fetch("/api/cart", {
+      // ✅ No loading overlay for small quantity changes
+      await fetch("/api/cart", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -90,12 +99,13 @@ export default function CartPage() {
         },
         body: JSON.stringify({ productId, quantity: newQty }),
       });
-      if (res.ok) fetchCart();
+      // You can optionally refresh silently (no loadingCart)
+      refreshCart();
     } catch (err) {
       console.error(err);
-      setLoadingCart(false);
     }
   };
+
 
   //  Remove item
   const removeItem = async (productId: string) => {
@@ -323,7 +333,9 @@ export default function CartPage() {
 
   //  UI States
   if (isLoading)
-    return <div className="flex items-center justify-center min-h-[60vh]">Loading...</div>;
+    return  <div className="flex items-center justify-center min-h-screen py-10">
+      <OrbitVegetableLoader />
+    </div>;
 
   if (!isLoggedIn)
     return (
@@ -420,8 +432,8 @@ export default function CartPage() {
               <button
                 onClick={() => {
                   const step = it.productId.unit === "kg" ? 0.5 : 1;
-                  const newQty = Math.max(it.productId.minQty, it.quantity - step); // 👈 minQty se kam nahi hoga
-                  updateQty(it.productId._id, newQty);
+                  const newQty = Math.max(it.productId.minQty, it.quantity - step);
+                  if (newQty !== it.quantity) updateQty(it.productId._id, newQty);
                 }}
                 className="px-3 py-1 border rounded hover:bg-gray-100 transition"
               >
@@ -433,13 +445,14 @@ export default function CartPage() {
               <button
                 onClick={() => {
                   const step = it.productId.unit === "kg" ? 0.5 : 1;
-                  const newQty = Math.min(it.productId.maxQty, it.quantity + step); // 👈 maxQty se zyada nahi hoga
-                  updateQty(it.productId._id, newQty);
+                  const newQty = Math.min(it.productId.maxQty, it.quantity + step);
+                  if (newQty !== it.quantity) updateQty(it.productId._id, newQty);
                 }}
                 className="px-3 py-1 border rounded hover:bg-gray-100 transition"
               >
                 +
               </button>
+
 
               <button
                 onClick={() => removeItem(it.productId.id)}

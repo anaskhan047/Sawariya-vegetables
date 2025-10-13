@@ -7,6 +7,7 @@ import "swiper/css";
 import "swiper/css/effect-fade";
 import gsap from "gsap";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 // Slide item interface
 interface SlideItem {
@@ -24,7 +25,7 @@ export default function HeroSection() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [showAreas, setShowAreas] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
-
+  const router = useRouter();
   // Load slides (local + API)
   useEffect(() => {
     const fetchHeroImages = async () => {
@@ -115,9 +116,13 @@ export default function HeroSection() {
           Fresh vegetables and fruits delivered directly from the farm.
         </p>
         <div className="flex flex-col items-center gap-4 relative">
-          <button className="bg-[var(--primary-color)] hover:bg-[var(--primary-hover)] text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition">
+          <button
+            onClick={() => router.push('/shop')}
+            className="bg-[var(--primary-color)] hover:bg-[var(--secondary-color)] text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition-colors duration-300"
+          >
             Shop Now
           </button>
+
           <div className="relative w-full">
             <button
               onClick={() => setShowAreas(!showAreas)}

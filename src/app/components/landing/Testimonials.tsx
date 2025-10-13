@@ -12,7 +12,7 @@ interface Testimonial {
   name: string;
   email?: string;
   message: string;
-  rating: number ;
+  rating: number;
   status?: 'pending' | 'approved' | 'rejected';
   image?: string;
 }
@@ -28,30 +28,35 @@ export default function Testimonials() {
   const [newRating, setNewRating] = useState(5);
   const [submitting, setSubmitting] = useState(false);
 
-  const settings = {
-    dots: true,
-    infinite: true,
-    speed: 800,
-    slidesToShow: 3,
-    slidesToScroll: 1,
-    autoplay: true,
-    autoplaySpeed: 3500,
-    responsive: [
-      { breakpoint: 1024, settings: { slidesToShow: 2 } },
-      { breakpoint: 768, settings: { slidesToShow: 1, arrows: false } },
-    ],
-  };
+  // ✅ dynamic slidesToShow fix (so SSR doesn't break mobile layout)
+  const [slidesToShow, setSlidesToShow] = useState(4);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    const updateSlides = () => {
+      const width = window.innerWidth;
+      if (width < 768) setSlidesToShow(1);
+      else if (width < 1024) setSlidesToShow(2);
+      else setSlidesToShow(4);
+    };
+    updateSlides();
+    window.addEventListener('resize', updateSlides);
+    return () => window.removeEventListener('resize', updateSlides);
+  }, []);
 
   // Fetch approved testimonials
   useEffect(() => {
     setLoading(true);
     fetch('/api/testimonials?status=approved')
-      .then(res => (res.ok ? res.json() : Promise.reject('Failed to load testimonials')))
-      .then(data => {
+      .then((res) =>
+        res.ok ? res.json() : Promise.reject('Failed to load testimonials')
+      )
+      .then((data) => {
         setTestimonials(data);
         setError(null);
       })
-      .catch(err => {
+      .catch((err) => {
         setError(err.toString());
       })
       .finally(() => {
@@ -98,24 +103,40 @@ export default function Testimonials() {
       setNewEmail('');
       setNewMessage('');
       setNewRating(5);
-      // Optional: Refresh testimonials or let admin approve first
     } catch (err: unknown) {
-      Swal.fire({ icon: 'error', title: 'Error', text: (err as Error).message || 'Submission failed' });
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: (err as Error).message || 'Submission failed',
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
+  const sliderSettings = {
+    dots: true,
+    infinite: true,
+    speed: 800,
+    slidesToShow,
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 3500,
+    arrows: slidesToShow > 1,
+  };
+
   return (
     <div className="max-w-6xl mx-auto py-12 bg-[var(--background-color)]">
-      <h2 className="text-3xl font-bold text-center mb-8">What Our Customers Say</h2>
+      <h2 className="text-3xl font-bold text-center mb-8">
+        What Our Customers Say
+      </h2>
 
       {loading && <p className="text-center mb-4">Loading testimonials...</p>}
       {error && <p className="text-center text-red-600 mb-4">{error}</p>}
 
-      {!loading && testimonials.length > 0 && (
-        <Slider {...settings} className="!overflow-hidden">
-          {testimonials.map(t => (
+      {!loading && testimonials.length > 0 && isClient && (
+        <Slider {...sliderSettings} key={slidesToShow} className="!overflow-hidden">
+          {testimonials.map((t) => (
             <div key={t._id} className="px-4 sm:px-2">
               <div className="border rounded-xl p-6 shadow-md bg-white h-full flex flex-col justify-between">
                 <StarRating rating={t.rating} readOnly />
@@ -135,7 +156,7 @@ export default function Testimonials() {
               type="text"
               placeholder="Your Name"
               value={newName}
-              onChange={e => setNewName(e.target.value)}
+              onChange={(e) => setNewName(e.target.value)}
               className="w-full border rounded-lg px-3 py-2"
               required
             />
@@ -143,14 +164,14 @@ export default function Testimonials() {
               type="email"
               placeholder="Your Email"
               value={newEmail}
-              onChange={e => setNewEmail(e.target.value)}
+              onChange={(e) => setNewEmail(e.target.value)}
               className="w-full border rounded-lg px-3 py-2"
               required
             />
             <textarea
               placeholder="Your Feedback"
               value={newMessage}
-              onChange={e => setNewMessage(e.target.value)}
+              onChange={(e) => setNewMessage(e.target.value)}
               className="w-full border rounded-lg px-3 py-2"
               required
               minLength={10}

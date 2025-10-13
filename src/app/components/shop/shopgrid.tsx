@@ -87,7 +87,7 @@ export default function ShopPage() {
   }, [selectedGrade, selectedCategory, popularOnly]);
 
   const handleAddToCart = async (product: Product) => {
-    if(localStorage.getItem('token')===null){
+    if (localStorage.getItem('token') === null) {
       Swal.fire({
         title: 'You are not logged in',
         text: 'Please log in to add items to your cart.',
@@ -117,7 +117,10 @@ export default function ShopPage() {
       if (res.ok && data.success) {
         await refreshCart();
       } else {
-        alert(data.message || "Failed to add to cart");
+        if (!res.ok) {
+          Swal.fire("Limit Exceeded", data.error || "Failed to add to cart", "error");
+          return;
+        }
       }
     } catch (error) {
       console.error("Add to cart error:", error);
@@ -127,9 +130,10 @@ export default function ShopPage() {
 
   if (loading)
     return (
-     <div className="text-center py-10">
-        <OrbitVegetableLoader />
-      </div>
+      <div className="flex items-center justify-center min-h-screen py-10">
+  <OrbitVegetableLoader />
+</div>
+
     );
   if (!products.length)
     return <p className="text-center py-10">No products found</p>;
@@ -187,12 +191,12 @@ export default function ShopPage() {
                       ${product.grade === "Standard"
                         ? "bg-gray-500"
                         : product.grade === "Silver"
-                        ? "bg-slate-400"
-                        : product.grade === "Gold"
-                        ? "bg-yellow-400"
-                        : product.grade === "Premium"
-                        ? "bg-purple-600"
-                        : "bg-blue-500"
+                          ? "bg-slate-400"
+                          : product.grade === "Gold"
+                            ? "bg-yellow-400"
+                            : product.grade === "Premium"
+                              ? "bg-purple-600"
+                              : "bg-blue-500"
                       }`}
                   >
                     <span>⭐</span>

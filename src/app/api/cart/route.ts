@@ -131,14 +131,40 @@ export async function POST(req: NextRequest) {
     );
 
     if (existingIndex >= 0) {
-      (cart.items[existingIndex] as CartItem).quantity += quantity;
+      const existingQty = (cart.items[existingIndex] as CartItem).quantity;
+      const newTotal = existingQty + quantity;
+
+      // ✅ Cap it at maxQty
+      if (newTotal > maxQty) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `You can add only up to ${maxQty} ${product.unit || "units"} for ${product.name}`,
+          },
+          { status: 400 }
+        );
+      }
+
+      (cart.items[existingIndex] as CartItem).quantity = newTotal;
     } else {
+      // ✅ Also check when adding first time
+      if (quantity > maxQty) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `You can add only up to ${maxQty} ${product.unit || "units"} for ${product.name}`,
+          },
+          { status: 400 }
+        );
+      }
+
       (cart.items as CartItem[]).push({
         productId: prodObjectId,
         quantity,
         priceAtAdd: product.price,
       });
     }
+
 
     await cart.save();
     await cart.populate("items.productId");

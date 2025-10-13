@@ -12,7 +12,9 @@ const StarRating: React.FC<StarRatingProps> = ({ rating, onChange, readOnly = fa
   const stars = [1, 2, 3, 4, 5];
 
   return (
-    <div className="flex gap-1">
+    <div className="flex flex-wrap">
+
+    <div className="flex justify-center">
       {stars.map((star) => (
         <span
           key={star}
@@ -25,6 +27,7 @@ const StarRating: React.FC<StarRatingProps> = ({ rating, onChange, readOnly = fa
         </span>
       ))}
     </div>
+      </div>
   );
 };
 

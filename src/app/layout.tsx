@@ -4,6 +4,7 @@ import "./globals.css";
 import NavbarFooterWrapper from "./layout/NavFooterWrapper";
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
+import CartFloatingButton from "./components/CartFloatingButton";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({
           <CartProvider>
             <NavbarFooterWrapper>
               {children}
+              <CartFloatingButton/>
             </NavbarFooterWrapper>
           </CartProvider>
         </AuthProvider>
