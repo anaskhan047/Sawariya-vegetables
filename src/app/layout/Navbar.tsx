@@ -10,6 +10,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { ArrowBigDown } from "lucide-react";
 import { BiUpArrow } from "react-icons/bi";
 import { useCart } from "../context/CartContext";
+import { Product } from "../lib/types";
 interface NavLink {
   name: string;
   href: string;
@@ -38,6 +39,7 @@ export default function Navbar() {
   const [image, setImage] = useState<string | null>(null);
   const { cartCount } = useCart();
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
 
   // listen for cart update events
   useEffect(() => {
@@ -72,21 +74,21 @@ export default function Navbar() {
   // Loading state while fetching user data
   const [loading, setLoading] = useState(true);
   // close dropdowns on outside click
- useEffect(() => {
-  const handleClickOutside = (e: MouseEvent) => {
-    if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-      setSearchOpen(false);
-    }
-    if (userRef.current && !userRef.current.contains(e.target as Node)) {
-      setUserOpen(false);
-    }
-    if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
-      setIsOpen(false);
-    }
-  };
-  document.addEventListener("mousedown", handleClickOutside);
-  return () => document.removeEventListener("mousedown", handleClickOutside);
-}, []);
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+      if (userRef.current && !userRef.current.contains(e.target as Node)) {
+        setUserOpen(false);
+      }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
 
   useEffect(() => {
@@ -119,6 +121,7 @@ export default function Navbar() {
     if (result.isConfirmed) {
       await logout();
       await refresh();
+      localStorage.removeItem("token");
       router.push("/login");
     }
   }
@@ -133,6 +136,51 @@ export default function Navbar() {
     active === name && (
       <span className="absolute left-0 -bottom-[2px] h-[2px] w-full bg-[var(--primary-color)] transition-all duration-700"></span>
     );
+
+  useEffect(() => {
+    const fetchSearchResults = async () => {
+      if (!searchValue.trim()) {
+        setSearchResults([]);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/products?search=${encodeURIComponent(searchValue)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.products) {
+            const filtered = (data.products as Product[]).filter((p) => {
+              const nameMatch = p.name.toLowerCase().includes(searchValue.toLowerCase());
+              const hindiMatch = p.inHindi?.toLowerCase().includes(searchValue.toLowerCase());
+              return nameMatch || hindiMatch;
+            });
+            setSearchResults(filtered);
+          }
+        }
+      } catch (err) {
+        console.error("Search error:", err);
+      }
+    };
+
+    const delay = setTimeout(fetchSearchResults, 400); // debounce
+    return () => clearTimeout(delay);
+  }, [searchValue]);
+
+
+ function handleProductClick(product: Product) {
+  setSearchOpen(false);
+  setSearchResults([]);
+  setSearchValue("");
+  router.push(`/shop?search=${encodeURIComponent(product.name)}`);
+}
+
+  function handleSeeMore() {
+    setSearchOpen(false);
+    setSearchResults([]);
+    router.push(`/shop?search=${encodeURIComponent(searchValue)}`);
+  }
+
+
 
   return (
     <nav className="w-full fixed top-0 left-0 z-50 bg-[var(--background-color)] shadow-sm">
@@ -165,14 +213,50 @@ export default function Navbar() {
           {/* Search */}
           <div ref={searchRef} className="relative flex items-center">
             {searchOpen ? (
-              <input
-                type="text"
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                placeholder="Search products..."
-                className="border border-[var(--border-color)] rounded-lg px-3 py-1 w-[250px] sm:w-[350px] max-w-[70vw] focus:outline-none focus:border-[var(--primary-color)]"
-                autoFocus
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  placeholder="Search products..."
+                  className="border border-[var(--border-color)] rounded-lg px-3 py-1 w-[250px] sm:w-[350px] max-w-[70vw] focus:outline-none focus:border-[var(--primary-color)]"
+                  autoFocus
+                />
+                {searchValue && searchResults.length > 0 && (
+                  <div className="absolute left-0 mt-2 w-full bg-white shadow-lg border border-gray-200 rounded-lg max-h-80 overflow-y-auto z-50">
+                    {searchResults.slice(0, 7).map((product) => (
+                      <div
+                        key={product._id}
+                        onClick={() => handleProductClick(product)}
+                        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-100 transition"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <img
+                            src={product.images?.[0]?.url || "/placeholder.png"}
+                            alt={product.name}
+                            className="w-10 h-10 rounded object-cover"
+                          />
+                          <div>
+                            <p className="font-medium text-gray-800">{product.name}</p>
+                            <p className="text-sm text-gray-500">{product.inHindi}</p>
+                          </div>
+                        </div>
+                        <span className="text-green-700 font-semibold text-sm">
+                          ₹{product.price}
+                        </span>
+                      </div>
+                    ))}
+                    {searchResults.length > 7 && (
+                      <button
+                        onClick={handleSeeMore}
+                        className="w-full text-center py-2 text-[var(--primary-color)] font-semibold border-t border-gray-200 hover:bg-gray-50 transition"
+                      >
+                        See More
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             ) : (
               <FiSearch
                 className="cursor-pointer text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]"
@@ -180,6 +264,7 @@ export default function Navbar() {
               />
             )}
           </div>
+
 
           {/* Cart */}
           <div
@@ -272,29 +357,29 @@ export default function Navbar() {
 
       {/* Mobile Dropdown Menu */}
       {/* Mobile Dropdown Menu */}
-{isOpen && (
-  <div
-    ref={mobileMenuRef}
-    className="md:hidden bg-[var(--background-color)] border-t border-[var(--border-color)] shadow-md"
-  >
-    <ul className="flex flex-col space-y-2 p-4">
-      {navLinks.map((link) => (
-        <li key={link.name}>
-          <Link
-            href={link.href}
-            onClick={() => {
-              setActive(link.name);
-              setIsOpen(false); // Close menu on link click
-            }}
-            className="block capitalize text-[var(--text-color)] hover:text-[var(--primary-color)] py-2"
-          >
-            {link.name}
-          </Link>
-        </li>
-      ))}
-    </ul>
-  </div>
-)}
+      {isOpen && (
+        <div
+          ref={mobileMenuRef}
+          className="md:hidden bg-[var(--background-color)] border-t border-[var(--border-color)] shadow-md"
+        >
+          <ul className="flex flex-col space-y-2 p-4">
+            {navLinks.map((link) => (
+              <li key={link.name}>
+                <Link
+                  href={link.href}
+                  onClick={() => {
+                    setActive(link.name);
+                    setIsOpen(false); // Close menu on link click
+                  }}
+                  className="block capitalize text-[var(--text-color)] hover:text-[var(--primary-color)] py-2"
+                >
+                  {link.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
     </nav>
   );

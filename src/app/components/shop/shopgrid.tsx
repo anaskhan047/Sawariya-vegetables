@@ -128,6 +128,70 @@ export default function ShopPage() {
     }
   };
 
+  useEffect(() => {
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/products");
+      const data = await res.json();
+
+      if (data.success && data.products) {
+        let filteredProducts = data.products;
+
+        // 🔍 New: Get search query
+        const searchTerm = searchParams.get("search")?.toLowerCase() || "";
+
+        // 🔍 Apply search filter first
+        if (searchTerm) {
+          filteredProducts = filteredProducts.filter((p: Product) => {
+            const nameMatch = p.name.toLowerCase().includes(searchTerm);
+            const hindiMatch = p.inHindi?.toLowerCase().includes(searchTerm);
+            const categoryMatch = p.category?.toLowerCase().includes(searchTerm);
+            return nameMatch || hindiMatch || categoryMatch;
+          });
+        }
+
+        // 🎯 Apply other filters (grade, category, popular)
+        if (selectedGrade) {
+          filteredProducts = filteredProducts.filter(
+            (p: Product) => p.grade === selectedGrade
+          );
+        }
+        if (selectedCategory) {
+          filteredProducts = filteredProducts.filter(
+            (p: Product) => p.category === selectedCategory
+          );
+        }
+        if (popularOnly) {
+          filteredProducts = filteredProducts.filter((p: Product) => p.popular);
+        }
+
+        // ✅ Set final filtered list
+        setProducts(filteredProducts);
+
+        // ✅ Initialize quantities
+        const initialQuantities: { [key: string]: number } = {};
+        filteredProducts.forEach((p: Product) => {
+          initialQuantities[p.id] = p.minQty || 0.5;
+        });
+        setQuantities(initialQuantities);
+      }
+    } catch (error) {
+      console.error("Error loading products:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchProducts();
+}, [searchParams, selectedGrade, selectedCategory, popularOnly]);
+  {searchParams.get("search") && (
+  <h2 className="text-xl font-semibold mb-4 text-center">
+    Showing results for <span className="text-green-700">{searchParams.get("search")}</span>
+  </h2>
+)}
+
+
   if (loading)
     return (
       <div className="flex items-center justify-center min-h-screen py-10">
