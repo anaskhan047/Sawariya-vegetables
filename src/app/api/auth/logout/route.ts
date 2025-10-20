@@ -1,9 +1,9 @@
-// app/api/auth/logout/route.ts
 import { NextResponse } from "next/server";
 
 export async function POST() {
   const res = NextResponse.json({ success: true, message: "Logged out" });
-  // expire cookie immediately and set consistent cookie attributes
+
+  // Expire cookie immediately
   res.cookies.set("token", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -11,6 +11,6 @@ export async function POST() {
     path: "/",
     maxAge: 0,
   });
-  localStorage.removeItem("token");
+
   return res;
 }

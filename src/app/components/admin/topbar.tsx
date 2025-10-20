@@ -7,9 +7,18 @@ export default function Topbar() {
   const router = useRouter();
 
   async function handleLogout() {
+  try {
     await fetch("/api/auth/logout", { method: "POST" });
+
+    // Clear localStorage token on the client
+    localStorage.removeItem("token");
+
     router.push("/login");
+  } catch (err) {
+    console.error("Logout failed:", err);
   }
+}
+
 
   return (
     <header className="w-full bg-[var(--secondary-color)] flex items-center justify-end px-6 py-3 shadow-sm">
