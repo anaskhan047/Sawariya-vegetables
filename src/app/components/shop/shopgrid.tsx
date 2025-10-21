@@ -191,7 +191,7 @@ export default function ShopPage() {
   </h2>
 )}
 
-// update
+// update loading condition
   if (loading)
     return (
       <div className="flex items-center justify-center min-h-screen py-10">
