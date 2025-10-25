@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import axios from "axios";
 import Swal from "sweetalert2"; //  Import SweetAlert2
+import { useRouter } from "next/navigation";
 
 type OrderStatus = "placed" | "packed" | "in_transit" | "delivered" | "cancelled" | "refunded";
 
@@ -28,7 +29,7 @@ type Order = {
 export default function DeliveryOrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [statusFilter, setStatusFilter] = useState("All");
-
+    const router = useRouter();
     //  Fetch all orders
     useEffect(() => {
         const fetchOrders = async () => {
@@ -128,7 +129,18 @@ export default function DeliveryOrdersPage() {
         }
     };
 
+    async function handleLogout() {
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
 
+    // Clear localStorage token on the client
+    localStorage.removeItem("token");
+
+    router.push("/login");
+  } catch (err) {
+    console.error("Logout failed:", err);
+  }
+}
 
     return (
         <div className="mx-auto max-w-6xl px-3 sm:px-6 lg:px-8 space-y-6">
@@ -173,7 +185,7 @@ export default function DeliveryOrdersPage() {
             <div className="rounded-lg border border-[var(--border-color)] bg-white shadow-sm w-full">
                 <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <h2 className="text-base sm:text-lg font-medium">All Orders</h2>
-                    <button className="rounded-lg border px-4 py-2 text-sm m-5 w-20 bg-red-500 text-white">
+                    <button onClick={handleLogout} className="rounded-lg border px-4 py-2 text-sm m-5 w-20 bg-red-500 text-white">
                         Logout
                     </button>
                 </div>

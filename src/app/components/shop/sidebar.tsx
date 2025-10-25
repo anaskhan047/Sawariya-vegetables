@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import { FiChevronDown, FiChevronUp, FiX } from "react-icons/fi";
-import { FaStar, FaStarHalfAlt, FaRegStar } from "react-icons/fa";
 import { useSearchParams, useRouter } from "next/navigation";
 
 type FilterSectionProps = {
@@ -34,55 +33,21 @@ type ShopSidebarProps = {
 const GRADES = ["Standard", "Silver", "Gold", "Premium"];
 
 export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
-  const [selectedRating, setSelectedRating] = useState<number>(0);
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
-  const [categories, setCategories] = useState<{ _id: string; name: string }[]>(
-    []
-  );
+  const [categories, setCategories] = useState<{ _id: string; name: string }[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [popularOnly, setPopularOnly] = useState<boolean>(false);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
 
   const ref = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Extract params safely
   const gradeParam = searchParams.get("grade");
   const categoryParam = searchParams.get("category");
   const popularParam = searchParams.get("popular");
-
-  const handleStarClick = (value: number) => setSelectedRating(value);
-
-  const renderStars = () => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      if (selectedRating >= i)
-        stars.push(
-          <FaStar
-            key={i}
-            className="text-[var(--star-color)] cursor-pointer"
-            onClick={() => handleStarClick(i)}
-          />
-        );
-      else if (selectedRating >= i - 0.5)
-        stars.push(
-          <FaStarHalfAlt
-            key={i}
-            className="text-[var(--star-color)] cursor-pointer"
-            onClick={() => handleStarClick(i - 0.5)}
-          />
-        );
-      else
-        stars.push(
-          <FaRegStar
-            key={i}
-            className="text-[var(--star-empty-color)] cursor-pointer"
-            onClick={() => handleStarClick(i)}
-          />
-        );
-    }
-    return stars;
-  };
+  const minParam = searchParams.get("minPrice");
+  const maxParam = searchParams.get("maxPrice");
 
   // Close on outside click
   useEffect(() => {
@@ -99,9 +64,7 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
       try {
         const res = await fetch("/api/categories");
         const data = await res.json();
-        if (data.success && data.data) {
-          setCategories(data.data);
-        }
+        if (data.success && data.data) setCategories(data.data);
       } catch (err) {
         console.error("Failed to fetch categories", err);
       }
@@ -109,64 +72,63 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
     fetchCategories();
   }, []);
 
-  // Initialize selected grade/category from URL
+  // Initialize from URL
   useEffect(() => {
     setSelectedGrade(gradeParam);
     setSelectedCategory(categoryParam);
     setPopularOnly(popularParam === "true");
-  }, [gradeParam, categoryParam, popularParam]);
+    setPriceRange([
+      Number(minParam) || 0,
+      Number(maxParam) || 1000,
+    ]);
+  }, [gradeParam, categoryParam, popularParam, minParam, maxParam]);
 
-  const applyGradeFilter = (grade: string) => {
+  const updateParams = (updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (selectedGrade === grade) {
-      params.delete("grade");
-      setSelectedGrade(null);
-    } else {
-      params.set("grade", grade);
-      setSelectedGrade(grade);
-    }
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null) params.delete(key);
+      else params.set(key, value);
+    });
     router.push(`/shop?${params.toString()}`);
     onClose();
+  };
+
+  const applyGradeFilter = (grade: string) => {
+    updateParams({
+      grade: selectedGrade === grade ? null : grade,
+    });
   };
 
   const applyCategoryFilter = (category: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (selectedCategory === category) {
-      params.delete("category");
-      setSelectedCategory(null);
-    } else {
-      params.set("category", category);
-      setSelectedCategory(category);
-    }
-    router.push(`/shop?${params.toString()}`);
-    onClose();
+    updateParams({
+      category: selectedCategory === category ? null : category,
+    });
   };
 
   const applyPopularFilter = () => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (popularOnly) {
-      params.delete("popular");
-      setPopularOnly(false);
-    } else {
-      params.set("popular", "true");
-      setPopularOnly(true);
-    }
-    router.push(`/shop?${params.toString()}`);
-    onClose();
+    updateParams({
+      popular: popularOnly ? null : "true",
+    });
+  };
+
+  const applyPriceFilter = (min: number, max: number) => {
+    updateParams({
+      minPrice: min.toString(),
+      maxPrice: max.toString(),
+    });
   };
 
   const clearFilters = () => {
     router.push("/shop");
     setSelectedGrade(null);
     setSelectedCategory(null);
-    setSelectedRating(0);
     setPopularOnly(false);
+    setPriceRange([0, 1000]);
     onClose();
   };
 
   return (
     <>
-      {/* Mobile overlay */}
       <div
         className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${
           isOpen ? "opacity-100 visible" : "opacity-0 invisible"
@@ -175,8 +137,8 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
 
       <aside
         ref={ref}
-         className={`md:sticky md:top-16 fixed top-16 left-0 h-full w-64 bg-[var(--background-color)] z-50 p-4 space-y-4 transform transition-transform duration-300 md:relative md:translate-x-0 overflow-y-auto ${
-    isOpen ? "translate-x-0" : "-translate-x-full"
+        className={`md:sticky md:top-16 fixed top-16 left-0 h-full w-64 bg-[var(--background-color)] z-50 p-4 space-y-4 transform transition-transform duration-300 md:relative md:translate-x-0 overflow-y-auto ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex justify-end md:hidden">
@@ -185,11 +147,8 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
           </button>
         </div>
 
-        <h2 className="text-lg font-semibold text-[var(--primary-color)]">
-          Filters
-        </h2>
+        <h2 className="text-lg font-semibold text-[var(--primary-color)]">Filters</h2>
 
-        {/* Clear Filters */}
         <button
           onClick={clearFilters}
           className="w-full mt-2 bg-red-600 hover:bg-red-700 text-white py-2 rounded"
@@ -197,7 +156,6 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
           Clear Filters
         </button>
 
-        {/* Grade Filter */}
         <FilterSection title="Grade">
           {GRADES.map((grade) => (
             <button
@@ -214,7 +172,6 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
           ))}
         </FilterSection>
 
-        {/* Popular Filter */}
         <FilterSection title="Popular">
           <button
             onClick={applyPopularFilter}
@@ -228,7 +185,6 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
           </button>
         </FilterSection>
 
-        {/* Category Filter */}
         <FilterSection title="Category">
           {categories.map((cat) => (
             <button
@@ -245,26 +201,38 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
           ))}
         </FilterSection>
 
-        {/* Price Filter (static for now) */}
+        {/* ✅ Working Price Filter */}
         <FilterSection title="Price">
-          <input
-            type="range"
-            min={0}
-            max={1000}
-            className="w-full accent-[var(--primary-color)]"
-          />
-          <div className="flex justify-between text-sm text-[var(--text-light)]">
-            <span>0</span>
-            <span>1000</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              max={priceRange[1]}
+              value={priceRange[0]}
+              onChange={(e) =>
+                setPriceRange([Number(e.target.value), priceRange[1]])
+              }
+              className="w-20 border p-1 rounded text-sm"
+            />
+            <span>-</span>
+            <input
+              type="number"
+              min={priceRange[0]}
+              max={2000}
+              value={priceRange[1]}
+              onChange={(e) =>
+                setPriceRange([priceRange[0], Number(e.target.value)])
+              }
+              className="w-20 border p-1 rounded text-sm"
+            />
           </div>
-        </FilterSection>
 
-        {/* Rating Filter */}
-        <FilterSection title="Customer Rating">
-          <div className="flex space-x-1 text-lg">{renderStars()}</div>
-          <p className="text-sm text-[var(--text-light)] mt-1">
-            Selected: {selectedRating} Stars
-          </p>
+          <button
+            onClick={() => applyPriceFilter(priceRange[0], priceRange[1])}
+            className="w-full mt-2 bg-green-600 text-white py-1 rounded hover:bg-green-700"
+          >
+            Apply Price
+          </button>
         </FilterSection>
       </aside>
     </>

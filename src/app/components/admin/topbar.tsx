@@ -19,7 +19,6 @@ export default function Topbar() {
   }
 }
 
-
   return (
     <header className="w-full bg-[var(--secondary-color)] flex items-center justify-end px-6 py-3 shadow-sm">
       <div className="flex items-center gap-4 text-white">

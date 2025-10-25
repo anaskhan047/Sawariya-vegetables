@@ -136,46 +136,46 @@ export default function ShopPage() {
       const data = await res.json();
 
       if (data.success && data.products) {
-        let filteredProducts = data.products;
+  let filteredProducts = data.products;
 
-        // 🔍 New: Get search query
-        const searchTerm = searchParams.get("search")?.toLowerCase() || "";
+  const searchTerm = searchParams.get("search")?.toLowerCase() || "";
+  const minPrice = Number(searchParams.get("minPrice")) || 0;
+  const maxPrice = Number(searchParams.get("maxPrice")) || 1000;
 
-        // 🔍 Apply search filter first
-        if (searchTerm) {
-          filteredProducts = filteredProducts.filter((p: Product) => {
-            const nameMatch = p.name.toLowerCase().includes(searchTerm);
-            const hindiMatch = p.inHindi?.toLowerCase().includes(searchTerm);
-            const categoryMatch = p.category?.toLowerCase().includes(searchTerm);
-            return nameMatch || hindiMatch || categoryMatch;
-          });
-        }
+  // Apply search
+  if (searchTerm) {
+    filteredProducts = filteredProducts.filter((p: Product) => {
+      const nameMatch = p.name.toLowerCase().includes(searchTerm);
+      const hindiMatch = p.inHindi?.toLowerCase().includes(searchTerm);
+      const categoryMatch = p.category?.toLowerCase().includes(searchTerm);
+      return nameMatch || hindiMatch || categoryMatch;
+    });
+  }
 
-        // 🎯 Apply other filters (grade, category, popular)
-        if (selectedGrade) {
-          filteredProducts = filteredProducts.filter(
-            (p: Product) => p.grade === selectedGrade
-          );
-        }
-        if (selectedCategory) {
-          filteredProducts = filteredProducts.filter(
-            (p: Product) => p.category === selectedCategory
-          );
-        }
-        if (popularOnly) {
-          filteredProducts = filteredProducts.filter((p: Product) => p.popular);
-        }
+  // Apply grade/category/popular
+  if (selectedGrade) {
+    filteredProducts = filteredProducts.filter((p: Product) => p.grade === selectedGrade);
+  }
+  if (selectedCategory) {
+    filteredProducts = filteredProducts.filter((p: Product) => p.category === selectedCategory);
+  }
+  if (popularOnly) {
+    filteredProducts = filteredProducts.filter((p: Product) => p.popular);
+  }
 
-        // ✅ Set final filtered list
-        setProducts(filteredProducts);
+  // ✅ Apply price range filter
+  filteredProducts = filteredProducts.filter(
+    (p: Product) => p.price >= minPrice && p.price <= maxPrice
+  );
 
-        // ✅ Initialize quantities
-        const initialQuantities: { [key: string]: number } = {};
-        filteredProducts.forEach((p: Product) => {
-          initialQuantities[p.id] = p.minQty || 0.5;
-        });
-        setQuantities(initialQuantities);
-      }
+  setProducts(filteredProducts);
+  const initialQuantities: { [key: string]: number } = {};
+  filteredProducts.forEach((p: Product) => {
+    initialQuantities[p.id] = p.minQty || 0.5;
+  });
+  setQuantities(initialQuantities);
+}
+
     } catch (error) {
       console.error("Error loading products:", error);
     } finally {
