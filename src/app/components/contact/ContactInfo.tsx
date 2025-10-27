@@ -2,16 +2,32 @@
 
 import React, { useState } from "react";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
+import Swal from "sweetalert2";
+import { z } from "zod";
+
+// Zod validation schema
+export const MessageSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters").max(100),
+  number: z
+    .string()
+    .min(10, "Phone number must be at least 10 digits")
+    .max(15, "Phone number too long"),
+  email: z.string().email("Invalid email address"),
+  message: z.string().min(10, "Message must be at least 10 characters").max(500),
+  status: z.enum(["New", "Replied"]).optional(),
+  createdAt: z.string().optional(),
+});
+
+export type MessageSchemaType = z.infer<typeof MessageSchema>;
 
 export default function ContactInfo() {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<MessageSchemaType>({
     name: "",
     email: "",
     number: "",
     message: "",
   });
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState("");
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -20,7 +36,20 @@ export default function ContactInfo() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setStatus("");
+
+    // Validate form using Zod
+    const validation = MessageSchema.safeParse(form);
+    if (!validation.success) {
+      const firstError = validation.error.issues[0]?.message || "Invalid input";
+      Swal.fire({
+        icon: "error",
+        title: "Validation Error",
+        text: firstError,
+        confirmButtonColor: "#3085d6",
+      });
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch("/api/message", {
@@ -31,13 +60,28 @@ export default function ContactInfo() {
       const data = await res.json();
 
       if (data.success) {
-        setStatus(" Message sent successfully!");
+        Swal.fire({
+          icon: "success",
+          title: "Message Sent!",
+          text: "Your message has been sent successfully.",
+          confirmButtonColor: "#3085d6",
+        });
         setForm({ name: "", email: "", number: "", message: "" });
       } else {
-        setStatus("  Failed to send message. Try again.");
+        Swal.fire({
+          icon: "error",
+          title: "Failed",
+          text: "Failed to send message. Try again.",
+          confirmButtonColor: "#d33",
+        });
       }
     } catch {
-      setStatus("  Server error. Please try later.");
+      Swal.fire({
+        icon: "error",
+        title: "Server Error",
+        text: "Something went wrong. Please try later.",
+        confirmButtonColor: "#d33",
+      });
     } finally {
       setLoading(false);
     }
@@ -63,7 +107,7 @@ export default function ContactInfo() {
   return (
     <section className="py-12 bg-[var(--background-color)] text-[var(--text-color)]">
       <div className="max-w-6xl mx-auto px-4">
-        {/* Top Info Boxes */}
+        {/* Info Boxes */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
           {info.map(({ icon: Icon, title, detail }, i) => (
             <div
@@ -82,7 +126,7 @@ export default function ContactInfo() {
           ))}
         </div>
 
-        {/* Map & Contact Form */}
+        {/* Map + Form */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Google Map */}
           <div className="rounded-2xl overflow-hidden shadow-lg border border-[var(--border-color)]">
@@ -107,7 +151,7 @@ export default function ContactInfo() {
                   key={name}
                   type={type}
                   name={name}
-                  value={(form as unknown as { [key: string]: string })[name]}
+                  value={form[name as keyof MessageSchemaType] as string}
                   onChange={handleChange}
                   placeholder={placeholder}
                   className="w-full p-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:border-[var(--primary-color)]"
@@ -133,12 +177,6 @@ export default function ContactInfo() {
                 {loading ? "Sending..." : "Send Message"}
               </button>
             </form>
-
-            {status && (
-              <p className="text-center mt-4 text-sm font-medium text-[var(--primary-color)]">
-                {status}
-              </p>
-            )}
           </div>
         </div>
       </div>
