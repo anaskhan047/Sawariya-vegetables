@@ -15,7 +15,7 @@ export default function CartFloatingButton() {
     pathname.startsWith("/admin") || pathname.startsWith("/deliveryBoy");
 
   const showButton = cartCount > 0 && !isRestrictedPage;
-
+// update 
   return (
     <AnimatePresence>
       {showButton && (
