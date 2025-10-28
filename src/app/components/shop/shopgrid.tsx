@@ -1,9 +1,8 @@
-// ShopPage.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useCart } from "@/app/context/CartContext";
 import OrbitVegetableLoader from "../Loader/Loader";
 import Swal from "sweetalert2";
@@ -34,9 +33,11 @@ export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
+  const [sortOrder, setSortOrder] = useState<"lowToHigh" | "highToLow">("lowToHigh"); // ✅ added sort state
 
   const { refreshCart } = useCart();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Extract URL params safely
   const selectedGrade = searchParams.get("grade");
@@ -87,17 +88,16 @@ export default function ShopPage() {
   }, [selectedGrade, selectedCategory, popularOnly]);
 
   const handleAddToCart = async (product: Product) => {
-    if (localStorage.getItem('token') === null) {
+    if (localStorage.getItem("token") === null) {
       Swal.fire({
-        title: 'You are not logged in',
-        text: 'Please log in to add items to your cart.',
-        icon: 'warning',
-        confirmButtonText: 'Login',
-        cancelButtonText: 'Cancel',
+        title: "You are not logged in",
+        text: "Please log in to add items to your cart.",
+        icon: "warning",
+        confirmButtonText: "Login",
+        cancelButtonText: "Cancel",
         showCancelButton: true,
       }).then((result) => {
         if (result.isConfirmed) {
-          // Redirect to login page
           window.location.href = "/login";
         }
       });
@@ -129,83 +129,99 @@ export default function ShopPage() {
   };
 
   useEffect(() => {
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/products");
-      const data = await res.json();
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/products");
+        const data = await res.json();
 
-      if (data.success && data.products) {
-  let filteredProducts = data.products;
+        if (data.success && data.products) {
+          let filteredProducts = data.products;
 
-  const searchTerm = searchParams.get("search")?.toLowerCase() || "";
-  const minPrice = Number(searchParams.get("minPrice")) || 0;
-  const maxPrice = Number(searchParams.get("maxPrice")) || 1000;
+          const searchTerm = searchParams.get("search")?.toLowerCase() || "";
+          const minPrice = Number(searchParams.get("minPrice")) || 0;
+          const maxPrice = Number(searchParams.get("maxPrice")) || 1000;
 
-  // Apply search
-  if (searchTerm) {
-    filteredProducts = filteredProducts.filter((p: Product) => {
-      const nameMatch = p.name.toLowerCase().includes(searchTerm);
-      const hindiMatch = p.inHindi?.toLowerCase().includes(searchTerm);
-      const categoryMatch = p.category?.toLowerCase().includes(searchTerm);
-      return nameMatch || hindiMatch || categoryMatch;
-    });
-  }
+          // Apply search
+          if (searchTerm) {
+            filteredProducts = filteredProducts.filter((p: Product) => {
+              const nameMatch = p.name.toLowerCase().includes(searchTerm);
+              const hindiMatch = p.inHindi?.toLowerCase().includes(searchTerm);
+              const categoryMatch = p.category?.toLowerCase().includes(searchTerm);
+              return nameMatch || hindiMatch || categoryMatch;
+            });
+          }
 
-  // Apply grade/category/popular
-  if (selectedGrade) {
-    filteredProducts = filteredProducts.filter((p: Product) => p.grade === selectedGrade);
-  }
-  if (selectedCategory) {
-    filteredProducts = filteredProducts.filter((p: Product) => p.category === selectedCategory);
-  }
-  if (popularOnly) {
-    filteredProducts = filteredProducts.filter((p: Product) => p.popular);
-  }
+          // Apply grade/category/popular
+          if (selectedGrade) {
+            filteredProducts = filteredProducts.filter((p: Product) => p.grade === selectedGrade);
+          }
+          if (selectedCategory) {
+            filteredProducts = filteredProducts.filter((p: Product) => p.category === selectedCategory);
+          }
+          if (popularOnly) {
+            filteredProducts = filteredProducts.filter((p: Product) => p.popular);
+          }
 
-  // ✅ Apply price range filter
-  filteredProducts = filteredProducts.filter(
-    (p: Product) => p.price >= minPrice && p.price <= maxPrice
-  );
+          filteredProducts = filteredProducts.filter((p: Product) => p.price <= maxPrice);
 
-  setProducts(filteredProducts);
-  const initialQuantities: { [key: string]: number } = {};
-  filteredProducts.forEach((p: Product) => {
-    initialQuantities[p.id] = p.minQty || 0.5;
-  });
-  setQuantities(initialQuantities);
-}
+          // ✅ Sort Logic
+          if (sortOrder === "lowToHigh") {
+            filteredProducts.sort((a: Product, b: Product) => a.price - b.price);
+          } else {
+            filteredProducts.sort((a: Product, b: Product) => b.price - a.price);
+          }
 
-    } catch (error) {
-      console.error("Error loading products:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+          setProducts(filteredProducts);
+          const initialQuantities: { [key: string]: number } = {};
+          filteredProducts.forEach((p: Product) => {
+            initialQuantities[p.id] = p.minQty || 0.5;
+          });
+          setQuantities(initialQuantities);
+        }
+      } catch (error) {
+        console.error("Error loading products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  fetchProducts();
-}, [searchParams, selectedGrade, selectedCategory, popularOnly]);
-  {searchParams.get("search") && (
-  <h2 className="text-xl font-semibold mb-4 text-center">
-    Showing results for <span className="text-green-700">{searchParams.get("search")}</span>
-  </h2>
-)}
+    fetchProducts();
+  }, [searchParams, selectedGrade, selectedCategory, popularOnly, sortOrder]);
 
-// update loading condition
   if (loading)
     return (
       <div className="flex items-center justify-center min-h-screen py-10">
-  <OrbitVegetableLoader />
-</div>
-
+        <OrbitVegetableLoader />
+      </div>
     );
-  if (!products.length)
-    return <p className="text-center py-10">No products found</p>;
+
+  if (!products.length) return <p className="text-center py-10">No products found</p>;
 
   return (
-    <section className="container mx-auto px-4 py-8">
-      <h2 className="text-3xl font-bold mb-8 text-center">Our Products</h2>
+    <section className="container mx-auto px-4 py-2 md:py-8 mt-0 md:mt-16">
+      {/* Header with Sort */}
+      <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+        <h2 className="text-3xl font-bold text-center md:text-left">Our Products</h2>
 
+        {/* ✅ Sort Dropdown */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="sort" className="text-gray-700 font-medium">
+            Sort by:
+          </label>
+          <select
+            id="sort"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as "lowToHigh" | "highToLow")}
+            className="border border-gray-300 rounded px-3 py-1 text-sm focus:ring-2 focus:ring-green-600 outline-none"
+          >
+            <option value="lowToHigh">Price: Low to High</option>
+            <option value="highToLow">Price: High to Low</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Products Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {products.map((product) => {
           const imgUrl =
@@ -219,7 +235,7 @@ export default function ShopPage() {
           return (
             <div
               key={product._id}
-              className="border border-gray-200 rounded-lg p-4 flex flex-col items-center shadow-sm 
+              className="border border-gray-200 rounded-lg py-4 px-0 md:px-4 flex flex-col items-center shadow-sm 
               hover:shadow-lg hover:-translate-y-2 transition-all duration-300 bg-white group"
             >
               {/* Product Image */}
@@ -232,14 +248,12 @@ export default function ShopPage() {
                   className="w-full h-full object-cover rounded-md group-hover:scale-110 transition-transform duration-500"
                 />
 
-                {/* Out of Stock Badge */}
                 {product.stockQty <= 0 && (
                   <span className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
                     Out of Stock
                   </span>
                 )}
 
-                {/* Popular Badge */}
                 {product.popular && (
                   <span className="absolute top-2 right-2 bg-yellow-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md flex items-center space-x-1">
                     <span>⭐</span>
@@ -247,7 +261,6 @@ export default function ShopPage() {
                   </span>
                 )}
 
-                {/* Grade Badge */}
                 {product.grade && (
                   <span
                     className={`absolute right-2 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md flex items-center space-x-1 
@@ -255,12 +268,12 @@ export default function ShopPage() {
                       ${product.grade === "Standard"
                         ? "bg-gray-500"
                         : product.grade === "Silver"
-                          ? "bg-slate-400"
-                          : product.grade === "Gold"
-                            ? "bg-yellow-400"
-                            : product.grade === "Premium"
-                              ? "bg-purple-600"
-                              : "bg-blue-500"
+                        ? "bg-slate-400"
+                        : product.grade === "Gold"
+                        ? "bg-yellow-400"
+                        : product.grade === "Premium"
+                        ? "bg-purple-600"
+                        : "bg-blue-500"
                       }`}
                   >
                     <span>⭐</span>
@@ -269,12 +282,10 @@ export default function ShopPage() {
                 )}
               </div>
 
-              {/* Product Name */}
               <h3 className="mt-3 text-lg font-semibold text-gray-800 group-hover:text-green-700 transition-colors">
                 {product.name} / {product.inHindi}
               </h3>
 
-              {/* Price */}
               <p className="text-green-700 font-bold mt-1">
                 ₹{product.price} /
                 <span className="text-sm text-gray-500 font-normal ml-1">
@@ -347,7 +358,6 @@ export default function ShopPage() {
                 </button>
               </div>
 
-              {/* Add to Cart Button */}
               <button
                 onClick={() => handleAddToCart(product)}
                 disabled={product.stockQty <= 0}

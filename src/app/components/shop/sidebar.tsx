@@ -43,12 +43,6 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const gradeParam = searchParams.get("grade");
-  const categoryParam = searchParams.get("category");
-  const popularParam = searchParams.get("popular");
-  const minParam = searchParams.get("minPrice");
-  const maxParam = searchParams.get("maxPrice");
-
   // Close on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -72,15 +66,17 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
     fetchCategories();
   }, []);
 
-  // Initialize from URL
+  const gradeParam = searchParams.get("grade");
+  const categoryParam = searchParams.get("category");
+  const popularParam = searchParams.get("popular");
+  const minParam = searchParams.get("minPrice");
+  const maxParam = searchParams.get("maxPrice");
+
   useEffect(() => {
     setSelectedGrade(gradeParam);
     setSelectedCategory(categoryParam);
     setPopularOnly(popularParam === "true");
-    setPriceRange([
-      Number(minParam) || 0,
-      Number(maxParam) || 1000,
-    ]);
+    setPriceRange([Number(minParam) || 0, Number(maxParam) || 1000]);
   }, [gradeParam, categoryParam, popularParam, minParam, maxParam]);
 
   const updateParams = (updates: Record<string, string | null>) => {
@@ -93,30 +89,14 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
     onClose();
   };
 
-  const applyGradeFilter = (grade: string) => {
-    updateParams({
-      grade: selectedGrade === grade ? null : grade,
-    });
-  };
+  const applyGradeFilter = (grade: string) =>
+    updateParams({ grade: selectedGrade === grade ? null : grade });
 
-  const applyCategoryFilter = (category: string) => {
-    updateParams({
-      category: selectedCategory === category ? null : category,
-    });
-  };
+  const applyCategoryFilter = (category: string) =>
+    updateParams({ category: selectedCategory === category ? null : category });
 
-  const applyPopularFilter = () => {
-    updateParams({
-      popular: popularOnly ? null : "true",
-    });
-  };
-
-  const applyPriceFilter = (min: number, max: number) => {
-    updateParams({
-      minPrice: min.toString(),
-      maxPrice: max.toString(),
-    });
-  };
+  const applyPopularFilter = () =>
+    updateParams({ popular: popularOnly ? null : "true" });
 
   const clearFilters = () => {
     router.push("/shop");
@@ -129,15 +109,11 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
 
   return (
     <>
-      <div
-        className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${
-          isOpen ? "opacity-100 visible" : "opacity-0 invisible"
-        } md:hidden`}
-      />
+      {/* 🚫 Removed the bg-black overlay completely */}
 
       <aside
         ref={ref}
-        className={`md:sticky md:top-16 fixed top-16 left-0 h-full w-64 bg-[var(--background-color)] z-50 p-4 space-y-4 transform transition-transform duration-300 md:relative md:translate-x-0 overflow-y-auto ${
+        className={`md:sticky md:top-16 fixed top-0 md:top-16 left-0 h-full w-64 bg-[var(--background-color)] z-50 p-4 space-y-4 transform transition-transform duration-300 md:relative md:translate-x-0 overflow-y-auto ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -201,38 +177,34 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
           ))}
         </FilterSection>
 
-        {/* ✅ Working Price Filter */}
         <FilterSection title="Price">
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min={0}
-              max={priceRange[1]}
-              value={priceRange[0]}
-              onChange={(e) =>
-                setPriceRange([Number(e.target.value), priceRange[1]])
-              }
-              className="w-20 border p-1 rounded text-sm"
-            />
-            <span>-</span>
-            <input
-              type="number"
-              min={priceRange[0]}
-              max={2000}
-              value={priceRange[1]}
-              onChange={(e) =>
-                setPriceRange([priceRange[0], Number(e.target.value)])
-              }
-              className="w-20 border p-1 rounded text-sm"
-            />
-          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm text-gray-600">
+              Up to ₹{priceRange[1]}
+            </label>
 
-          <button
-            onClick={() => applyPriceFilter(priceRange[0], priceRange[1])}
-            className="w-full mt-2 bg-green-600 text-white py-1 rounded hover:bg-green-700"
-          >
-            Apply Price
-          </button>
+            <input
+              type="range"
+              min={0}
+              max={500}
+              step={1}
+              value={priceRange[1]}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                setPriceRange([0, value]);
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("minPrice", "0");
+                params.set("maxPrice", value.toString());
+                params.set("sort", "price_asc");
+                router.push(`/shop?${params.toString()}`);
+              }}
+              className="w-full accent-green-600 cursor-pointer"
+            />
+
+            <span className="text-xs text-gray-500">
+              Showing items priced up to ₹{priceRange[1]}
+            </span>
+          </div>
         </FilterSection>
       </aside>
     </>
