@@ -4,11 +4,12 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-   phone?: string;
+  phone?: string;
   address?: string;
   image?: string;
   verified: boolean;
   role: "admin" | "delivery" | "user";
+  isActive: boolean; // 👈 add this line
 }
 
 const UserSchema = new Schema<IUser>(
@@ -16,7 +17,7 @@ const UserSchema = new Schema<IUser>(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-     phone: { type: String },
+    phone: { type: String },
     address: { type: String },
     image: { type: String },
     verified: { type: Boolean, default: false },
@@ -25,6 +26,7 @@ const UserSchema = new Schema<IUser>(
       enum: ["admin", "delivery", "user"],
       default: "user",
     },
+    isActive: { type: Boolean, default: true }, // 👈 add this field to schema
   },
   { timestamps: true }
 );

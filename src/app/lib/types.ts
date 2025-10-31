@@ -30,6 +30,7 @@ export interface Product {
   updatedAt?: string;
 }
 
+
 export interface User {
   id: string;
   name: string;
@@ -37,4 +38,5 @@ export interface User {
   phone?: string;
   address?: string;
   image?: string;
+   isActive: boolean;
 }

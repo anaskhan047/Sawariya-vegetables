@@ -12,7 +12,9 @@ type User = {
   role: string;
   createdAt?: string;
   updatedAt?: string;
-  orders: string | number;
+  orders: number;
+  cancelledOrders: number;
+  isActive: boolean;
 };
 
 export default function UsersPage() {
@@ -25,11 +27,13 @@ export default function UsersPage() {
   useEffect(() => {
     async function fetchUsers() {
       try {
-        const res = await fetch("/api/users");
+        const res = await fetch("/api/admin/users-with-orders");
         const data = await res.json();
-        if (data.success) setUsers(data.users);
+        if (data.success && Array.isArray(data.users)) {
+          setUsers(data.users);
+        }
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching users:", err);
       } finally {
         setLoading(false);
       }
@@ -38,28 +42,26 @@ export default function UsersPage() {
   }, []);
 
   const filteredUsers = users.filter((user) => {
-  const address = user.address || ""; // prevent undefined error
-
-  const pincodeMatch = pincodeFilter
-    ? address.includes(pincodeFilter)
-    : true;
-
-  const orderMatch =
-    orderFilter === "high"
-      ? Number(user.orders) > 10
-      : orderFilter === "low"
-      ? Number(user.orders) <= 10
+    const address = user.address || "";
+    const pincodeMatch = pincodeFilter
+      ? address.includes(pincodeFilter)
       : true;
 
-  const searchMatch = search
-    ? user.name.toLowerCase().includes(search.toLowerCase()) ||
+    const orderMatch =
+      orderFilter === "high"
+        ? Number(user.orders) > 10
+        : orderFilter === "low"
+          ? Number(user.orders) <= 10
+          : true;
+
+    const searchMatch = search
+      ? user.name.toLowerCase().includes(search.toLowerCase()) ||
       (user.email || "").toLowerCase().includes(search.toLowerCase()) ||
       (user.phone || "").includes(search)
-    : true;
+      : true;
 
-  return pincodeMatch && orderMatch && searchMatch;
-});
-
+    return pincodeMatch && orderMatch && searchMatch;
+  });
 
   if (loading)
     return <p className="text-center py-10 text-gray-600">Loading users...</p>;
@@ -105,7 +107,7 @@ export default function UsersPage() {
         </button>
       </div>
 
-      {/* User Cards Grid */}
+      {/* User Cards */}
       <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {filteredUsers.map((user) => (
           <div
@@ -121,7 +123,7 @@ export default function UsersPage() {
                 />
               ) : (
                 <div className="w-12 h-12 rounded-full mr-3 bg-gray-200 flex items-center justify-center text-gray-500">
-                  {user.name[0]}
+                  {user.name?.[0] || "U"}
                 </div>
               )}
               <div className="flex-1">
@@ -129,6 +131,7 @@ export default function UsersPage() {
                 <p className="text-sm text-gray-500">{user.email}</p>
               </div>
             </div>
+
             <p className="text-sm text-gray-600 mb-1">
               <strong>Phone:</strong> {user.phone}
             </p>
@@ -138,11 +141,54 @@ export default function UsersPage() {
             <p className="text-sm text-gray-600 mb-1">
               <strong>Role:</strong> {user.role}
             </p>
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-sm text-gray-600">
+                <strong>Status:</strong>{" "}
+                <span className={user.isActive ? "text-red-500" : "text-green-600"}>
+                  {user.isActive ? "Inactive" : "Active"}
+                </span>
+              </p>
+
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/admin/toggle-user-status", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ userId: user.id, isActive: !user.isActive }),
+                    });
+
+                    const data = await res.json();
+                    if (data.success) {
+                      setUsers((prev) =>
+                        prev.map((u) =>
+                          u.id === user.id ? { ...u, isActive: !u.isActive } : u
+                        )
+                      );
+                    } else {
+                      alert(data.message || "Failed to update status");
+                    }
+                  } catch (err) {
+                    console.error(err);
+                    alert("Something went wrong");
+                  }
+                }}
+                className={`px-3 py-1 rounded-md text-sm font-medium ${user.isActive ? "bg-green-500 text-white" : "bg-red-500 text-white "
+                  }`}
+              >
+                {user.isActive ? "Activate" : "Deactivate"}
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-1">
+              <strong>Total Orders:</strong> {user.orders || 0}
+            </p>
             <p className="text-sm text-gray-600">
-              <strong>Orders:</strong> {user.orders || "-"}
+              <strong>Cancelled Orders:</strong> {user.cancelledOrders || 0}
             </p>
           </div>
         ))}
+
         {filteredUsers.length === 0 && (
           <p className="col-span-full text-center text-gray-500 py-10">
             No users found.

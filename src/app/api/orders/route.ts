@@ -88,6 +88,19 @@ export async function POST(req: Request) {
   if (!user)
     return NextResponse.json({ success: false, message: "Not authenticated" }, { status: 401 });
 
+   // 🧩 NEW CHECK: verify user is active
+  const fullUser = await User.findById(user._id);
+  if (!fullUser) {
+    return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
+  }
+
+  if (!fullUser.isActive) {
+    return NextResponse.json({
+      success: false,
+      message: "Your account is inactive. You cannot place orders right now.",
+    });
+  }
+  
   const { items, address, paymentMethod = "cod", deliveryCharge = 0, utr, upiId } = await req.json();
 
   if (!Array.isArray(items) || items.length === 0)

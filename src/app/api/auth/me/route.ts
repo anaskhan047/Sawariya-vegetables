@@ -45,6 +45,7 @@ export async function GET(req: Request) {
       address: user.address,
       role: user.role,
       image: user.image,
+      isActive: user.isActive,
     };
 
     return NextResponse.json({ loggedIn: true, user: safeUser }, { status: 200 });
