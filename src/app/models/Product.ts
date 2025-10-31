@@ -10,6 +10,7 @@ export interface IProduct extends Document {
   name: string;
   inHindi?: string;
   description?: string;
+  marketPrice: number;
   price: number;
   category?: string;
   stockQty: number;
@@ -23,6 +24,7 @@ export interface IProduct extends Document {
   updatedAt: Date;
 }
 
+// Image schema
 const ImageSchema = new Schema<ImageRef>(
   {
     url: { type: String, required: true },
@@ -31,6 +33,7 @@ const ImageSchema = new Schema<ImageRef>(
   { _id: false }
 );
 
+// Product schema
 const ProductSchema = new Schema<IProduct>(
   {
     id: { type: String, required: true, unique: true, index: true },
@@ -38,6 +41,7 @@ const ProductSchema = new Schema<IProduct>(
     inHindi: { type: String, default: "" },
     description: { type: String, default: "" },
     price: { type: Number, required: true },
+    marketPrice: { type: Number, required: true }, // ✅ added field
     category: { type: String, default: "" },
     stockQty: { type: Number, default: 0 },
     unit: { type: String, enum: ["kg", "piece", "dozen"], default: "kg" },
@@ -54,5 +58,13 @@ const ProductSchema = new Schema<IProduct>(
   { timestamps: true }
 );
 
-export default (mongoose.models.Product as mongoose.Model<IProduct>) ||
+// ✅ Fix for Next.js + Mongoose hot reload issue
+if (mongoose.models.Product) {
+  delete mongoose.models.Product;
+}
+
+const Product =
+  mongoose.models.Product ||
   mongoose.model<IProduct>("Product", ProductSchema);
+
+export default Product;

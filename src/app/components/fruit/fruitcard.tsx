@@ -15,6 +15,7 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  marketPrice: number;
   unit: "kg" | "dozen" | "piece";
   category: string;
   images: ProductImage[];
@@ -156,6 +157,7 @@ export default function FruitsPage() {
                 {/* Name */}
                 <h3 className="text-lg font-semibold mt-3">{fruit.name}</h3>
                 <p className="text-green-700 font-bold">
+                  <span className="line-through text-red-500 mx-3">₹{fruit.marketPrice} </span>
                   ₹{fruit.price} / {fruit.unit}
                 </p>
 

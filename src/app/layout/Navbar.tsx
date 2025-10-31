@@ -299,49 +299,56 @@ export default function Navbar() {
               }}
             />
 
-            {isLoggedIn && userOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-[var(--background-color)] shadow-lg rounded-xl border border-[var(--border-color)] overflow-hidden transform transition-all duration-200 origin-top-right">
-                <div className="px-4 py-3 border-b border-[var(--border-color)] ">
-                  <p className="font-semibold text-[var(--text-color)] capitalize">
-                    {user?.name || "User"}
-                  </p>
-                  <p className="text-sm text-gray-500 truncate">
-                    {user?.email || ""}
-                  </p>
-                </div>
-                <ul className="flex flex-col">
-                  <li>
-                    <Link
-                      href="/profile"
-                      onClick={() => {
-                        setUserOpen(false);
-                        router.push("/profile");
-                      }}
-                      className="flex items-center px-4 py-2 text-[var(--text-color)] hover:bg-[var(--primary-color)] hover:text-white transition-colors duration-150"
-                    >
-                      👤 Profile
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/order"
-                      onClick={() => setUserOpen(false)}
-                      className="flex items-center px-4 py-2 text-[var(--text-color)] hover:bg-[var(--primary-color)] hover:text-white transition-colors duration-150"
-                    >
-                      📦 Orders
-                    </Link>
-                  </li>
-                  <li>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center px-4 py-2 text-[var(--text-color)] hover:bg-[var(--accent-color)] hover:text-[var(--text-color)] font-medium transition-colors duration-150"
-                    >
-                      🚪 Logout
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            )}
+           {isLoggedIn && userOpen && (
+  <div className="absolute right-0 mt-2 w-64 bg-[var(--background-color)] shadow-lg rounded-xl border border-[var(--border-color)] overflow-hidden">
+    <div className="px-4 py-3 border-b border-[var(--border-color)]">
+      <p className="font-semibold capitalize">{user?.name || "User"}</p>
+      <p className="text-sm text-gray-500 truncate">{user?.email || ""}</p>
+    </div>
+    <ul className="flex flex-col">
+      <li>
+        <Link
+          href="/profile"
+          onClick={() => setUserOpen(false)}
+          className="flex items-center px-4 py-2 hover:bg-[var(--primary-color)] hover:text-white"
+        >
+          👤 Profile
+        </Link>
+      </li>
+      <li>
+        <Link
+          href="/order"
+          onClick={() => setUserOpen(false)}
+          className="flex items-center px-4 py-2 hover:bg-[var(--primary-color)] hover:text-white"
+        >
+          📦 Orders
+        </Link>
+      </li>
+
+      {user?.role === "admin" && (
+        <li>
+          <Link
+            href="/admin"
+            onClick={() => setUserOpen(false)}
+            className="flex items-center px-4 py-2 hover:bg-[var(--primary-color)] hover:text-white"
+          >
+            🧭 Admin Dashboard
+          </Link>
+        </li>
+      )}
+
+      <li>
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center px-4 py-2 hover:bg-[var(--accent-color)]"
+        >
+          🚪 Logout
+        </button>
+      </li>
+    </ul>
+  </div>
+)}
+
           </div>
 
           {/* Mobile Menu Button */}

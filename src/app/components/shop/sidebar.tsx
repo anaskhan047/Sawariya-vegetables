@@ -43,6 +43,12 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  const gradeParam = searchParams.get("grade");
+  const categoryParam = searchParams.get("category");
+  const popularParam = searchParams.get("popular");
+  const minParam = searchParams.get("minPrice");
+  const maxParam = searchParams.get("maxPrice");
+
   // Close on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -66,17 +72,15 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
     fetchCategories();
   }, []);
 
-  const gradeParam = searchParams.get("grade");
-  const categoryParam = searchParams.get("category");
-  const popularParam = searchParams.get("popular");
-  const minParam = searchParams.get("minPrice");
-  const maxParam = searchParams.get("maxPrice");
-
+  // Initialize from URL
   useEffect(() => {
     setSelectedGrade(gradeParam);
     setSelectedCategory(categoryParam);
     setPopularOnly(popularParam === "true");
-    setPriceRange([Number(minParam) || 0, Number(maxParam) || 1000]);
+    setPriceRange([
+      Number(minParam) || 0,
+      Number(maxParam) || 1000,
+    ]);
   }, [gradeParam, categoryParam, popularParam, minParam, maxParam]);
 
   const updateParams = (updates: Record<string, string | null>) => {
@@ -89,14 +93,30 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
     onClose();
   };
 
-  const applyGradeFilter = (grade: string) =>
-    updateParams({ grade: selectedGrade === grade ? null : grade });
+  const applyGradeFilter = (grade: string) => {
+    updateParams({
+      grade: selectedGrade === grade ? null : grade,
+    });
+  };
 
-  const applyCategoryFilter = (category: string) =>
-    updateParams({ category: selectedCategory === category ? null : category });
+  const applyCategoryFilter = (category: string) => {
+    updateParams({
+      category: selectedCategory === category ? null : category,
+    });
+  };
 
-  const applyPopularFilter = () =>
-    updateParams({ popular: popularOnly ? null : "true" });
+  const applyPopularFilter = () => {
+    updateParams({
+      popular: popularOnly ? null : "true",
+    });
+  };
+
+  const applyPriceFilter = (min: number, max: number) => {
+    updateParams({
+      minPrice: min.toString(),
+      maxPrice: max.toString(),
+    });
+  };
 
   const clearFilters = () => {
     router.push("/shop");
@@ -109,13 +129,16 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
 
   return (
     <>
-      {/* 🚫 Removed the bg-black overlay completely */}
+      {/* <div
+        className={`fixed inset-0 bg-black z-40 transition-opacity duration-300 ${
+          isOpen ? "opacity-100 visible" : "opacity-0 invisible"
+        } md:hidden`}
+      /> */}
 
       <aside
         ref={ref}
-        className={`md:sticky md:top-16 fixed top-0 md:top-16 left-0 h-full w-64 bg-[var(--background-color)] z-50 p-4 space-y-4 transform transition-transform duration-300 md:relative md:translate-x-0 overflow-y-auto ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`md:sticky md:top-16 fixed top-0 md:top-16  left-0 h-full w-64 bg-[var(--background-color)] z-50 p-4 space-y-4 transform transition-transform duration-300 md:relative md:translate-x-0 overflow-y-auto ${isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="flex justify-end md:hidden">
           <button onClick={onClose} className="text-gray-600 text-xl">
@@ -137,11 +160,10 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
             <button
               key={grade}
               onClick={() => applyGradeFilter(grade)}
-              className={`w-full text-left px-2 py-1 rounded ${
-                selectedGrade === grade
+              className={`w-full text-left px-2 py-1 rounded ${selectedGrade === grade
                   ? "bg-green-600 text-white"
                   : "text-[var(--text-light)] hover:bg-gray-200"
-              }`}
+                }`}
             >
               {grade}
             </button>
@@ -151,11 +173,10 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
         <FilterSection title="Popular">
           <button
             onClick={applyPopularFilter}
-            className={`w-full text-left px-2 py-1 rounded ${
-              popularOnly
+            className={`w-full text-left px-2 py-1 rounded ${popularOnly
                 ? "bg-green-600 text-white"
                 : "text-[var(--text-light)] hover:bg-gray-200"
-            }`}
+              }`}
           >
             Show Popular Only
           </button>
@@ -166,23 +187,24 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
             <button
               key={cat._id}
               onClick={() => applyCategoryFilter(cat.name)}
-              className={`w-full text-left px-2 py-1 rounded ${
-                selectedCategory === cat.name
+              className={`w-full text-left px-2 py-1 rounded ${selectedCategory === cat.name
                   ? "bg-green-600 text-white"
                   : "text-[var(--text-light)] hover:bg-gray-200"
-              }`}
+                }`}
             >
               {cat.name}
             </button>
           ))}
         </FilterSection>
 
+        {/* ✅ Working Price Filter */}
         <FilterSection title="Price">
           <div className="flex flex-col gap-2">
             <label className="text-sm text-gray-600">
               Up to ₹{priceRange[1]}
             </label>
 
+            {/* ✅ Single Range Slider 0–500 */}
             <input
               type="range"
               min={0}
@@ -192,20 +214,21 @@ export default function ShopSidebar({ isOpen, onClose }: ShopSidebarProps) {
               onChange={(e) => {
                 const value = Number(e.target.value);
                 setPriceRange([0, value]);
+
+                // Update URL instantly for live filtering
                 const params = new URLSearchParams(searchParams.toString());
                 params.set("minPrice", "0");
                 params.set("maxPrice", value.toString());
-                params.set("sort", "price_asc");
+                params.set("sort", "price_asc"); // always sort by lowest price
                 router.push(`/shop?${params.toString()}`);
               }}
               className="w-full accent-green-600 cursor-pointer"
             />
 
-            <span className="text-xs text-gray-500">
-              Showing items priced up to ₹{priceRange[1]}
-            </span>
+            <span className="text-xs text-gray-500">Showing items priced up to ₹{priceRange[1]}</span>
           </div>
         </FilterSection>
+
       </aside>
     </>
   );

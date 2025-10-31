@@ -34,6 +34,10 @@ export async function POST(req: Request) {
       );
     }
     const data = parsed.data;
+    data.price = Number(data.price) || 0;
+    data.marketPrice = (typeof data.marketPrice === "number" && !isNaN(data.marketPrice))
+  ? data.marketPrice
+  : 0;
 
     let id = data.id ?? genId();
     if (await Product.exists({ id })) id = genId();
@@ -53,6 +57,7 @@ export async function POST(req: Request) {
       name: data.name,
       inHindi: data.inHindi,
       description: data.description,
+      marketPrice: data.marketPrice,
       price: data.price,
       category: data.category,
       stockQty: data.stockQty,

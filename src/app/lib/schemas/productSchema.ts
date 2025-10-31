@@ -24,7 +24,7 @@ export const productSchema = z
     name: z.string().min(1),
     inHindi: z.string().optional().default(""),
     description: z.string().optional().default(""),
-
+    marketPrice: toNumber(false, { nonnegative: true }).optional().default(0),
     price: toNumber(false, { nonnegative: true }),
     category: z.string().optional().default(""),
 

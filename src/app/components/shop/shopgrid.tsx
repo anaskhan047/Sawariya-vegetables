@@ -19,6 +19,7 @@ interface Product {
   inHindi?: string;
   description: string;
   price: number;
+  marketPrice: number;
   category: string;
   stockQty: number;
   unit: string;
@@ -287,6 +288,7 @@ export default function ShopPage() {
               </h3>
 
               <p className="text-green-700 font-bold mt-1">
+                <span className="line-through text-red-500 mx-3">₹{product.marketPrice} </span>
                 ₹{product.price} /
                 <span className="text-sm text-gray-500 font-normal ml-1">
                   {product.unit}

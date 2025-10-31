@@ -117,6 +117,7 @@ export async function PUT(
     if (parsed.data.name !== undefined) doc.name = parsed.data.name;
     if (parsed.data.inHindi !== undefined) doc.inHindi = parsed.data.inHindi;
     if (parsed.data.description !== undefined) doc.description = parsed.data.description;
+    if (parsed.data.marketPrice !== undefined) doc.marketPrice = parsed.data.marketPrice;
     if (parsed.data.price !== undefined) doc.price = parsed.data.price;
     if (parsed.data.category !== undefined) doc.category = parsed.data.category;
     if (parsed.data.stockQty !== undefined) doc.stockQty = parsed.data.stockQty;

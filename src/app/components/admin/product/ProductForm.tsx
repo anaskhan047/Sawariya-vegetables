@@ -19,6 +19,7 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
   const [categories, setCategories] = useState<string[]>([]);
   const [category, setCategory] = useState(initial?.category ?? "");
+  const [marketPrice, setMarketPrice] = useState<number>(initial?.marketPrice ?? 0);
   const [price, setPrice] = useState<number>(initial?.price ?? 0);
   const [unit, setUnit] = useState<Product["unit"]>(initial?.unit ?? "kg");
   const [stockQty, setStockQty] = useState<number>(initial?.stockQty ?? 0);
@@ -128,6 +129,7 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
         name: name.trim(),
         inHindi: inHindi.trim() || undefined,
         category,
+        marketPrice,
         price,
         unit,
         stockQty,
@@ -138,6 +140,8 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
         grade,
         popular,
       };
+      console.log("payload:", payload)
+
 
       if (newImagesBase64.length === 1) payload.imageBase64 = newImagesBase64[0];
       if (newImagesBase64.length > 1) payload.imagesBase64 = newImagesBase64;
@@ -227,6 +231,20 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
             </select>
           </div>
 
+          {/* Market Price */}
+          <div>
+            <label className="block text-sm mb-1">Market Price (₹)</label>
+            <input
+              type="number"
+              min="0"
+              value={marketPrice}
+              onChange={(e) => setMarketPrice(e.target.value === '' ? 0 : Number(e.target.value))}
+              className="w-full rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--border-color)" }}
+            />
+
+            {errors.marketPrice && <p className="text-xs text-red-600 mt-1">{errors.marketPrice}</p>}
+          </div>
           {/* Price */}
           <div>
             <label className="block text-sm mb-1">Price (₹)</label>

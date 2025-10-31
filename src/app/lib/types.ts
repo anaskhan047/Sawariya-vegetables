@@ -14,7 +14,7 @@ export interface Product {
   description?: string;
   category: string;
   price: number;
-
+  marketPrice: number;
   images?: ImageRef[];  
   imageData?: string;   
 

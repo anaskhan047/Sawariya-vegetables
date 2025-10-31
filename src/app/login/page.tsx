@@ -16,7 +16,9 @@ export default function Auth() {
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-
+  const [showPass, setShowPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export default function Auth() {
         credentials: "include",
         body: JSON.stringify(body),
       });
-      
+
       const data = await res.json();
       console.log(data.token)
       localStorage.setItem("token", data.token);
@@ -131,21 +133,21 @@ export default function Auth() {
   }
 
   useEffect(() => {
-      async function fetchUser() {
-        try {
-          const res = await fetch("/api/auth/me");
-          const data = await res.json();
-          if (data.loggedIn) {
-            setImage(data.user.image || null);
-          }
-        } catch (err) {
-          console.error("Error fetching user:", err);
-        } finally {
-          setLoading(false);
+    async function fetchUser() {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.loggedIn) {
+          setImage(data.user.image || null);
         }
+      } catch (err) {
+        console.error("Error fetching user:", err);
+      } finally {
+        setLoading(false);
       }
-      fetchUser();
-    }, []);
+    }
+    fetchUser();
+  }, []);
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--background-color)] px-4">
       <div className="w-full max-w-md bg-[var(--background-color)] border border-[var(--border-color)] shadow-lg rounded-lg p-6 sm:p-8">
@@ -160,7 +162,24 @@ export default function Auth() {
           <form className="space-y-4" onSubmit={handleSubmit}>
             {!isLogin && <input type="text" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md" required />}
             <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md" required />
-            <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md" required />
+            <div className="relative">
+              <input
+                type={showPass ? "text" : "password"}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md pr-10"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass(!showPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[var(--primary-color)]"
+              >
+                {showPass ? "🙈" : "👁️"}
+              </button>
+            </div>
+
             {!isLogin && (
               <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md">
                 <option value="user">User</option>
@@ -179,61 +198,80 @@ export default function Auth() {
           </form>
         ) : (
           // 🔑 Forgot Password Form
-<div className="space-y-4">
-  {!otpSent ? (
-    <>
-      <input
-        type="email"
-        placeholder="Enter your email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md"
-      />
-      <button
-        onClick={handleSendOtp}
-        className="w-full py-2 rounded-md text-white bg-[var(--primary-color)] hover:bg-[var(--secondary-color)]"
-      >
-        Send OTP
-      </button>
-    </>
-  ) : (
-    <>
-      <input
-        type="text"
-        placeholder="Enter OTP"
-        value={otp}
-        onChange={(e) => setOtp(e.target.value)}
-        className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md"
-      />
-      <input
-        type="password"
-        placeholder="New Password"
-        value={newPass}
-        onChange={(e) => setNewPass(e.target.value)}
-        className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md"
-      />
-      <input
-        type="password"
-        placeholder="Confirm Password"
-        value={confirmPass}
-        onChange={(e) => setConfirmPass(e.target.value)}
-        className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md"
-      />
-      <button
-        onClick={handleResetPassword}
-        className="w-full py-2 rounded-md text-white bg-green-600 hover:bg-green-700"
-      >
-        Reset Password
-      </button>
-    </>
-  )}
-  <button
-    onClick={() => { setForgotOpen(false); setOtpSent(false); }}
-    className="w-full py-2 rounded-md text-white bg-gray-500 hover:bg-gray-600"
-  >
-    Cancel
-  </button>
-</div>
+          <div className="space-y-4">
+            {!otpSent ? (
+              <>
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md"
+                />
+                <button
+                  onClick={handleSendOtp}
+                  className="w-full py-2 rounded-md text-white bg-[var(--primary-color)] hover:bg-[var(--secondary-color)]"
+                >
+                  Send OTP
+                </button>
+              </>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  placeholder="Enter OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md"
+                />
+                <div className="relative">
+                  <input
+                    type={showNewPass ? "text" : "password"}
+                    placeholder="New Password"
+                    value={newPass}
+                    onChange={(e) => setNewPass(e.target.value)}
+                    className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPass(!showNewPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[var(--primary-color)]"
+                  >
+                    {showNewPass ? "🙈" : "👁️"}
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type={showConfirmPass ? "text" : "password"}
+                    placeholder="Confirm Password"
+                    value={confirmPass}
+                    onChange={(e) => setConfirmPass(e.target.value)}
+                    className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPass(!showConfirmPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[var(--primary-color)]"
+                  >
+                    {showConfirmPass ? "🙈" : "👁️"}
+                  </button>
+                </div>
+                <button
+                  onClick={handleResetPassword}
+                  className="w-full py-2 rounded-md text-white bg-green-600 hover:bg-green-700"
+                >
+                  Reset Password
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => { setForgotOpen(false); setOtpSent(false); }}
+              className="w-full py-2 rounded-md text-white bg-gray-500 hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+          </div>
 
         )}
 

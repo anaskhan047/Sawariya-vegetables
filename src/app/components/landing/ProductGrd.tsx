@@ -134,6 +134,7 @@ export default function ProductGrid() {
                 {product.inHindi} 
               </h3>
               <p className="text-sm text-[var(--text-light)] mb-3">
+                <span className="line-through text-red-500 mx-3">₹{product.marketPrice} </span>
                 ₹{product.price} / {product.unit} 
                 {/* repair */}
               </p>

@@ -18,6 +18,7 @@ export default function ProductList({ products, onEdit, onDelete }: Props) {
             <tr className="text-left text-sm" style={{ color: "var(--text-light)" }}>
               <th className="p-3">Product</th>
               <th className="p-3">Category</th>
+              <th className="p-3">Market Price</th>
               <th className="p-3">Price</th>
               <th className="p-3">Unit</th>
               <th className="p-3">Limits</th>
@@ -48,7 +49,8 @@ export default function ProductList({ products, onEdit, onDelete }: Props) {
                     </div>
                   </td>
                   <td className="p-3 capitalize">{p.category}</td>
-                  <td className="p-3">₹ {p.price.toFixed(2)}</td>
+                  <td className="p-3 text-red-600">₹ {Number(p.marketPrice ?? 0).toFixed(2)}</td>
+<td className="p-3">₹ {Number(p.price ?? 0).toFixed(2)}</td>
                   <td className="p-3">{p.unit}</td>
                   <td className="p-3">{p.minQty} – {p.maxQty} {p.unit}</td>
                   <td className="p-3">{p.grade}</td>
@@ -88,6 +90,8 @@ export default function ProductList({ products, onEdit, onDelete }: Props) {
                 </div>
                 <div className="flex-1">
                   <div className="font-semibold">{p.name} / {p.inHindi}</div>
+
+                  <div className="text-sm font-medium text-red-600">₹ {p.marketPrice} / {p.unit}</div>
                   <div className="text-sm font-medium">₹ {p.price.toFixed(2)} / {p.unit}</div>
                   <div className="text-xs" style={{ color: "var(--text-light)" }}>Limit: {p.minQty} – {p.maxQty} {p.unit}</div>
                   <div className="mt-1">

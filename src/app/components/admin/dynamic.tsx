@@ -31,37 +31,7 @@ export default function DynamicChange() {
       onClick: () => {
         router.push("/admin/ui/addHeroImage");
       },
-    },
-    {
-      title: "Homepage Banner",
-      desc: "Update promotional banners for homepage.",
-      img: null,
-      onClick: () => {},
-    },
-    {
-      title: "Product Card Image",
-      desc: "Edit default product display image.",
-      img: null,
-      onClick: () => {},
-    },
-    {
-      title: "Category Thumbnails",
-      desc: "Change images shown for categories.",
-      img: null,
-      onClick: () => {},
-    },
-    {
-      title: "Footer Background",
-      desc: "Update footer background gradient or image.",
-      img: null,
-      onClick: () => {},
-    },
-    {
-      title: "Custom UI Section",
-      desc: "Modify other UI elements dynamically.",
-      img: null,
-      onClick: () => {},
-    },
+    }
   ];
 
   return (
