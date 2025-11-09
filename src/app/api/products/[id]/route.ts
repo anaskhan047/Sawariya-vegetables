@@ -1,4 +1,3 @@
-// src/app/api/products/[id]/route.ts
 import dbConnect from "@/app/lib/mongodb";
 import Product from "@/app/models/Product";
 import { productSchema } from "@/app/lib/schemas/productSchema";
@@ -78,7 +77,6 @@ export async function PUT(
     }
 
     const doc = await Product.findOne({ id });
-    console.log(doc, "food api data =========================================>");
     if (!doc) {
       return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     }
@@ -90,7 +88,12 @@ export async function PUT(
     const keepSet = new Set(keepImages.map((i) => i.public_id));
     for (const img of doc.images as ImageObj[]) {
       if (!keepSet.has(img.public_id)) {
-        await destroyByPublicId(img.public_id);
+        // destroy deleted images
+        try {
+          await destroyByPublicId(img.public_id);
+        } catch (e) {
+          console.warn("Failed to destroy image", img.public_id, e);
+        }
       }
     }
 
@@ -110,9 +113,7 @@ export async function PUT(
       );
       finalImages = [...finalImages, ...uploaded];
     }
-    console.log(parsed.data.inHindi, "parsed data ===================>");
-    console.log(doc.inHindi, "doc data ===================>");
-    // console.log(parsed.data.inHindi, "doc data ===================>");
+
     // ---------- Assign fields ----------
     if (parsed.data.name !== undefined) doc.name = parsed.data.name;
     if (parsed.data.inHindi !== undefined) doc.inHindi = parsed.data.inHindi;
@@ -124,18 +125,24 @@ export async function PUT(
     if (parsed.data.unit !== undefined) doc.unit = parsed.data.unit;
     if (parsed.data.minQty !== undefined) doc.minQty = parsed.data.minQty;
     if (parsed.data.maxQty !== undefined) doc.maxQty = parsed.data.maxQty;
+    // normalize tags from Tag or tags
+    const incomingTags = (parsed.data.tags && parsed.data.tags.length ? parsed.data.tags : (parsed.data.Tag ?? undefined));
+    if (incomingTags !== undefined) {
+      doc.tags = (Array.isArray(incomingTags) ? incomingTags.map(String).map(t => t.trim()).filter(Boolean) : []);
+    }
     if (parsed.data.grade !== undefined) doc.grade = parsed.data.grade;
     if (parsed.data.popular !== undefined) doc.popular = parsed.data.popular;
 
     doc.images = finalImages;
-    // Right before doc.save()
-const data = parsed.data as typeof parsed.data & { stockChange?: number };
 
-if (data.stockChange !== undefined && typeof data.stockChange === "number") {
-  doc.stockQty = (doc.stockQty || 0) + data.stockChange; // subtract if negative
-  if (doc.stockQty < 0) doc.stockQty = 0; // prevent negative stock
-}
-await doc.save();
+    // stock change support
+    const data = parsed.data as typeof parsed.data & { stockChange?: number };
+    if (data.stockChange !== undefined && typeof data.stockChange === "number") {
+      doc.stockQty = (doc.stockQty || 0) + data.stockChange;
+      if (doc.stockQty < 0) doc.stockQty = 0;
+    }
+
+    await doc.save();
 
     return NextResponse.json({ success: true, product: doc.toObject() });
   } catch (err: unknown) {
@@ -160,7 +167,11 @@ export async function DELETE(
     }
 
     for (const img of doc.images as ImageObj[]) {
-      await destroyByPublicId(img.public_id);
+      try {
+        await destroyByPublicId(img.public_id);
+      } catch (e) {
+        console.warn("Failed to destroy image", img.public_id, e);
+      }
     }
 
     await doc.deleteOne();

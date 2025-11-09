@@ -152,7 +152,8 @@ export default function Navbar() {
             const filtered = (data.products as Product[]).filter((p) => {
               const nameMatch = p.name.toLowerCase().includes(searchValue.toLowerCase());
               const hindiMatch = p.inHindi?.toLowerCase().includes(searchValue.toLowerCase());
-              return nameMatch || hindiMatch;
+              const tagsMatch = p.tags?.some(tag => tag.toLowerCase().includes(searchValue.toLowerCase()));
+              return nameMatch || hindiMatch || tagsMatch;
             });
             setSearchResults(filtered);
           }

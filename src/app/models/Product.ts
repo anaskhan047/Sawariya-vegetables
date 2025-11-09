@@ -15,6 +15,7 @@ export interface IProduct extends Document {
   category?: string;
   stockQty: number;
   unit: "kg" | "piece" | "dozen";
+  tags: string[]; // ✅ multiple tags support
   minQty: number;
   maxQty: number;
   images: ImageRef[];
@@ -24,7 +25,7 @@ export interface IProduct extends Document {
   updatedAt: Date;
 }
 
-// Image schema
+// Sub-schema for images
 const ImageSchema = new Schema<ImageRef>(
   {
     url: { type: String, required: true },
@@ -33,18 +34,18 @@ const ImageSchema = new Schema<ImageRef>(
   { _id: false }
 );
 
-// Product schema
 const ProductSchema = new Schema<IProduct>(
   {
     id: { type: String, required: true, unique: true, index: true },
     name: { type: String, required: true },
     inHindi: { type: String, default: "" },
     description: { type: String, default: "" },
+    marketPrice: { type: Number, required: true },
     price: { type: Number, required: true },
-    marketPrice: { type: Number, required: true }, // ✅ added field
     category: { type: String, default: "" },
     stockQty: { type: Number, default: 0 },
     unit: { type: String, enum: ["kg", "piece", "dozen"], default: "kg" },
+    tags: { type: [String], default: [] }, // ✅ added here
     minQty: { type: Number, default: 1 },
     maxQty: { type: Number, default: 10 },
     images: { type: [ImageSchema], default: [] },
@@ -58,13 +59,12 @@ const ProductSchema = new Schema<IProduct>(
   { timestamps: true }
 );
 
-// ✅ Fix for Next.js + Mongoose hot reload issue
+// ✅ Fix Next.js + Mongoose hot reload
 if (mongoose.models.Product) {
   delete mongoose.models.Product;
 }
 
 const Product =
-  mongoose.models.Product ||
-  mongoose.model<IProduct>("Product", ProductSchema);
+  mongoose.models.Product || mongoose.model<IProduct>("Product", ProductSchema);
 
 export default Product;

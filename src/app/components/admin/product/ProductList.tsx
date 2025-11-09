@@ -1,3 +1,4 @@
+// src/app/components/admin/product/ProductList.tsx
 "use client";
 
 import { Product } from "@/app/lib/types";
@@ -25,6 +26,7 @@ export default function ProductList({ products, onEdit, onDelete }: Props) {
               <th className="p-3">Grade</th>
               <th className="p-3">Popular</th>
               <th className="p-3">Stock</th>
+              <th className="p-3">Tags</th>
               <th className="p-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -50,7 +52,7 @@ export default function ProductList({ products, onEdit, onDelete }: Props) {
                   </td>
                   <td className="p-3 capitalize">{p.category}</td>
                   <td className="p-3 text-red-600">₹ {Number(p.marketPrice ?? 0).toFixed(2)}</td>
-<td className="p-3">₹ {Number(p.price ?? 0).toFixed(2)}</td>
+                  <td className="p-3">₹ {Number(p.price ?? 0).toFixed(2)}</td>
                   <td className="p-3">{p.unit}</td>
                   <td className="p-3">{p.minQty} – {p.maxQty} {p.unit}</td>
                   <td className="p-3">{p.grade}</td>
@@ -62,6 +64,14 @@ export default function ProductList({ products, onEdit, onDelete }: Props) {
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700">Out of Stock</span>
                     )}
                   </td>
+                  <td className="p-3">
+                    <div className="flex flex-wrap gap-1">
+                      {(p.tags ?? []).map((t, i) => (
+                        <span key={i} className="text-xs px-2 py-1 border rounded">{t}</span>
+                      ))}
+                      {(p.tags ?? []).length === 0 && <span className="text-xs text-gray-400">No tags</span>}
+                    </div>
+                  </td>
                   <td className="p-3 text-right">
                     <div className="flex gap-2 justify-end">
                       <button onClick={() => onEdit(p)} className="px-3 py-1.5 rounded-lg border text-sm" style={{ borderColor: "var(--border-color)" }}>Edit</button>
@@ -72,7 +82,7 @@ export default function ProductList({ products, onEdit, onDelete }: Props) {
               );
             })}
             {products.length === 0 && (
-              <tr><td colSpan={8} className="p-6 text-center text-sm" style={{ color: "var(--text-light)" }}>No products found.</td></tr>
+              <tr><td colSpan={11} className="p-6 text-center text-sm" style={{ color: "var(--text-light)" }}>No products found.</td></tr>
             )}
           </tbody>
         </table>
@@ -98,6 +108,11 @@ export default function ProductList({ products, onEdit, onDelete }: Props) {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${p.stockQty > 0 ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-700"}`}>
                       {p.stockQty > 0 ? `${p.stockQty} ${p.unit} left` : "Out of Stock"}
                     </span>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {(p.tags ?? []).map((t, i) => <span key={i} className="text-xs px-2 py-1 border rounded">{t}</span>)}
+                    {(p.tags ?? []).length === 0 && <div className="text-xs text-gray-400">No tags</div>}
                   </div>
                 </div>
               </div>

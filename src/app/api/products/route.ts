@@ -33,11 +33,14 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
     const data = parsed.data;
+
+    // normalize tags: prefer `tags`, fallback to `Tag`
+    const tags = (data.tags && data.tags.length ? data.tags : (data.Tag ?? [])).map((t) => String(t).trim()).filter(Boolean);
+
     data.price = Number(data.price) || 0;
-    data.marketPrice = (typeof data.marketPrice === "number" && !isNaN(data.marketPrice))
-  ? data.marketPrice
-  : 0;
+    data.marketPrice = (typeof data.marketPrice === "number" && !isNaN(data.marketPrice)) ? data.marketPrice : 0;
 
     let id = data.id ?? genId();
     if (await Product.exists({ id })) id = genId();
@@ -48,7 +51,7 @@ export async function POST(req: Request) {
       images = [...images, uploaded];
     }
     if (data.imagesBase64?.length) {
-      const uploaded = await Promise.all(data.imagesBase64.map(b64 => uploadBase64Image(b64, "products")));
+      const uploaded = await Promise.all(data.imagesBase64.map((b64) => uploadBase64Image(b64, "products")));
       images = [...images, ...uploaded];
     }
 
@@ -64,6 +67,7 @@ export async function POST(req: Request) {
       unit: data.unit,
       minQty: data.minQty,
       maxQty: data.maxQty,
+      tags,
       images,
       grade: data.grade,
       popular: data.popular,

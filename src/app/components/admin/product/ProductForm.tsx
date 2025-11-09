@@ -33,6 +33,36 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
   const [grade, setGrade] = useState<Product["grade"]>(initial?.grade ?? "Standard");
   const [popular, setPopular] = useState<boolean>(initial?.popular ?? false);
   const [inHindi, setInHindi] = useState(initial?.inHindi ?? "");
+
+  // --- TAGS ---
+  const [tagInput, setTagInput] = useState("");
+  const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
+
+  useEffect(() => {
+    // when initial changes (editing), sync tags
+    setTags(initial?.tags ?? []);
+  }, [initial]);
+
+  const addTag = () => {
+    const t = tagInput.trim();
+    if (!t) {
+      setTagInput("");
+      return;
+    }
+    // prevent duplicate (case-insensitive)
+    if (tags.some((x) => x.toLowerCase() === t.toLowerCase())) {
+      setTagInput("");
+      return;
+    }
+    setTags((s) => [t, ...s]);
+    setTagInput("");
+  };
+
+  const removeTag = (idx: number) => {
+    setTags((s) => s.filter((_, i) => i !== idx));
+  };
+  // ---------------
+
   // --- MOBILE VH FIX: set --vh (to handle mobile keyboard / address bar resizing) ---
   useEffect(() => {
     function setVhVar() {
@@ -54,6 +84,7 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unit]);
+
   interface Category {
     id: string;
     name: string;
@@ -120,8 +151,6 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
 
   async function submit() {
     try {
-
-
       if (!validate()) return;
 
       const payload: ProductPayload = {
@@ -139,15 +168,14 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
         images: existingImages.map(i => ({ url: i.url, public_id: i.public_id })),
         grade,
         popular,
+        // include tags
+        tags: tags.length ? tags : undefined,
       };
-      console.log("payload:", payload)
-
 
       if (newImagesBase64.length === 1) payload.imageBase64 = newImagesBase64[0];
       if (newImagesBase64.length > 1) payload.imagesBase64 = newImagesBase64;
 
       onSubmit(payload);
-      console.log("payload:", payload);
     } catch (error) {
       console.error("ProductForm submit error:", error);
     }
@@ -158,20 +186,12 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
       {/* overlay */}
       <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
 
-      {/* modal container
-          - flex-col so header/body/footer stack
-          - min-h-0 allows inner overflow to work
-          - maxHeight uses CSS var --vh to handle mobile browser UI resizing
-      */}
+      {/* modal container */}
       <div
         className="relative w-full md:max-w-2xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border flex flex-col min-h-0"
         style={{
           borderColor: "var(--border-color)",
-          // on mobile use almost-fullscreen; on desktop max height handled by layout
           maxHeight: "calc(var(--vh, 1vh) * 100 - 3.5rem)",
-          // fallback for browsers without --vh support (desktop)
-          // (optional) you can remove the next line if you prefer the CSS-only approach
-          // height: "auto"
         }}
       >
         {/* header (sticky) */}
@@ -191,7 +211,7 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
           </div>
         </div>
 
-        {/* body: IMPORTANT: flex-1 + overflow-y-auto + min-h-0 */}
+        {/* body */}
         <div
           className="p-5 grid gap-4 md:grid-cols-2 flex-1 overflow-y-auto min-h-0 pb-20"
           style={{ WebkitOverflowScrolling: "touch" }}
@@ -217,6 +237,7 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
               style={{ borderColor: "var(--border-color)" }}
             />
           </div>
+
           {/* Category */}
           <div>
             <label className="block text-sm mb-1">Category</label>
@@ -245,6 +266,7 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
 
             {errors.marketPrice && <p className="text-xs text-red-600 mt-1">{errors.marketPrice}</p>}
           </div>
+
           {/* Price */}
           <div>
             <label className="block text-sm mb-1">Price (₹)</label>
@@ -278,7 +300,7 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
             <label className="block text-sm mb-1">Min Limit</label>
             <input
               type="number"
-              step={unit === "kg" ? "0.1" : "1"}
+              step={unit === "kg" ? 0.1 : 1}
               value={minQty}
               onChange={(e) => setMinQty(Number(e.target.value))}
               className="w-full rounded-lg border px-3 py-2"
@@ -289,7 +311,7 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
             <label className="block text-sm mb-1">Max Limit</label>
             <input
               type="number"
-              step={unit === "kg" ? "0.1" : "1"}
+              step={unit === "kg" ? 0.1 : 1}
               value={maxQty}
               onChange={(e) => setMaxQty(Number(e.target.value))}
               className="w-full rounded-lg border px-3 py-2"
@@ -359,6 +381,43 @@ export default function ProductForm({ initial, onSubmit, onCancel }: Props) {
               ))}
             </div>
             <input type="file" accept="image/*" onChange={handleFile} />
+          </div>
+
+          {/* Tags UI */}
+          <div className="md:col-span-2">
+            <label className="block text-sm mb-1">Tags (press Enter or Add)</label>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 border rounded p-2"
+                placeholder="e.g. aalu, आलू, potato"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addTag();
+                  }
+                }}
+              />
+              <button type="button" onClick={addTag} className="px-3 py-2 border rounded">Add</button>
+            </div>
+
+            <div className="mt-2 flex flex-wrap gap-2">
+              {tags.map((t, i) => (
+                <span key={i} className="px-2 py-1 rounded-full border flex items-center gap-2">
+                  <span className="text-sm">{t}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeTag(i)}
+                    className="text-xs leading-none px-1"
+                    aria-label={`Remove tag ${t}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {tags.length === 0 && <div className="text-sm text-gray-500">No tags yet</div>}
+            </div>
           </div>
 
           {/* Description */}

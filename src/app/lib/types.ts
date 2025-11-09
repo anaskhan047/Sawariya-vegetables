@@ -7,7 +7,7 @@ export type ImageRef = {
 };
 
 export interface Product {
-   _id?: string;
+  _id?: string;
   id: string;
   name: string;
   inHindi?: string;
@@ -15,17 +15,15 @@ export interface Product {
   category: string;
   price: number;
   marketPrice: number;
-  images?: ImageRef[];  
-  imageData?: string;   
-
+  images?: ImageRef[];
+  imageData?: string;
   unit: Unit;
   minQty: number;
   maxQty: number;
   stockQty: number;
-
   grade: Grade;
   popular: boolean;
-
+  tags?: string[]; // <-- tags
   createdAt?: string;
   updatedAt?: string;
 }
