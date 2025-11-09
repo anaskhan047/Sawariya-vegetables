@@ -1,3 +1,4 @@
+// src/app/api/admin/users-with-orders/route.ts
 import { NextResponse } from "next/server";
 import dbConnect from "@/app/lib/mongodb";
 import User from "@/app/models/User";
@@ -11,9 +12,10 @@ export async function GET() {
 
     const usersWithOrders = await Promise.all(
       users.map(async (user) => {
-        const totalOrders = await Orders.countDocuments({ userId: user._id });
+        // IMPORTANT: Orders store user reference in field `user`, not `userId`
+        const totalOrders = await Orders.countDocuments({ user: user._id });
         const cancelledOrders = await Orders.countDocuments({
-          userId: user._id,
+          user: user._id,
           status: "cancelled",
         });
 
@@ -25,7 +27,7 @@ export async function GET() {
           address: user.address,
           image: user.image || "",
           role: user.role,
-          isActive: user.isActive, // ✅ add this!
+          isActive: Boolean(user.isActive),
           orders: totalOrders,
           cancelledOrders,
         };
