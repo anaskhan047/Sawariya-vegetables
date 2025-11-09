@@ -39,7 +39,7 @@ export default function AdminOrdersPage() {
         const res = await axios.get("/api/admin/orders", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log(res.data)
+        // console.log(res.data)
         if (res.data.success) setOrders(res.data.orders || []);
       } catch (err) {
         console.error("  Error fetching orders:", err);

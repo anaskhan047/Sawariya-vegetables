@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 import Swal from "sweetalert2";
 import { z } from "zod";
@@ -20,6 +20,13 @@ export const MessageSchema = z.object({
 
 export type MessageSchemaType = z.infer<typeof MessageSchema>;
 
+type SettingsShape = {
+  businessEmail?: string;
+  businessPhone?: string;
+  deliveryTimeWindow?: string;
+  // other fields may exist but we only care above
+};
+
 export default function ContactInfo() {
   const [form, setForm] = useState<MessageSchemaType>({
     name: "",
@@ -28,6 +35,46 @@ export default function ContactInfo() {
     message: "",
   });
   const [loading, setLoading] = useState(false);
+
+  // settings state (fetched from server)
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [businessEmail, setBusinessEmail] = useState<string>("contact@sawariyavegetable.com");
+  const [businessPhone, setBusinessPhone] = useState<string>(" +91 98765 43210");
+  const [deliveryTimeWindow, setDeliveryTimeWindow] = useState<string>("Mon - Sat: 9:00 AM - 8:00 PM");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSettings() {
+      try {
+        setSettingsLoading(true);
+        const res = await fetch("/api/admin/settings");
+        const data = await res.json();
+        if (!cancelled && data?.success && data.settings) {
+          const s = data.settings as SettingsShape;
+          if (typeof s.businessEmail === "string" && s.businessEmail.trim().length > 0) {
+            setBusinessEmail(s.businessEmail);
+          }
+          if (typeof s.businessPhone === "string" && s.businessPhone.trim().length > 0) {
+            setBusinessPhone(s.businessPhone);
+          }
+          if (typeof s.deliveryTimeWindow === "string" && s.deliveryTimeWindow.trim().length > 0) {
+            setDeliveryTimeWindow(s.deliveryTimeWindow);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to load settings for contact info:", err);
+        // keep defaults
+      } finally {
+        if (!cancelled) setSettingsLoading(false);
+      }
+    }
+
+    loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -41,7 +88,7 @@ export default function ContactInfo() {
     const validation = MessageSchema.safeParse(form);
     if (!validation.success) {
       const firstError = validation.error.issues[0]?.message || "Invalid input";
-      Swal.fire({
+      await Swal.fire({
         icon: "error",
         title: "Validation Error",
         text: firstError,
@@ -59,8 +106,8 @@ export default function ContactInfo() {
       });
       const data = await res.json();
 
-      if (data.success) {
-        Swal.fire({
+      if (data?.success) {
+        await Swal.fire({
           icon: "success",
           title: "Message Sent!",
           text: "Your message has been sent successfully.",
@@ -68,20 +115,21 @@ export default function ContactInfo() {
         });
         setForm({ name: "", email: "", number: "", message: "" });
       } else {
-        Swal.fire({
+        await Swal.fire({
           icon: "error",
           title: "Failed",
-          text: "Failed to send message. Try again.",
+          text: data?.message || "Failed to send message. Try again.",
           confirmButtonColor: "#d33",
         });
       }
-    } catch {
-      Swal.fire({
+    } catch (err) {
+      await Swal.fire({
         icon: "error",
         title: "Server Error",
         text: "Something went wrong. Please try later.",
         confirmButtonColor: "#d33",
       });
+      console.error("Contact form submit error:", err);
     } finally {
       setLoading(false);
     }
@@ -93,9 +141,9 @@ export default function ContactInfo() {
       title: "Address",
       detail: "123 Green Street, Fresh City, India",
     },
-    { icon: Phone, title: "Phone", detail: "+91 98765 43210" },
-    { icon: Mail, title: "Email", detail: "contact@sawariyavegetable.com" },
-    { icon: Clock, title: "Timing", detail: "Mon - Sat: 9:00 AM - 8:00 PM" },
+    { icon: Phone, title: "Phone", detail: settingsLoading ? "Loading..." : businessPhone },
+    { icon: Mail, title: "Email", detail: settingsLoading ? "Loading..." : businessEmail },
+    { icon: Clock, title: "Timing", detail: settingsLoading ? "Loading..." : deliveryTimeWindow },
   ];
 
   const formFields = [
@@ -141,9 +189,7 @@ export default function ContactInfo() {
 
           {/* Contact Form */}
           <div className="bg-white p-8 rounded-2xl shadow-lg border border-[var(--border-color)]">
-            <h2 className="text-2xl font-bold mb-6 text-[var(--primary-color)]">
-              Send Us a Message
-            </h2>
+            <h2 className="text-2xl font-bold mb-6 text-[var(--primary-color)]">Send Us a Message</h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {formFields.map(({ name, type, placeholder }) => (

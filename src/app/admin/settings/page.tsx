@@ -1,140 +1,132 @@
 "use client";
 
-import { useState } from "react";
-
-type SettingSection = "general" | "profile" | "delivery" | "payment" | "notifications" ;
+import { useEffect, useState } from "react";
+import Swal from "sweetalert2";
 
 export default function SettingsPage() {
-  const [active, setActive] = useState<SettingSection>("general");
+  const [businessEmail, setBusinessEmail] = useState("");
+  const [businessPhone, setBusinessPhone] = useState("");
+  const [deliveryCharge, setDeliveryCharge] = useState<number>(40);
+  const [deliveryTimeWindow, setDeliveryTimeWindow] = useState("9 AM - 9 PM");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await fetch("/api/admin/settings");
+        const data = await res.json();
+        if (data.success && data.settings) {
+          const s = data.settings;
+          setBusinessEmail(s.businessEmail);
+          setBusinessPhone(s.businessPhone);
+          setDeliveryCharge(s.deliveryCharge);
+          setDeliveryTimeWindow(s.deliveryTimeWindow);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadSettings();
+  }, []);
+
+  async function saveSettings() {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        return Swal.fire("Unauthorized", "Login as admin first", "warning");
+      }
+
+      setSaving(true);
+      const res = await fetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          businessEmail,
+          businessPhone,
+          deliveryCharge,
+          deliveryTimeWindow,
+        }),
+      });
+
+      const data = await res.json();
+      setSaving(false);
+
+      if (data.success) {
+        Swal.fire("Saved", "Settings updated successfully", "success");
+      } else {
+        Swal.fire("Error", data.message || "Failed to save", "error");
+      }
+    } catch (err) {
+      console.error("Save error:", err);
+      setSaving(false);
+      Swal.fire("Error", "Failed to save settings", "error");
+    }
+  }
+
+  if (loading) return <div className="text-center py-10">Loading settings...</div>;
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      {/* Header */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold" style={{ color: "var(--text-color)" }}>
-          Settings
-        </h1>
-      </header>
+    <div className="container mx-auto max-w-4xl p-6 space-y-6">
+      <h1 className="text-2xl font-bold">Settings</h1>
 
-      {/* Tabs */}
-      <nav className="flex flex-wrap gap-2 border-b pb-2" style={{ borderColor: "var(--border-color)" }}>
-        {[
-          { key: "general", label: "General" },
-          { key: "delivery", label: "Delivery" },
-          { key: "notifications", label: "Notifications" },
-        ].map((tab) => (
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-6">
+        <div>
+          <label className="block text-sm mb-1 text-gray-600">Business Email</label>
+          <input
+            type="email"
+            value={businessEmail}
+            onChange={(e) => setBusinessEmail(e.target.value)}
+            className="w-full rounded-lg border px-3 py-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm mb-1 text-gray-600">Business Phone</label>
+          <input
+            type="text"
+            value={businessPhone}
+            onChange={(e) => setBusinessPhone(e.target.value)}
+            className="w-full rounded-lg border px-3 py-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm mb-1 text-gray-600">Delivery Charge (₹)</label>
+          <input
+            type="number"
+            value={deliveryCharge}
+            onChange={(e) => setDeliveryCharge(Number(e.target.value || 0))}
+            className="w-full rounded-lg border px-3 py-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm mb-1 text-gray-600">Delivery Time Window</label>
+          <input
+            type="text"
+            value={deliveryTimeWindow}
+            onChange={(e) => setDeliveryTimeWindow(e.target.value)}
+            className="w-full rounded-lg border px-3 py-2"
+          />
+          <p className="text-xs text-gray-500 mt-1">Example: 9 AM - 9 PM</p>
+        </div>
+
+        <div className="flex justify-end">
           <button
-            key={tab.key}
-            onClick={() => setActive(tab.key as SettingSection)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${
-              active === tab.key ? "text-white" : ""
-            }`}
-            style={{
-              backgroundColor: active === tab.key ? "var(--primary-color)" : "transparent",
-              color: active === tab.key ? "#fff" : "var(--text-light)",
-            }}
+            onClick={saveSettings}
+            disabled={saving}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
           >
-            {tab.label}
+            {saving ? "Saving..." : "Save Settings"}
           </button>
-        ))}
-      </nav>
-
-      {/* Content */}
-      <div className="rounded-xl p-4 border bg-white shadow-sm" style={{ borderColor: "var(--border-color)" }}>
-        {active === "general" && <GeneralSettings />}
-        {active === "delivery" && <DeliverySettings />}
-        {active === "payment" && <PaymentSettings />}
-        {active === "notifications" && <NotificationSettings />}
+        </div>
       </div>
     </div>
   );
 }
-
-function SectionWrapper({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold" style={{ color: "var(--text-color)" }}>
-        {title}
-      </h2>
-      <div className="grid gap-4">{children}</div>
-    </div>
-  );
-}
-
-function InputField({
-  label,
-  type = "text",
-  placeholder,
-  defaultValue,
-}: {
-  label: string;
-  type?: string;
-  placeholder?: string;
-  defaultValue?: string;
-}) {
-  return (
-    <div>
-      <label className="block text-sm mb-1" style={{ color: "var(--text-light)" }}>
-        {label}
-      </label>
-      <input
-        type={type}
-        placeholder={placeholder}
-        defaultValue={defaultValue}
-        className="w-full rounded-lg border px-3 py-2"
-        style={{ borderColor: "var(--border-color)" }}
-      />
-    </div>
-  );
-}
-
-function ToggleField({ label, defaultChecked }: { label: string; defaultChecked?: boolean }) {
-  return (
-    <div className="flex items-center gap-2">
-      <input type="checkbox" defaultChecked={defaultChecked} className="h-4 w-4" />
-      <span style={{ color: "var(--text-color)" }}>{label}</span>
-    </div>
-  );
-}
-
-/* === Individual Sections === */
-
-function GeneralSettings() {
-  return (
-    <SectionWrapper title="General Settings">
-      <InputField label="Website Name" defaultValue="My Shop" />
-      <InputField label="Business Email" defaultValue="admin@myshop.com" />
-      <InputField label="Business Phone" defaultValue="+91 9876543210" />
-    </SectionWrapper>
-  );
-}
-
-
-
-function DeliverySettings() {
-  return (
-    <SectionWrapper title="Delivery Settings">
-      <InputField label="Free Delivery Above (₹)" type="number" defaultValue="500" />
-      <InputField label="Delivery Time Window" defaultValue="9 AM - 9 PM" />
-    </SectionWrapper>
-  );
-}
-
-function PaymentSettings() {
-  return (
-    <SectionWrapper title="Payment Settings">
-      <ToggleField label="Enable Cash on Delivery" defaultChecked />
-      <InputField label="Razorpay API Key" placeholder="Enter Razorpay key" />
-    </SectionWrapper>
-  );
-}
-
-function NotificationSettings() {
-  return (
-    <SectionWrapper title="Notifications">
-      <ToggleField label="Send Email Notifications" defaultChecked />
-      <ToggleField label="Send SMS Notifications" />
-    </SectionWrapper>
-  );
-}
-

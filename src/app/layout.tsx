@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sawariya Vegetables",
+  title: "Shri Sawariya Mart",
   description: "Fresh and organic vegetables delivered to your doorstep",
 };
 

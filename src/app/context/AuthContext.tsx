@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const savedToken =
       typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (savedToken) {
-      console.log("🔑 Loaded token from storage:", savedToken);
+      // console.log("🔑 Loaded token from storage:", savedToken);
       setToken(savedToken);
     }
     refresh();
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("token", data.token);
         setToken(data.token);
 
-        console.log(" Token saved in localStorage:", data.token);
+        // console.log(" Token saved in localStorage:", data.token);
 
         await refresh();
         router.push("/shop");

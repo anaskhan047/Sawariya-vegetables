@@ -40,7 +40,7 @@ export default function RevenueChart() {
           ? resJson
           : resJson.orders || [];
 
-        console.log("Fetched Orders:", orders); 
+        // console.log("Fetched Orders:", orders); 
 
         const currentYear = new Date().getFullYear();
 
