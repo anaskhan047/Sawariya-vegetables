@@ -144,8 +144,8 @@ export default function UsersPage() {
             <div className="flex items-center justify-between mt-2">
               <p className="text-sm text-gray-600">
                 <strong>Status:</strong>{" "}
-                <span className={user.isActive ? "text-red-500" : "text-green-600"}>
-                  {user.isActive ? "Inactive" : "Active"}
+                <span className={user.isActive ? "text-green-600" : "text-red-500"}>
+                  {user.isActive ? "Active" : "Inactive"}
                 </span>
               </p>
 
@@ -173,10 +173,10 @@ export default function UsersPage() {
                     alert("Something went wrong");
                   }
                 }}
-                className={`px-3 py-1 rounded-md text-sm font-medium ${user.isActive ? "bg-green-500 text-white" : "bg-red-500 text-white "
+                className={`px-3 py-1 rounded-md text-sm font-medium ${user.isActive ? "bg-red-500 text-white" : "bg-green-500 text-white "
                   }`}
               >
-                {user.isActive ? "Activate" : "Deactivate"}
+                {user.isActive ? "Deactivate" : "Activate"}
               </button>
             </div>
 
