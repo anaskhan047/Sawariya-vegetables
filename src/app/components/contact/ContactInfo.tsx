@@ -179,7 +179,7 @@ export default function ContactInfo() {
           {/* Google Map */}
           <div className="rounded-2xl overflow-hidden shadow-lg border border-[var(--border-color)]">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d29449.372780342186!2d75.80101993924276!3d22.68465512206235!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3962fc4df8240b37%3A0x62933de14560b8f0!2sSudama%20Nagar%2C%20Indore%2C%20Madhya%20Pradesh%20452009!5e0!3m2!1sen!2sin!4v1755442156614!5m2!1sen!2sin"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d235527.49482607495!2d75.69903738855072!3d22.72388828988633!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3962fcad1b410ddb%3A0x96ec4da356240f4!2sIndore%2C%20Madhya%20Pradesh!5e0!3m2!1sen!2sin!4v1762752568209!5m2!1sen!2sin"
               width="100%"
               height="500"
               loading="lazy"
@@ -229,3 +229,5 @@ export default function ContactInfo() {
     </section>
   );
 }
+
+// <iframe src="" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>

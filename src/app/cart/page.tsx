@@ -57,7 +57,7 @@ export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [loadingCart, setLoadingCart] = useState(false);
   const [areas, setAreas] = useState<DeliveryArea[]>([]);
-
+  const [settings, setSettings] = useState<Record<string, number>>({});
   //  Fetch Cart from API
   const fetchCart = useCallback(async () => {
     if (!isLoggedIn) return;
@@ -79,6 +79,26 @@ export default function CartPage() {
   useEffect(() => {
     if (isLoggedIn) fetchCart();
   }, [isLoggedIn, fetchCart]);
+
+   // Fetch Settings (and poll)
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/settings");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.success && data.settings) {
+        setSettings(data.settings);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch settings:", err);
+    }
+  }, []);
+
+   useEffect(() => {
+    fetchSettings();
+    const iv = setInterval(fetchSettings, 20_000); // poll every 20s so admin changes reflect quickly
+    return () => clearInterval(iv);
+  }, [fetchSettings]);
 
   //  Update quantity
   const updateQty = async (productId: string, newQty: number) => {
@@ -129,16 +149,32 @@ export default function CartPage() {
     }
   };
 
-  //  Price Summary
+   // Delivery values from settings with safe fallbacks
+  const deliveryChargeSetting = typeof settings.deliveryCharge === "number" ? settings.deliveryCharge : undefined;
+  const freeDeliveryThresholdSetting =
+    typeof settings.freeDeliveryThreshold === "number"
+      ? settings.freeDeliveryThreshold
+      : typeof settings.freeDeliveryAbove === "number"
+      ? settings.freeDeliveryAbove
+      : undefined;
+
+  const DEFAULT_DELIVERY = 29;
+  const DEFAULT_FREE_THRESHOLD = 300;
+
+  //  Price Summary uses settings
   const priceSummary = useMemo(() => {
     const subTotal = items.reduce(
       (sum, it) => sum + it.productId.price * it.quantity,
       0
     );
-    const delivery = subTotal >= 300 ? 0 : 29;
+
+    const freeThreshold = freeDeliveryThresholdSetting ?? DEFAULT_FREE_THRESHOLD;
+    const configuredDelivery = deliveryChargeSetting ?? DEFAULT_DELIVERY;
+
+    const delivery = subTotal >= freeThreshold ? 0 : configuredDelivery;
     const total = subTotal + delivery;
-    return { subTotal, delivery, total };
-  }, [items]);
+    return { subTotal, delivery, total, freeThreshold, configuredDelivery };
+  }, [items, deliveryChargeSetting, freeDeliveryThresholdSetting]);
 
   //  Fetch delivery areas
   useEffect(() => {
@@ -367,14 +403,15 @@ export default function CartPage() {
 
   //  Free delivery bar progress
   const freeDeliveryThreshold = 300;
-  const remainingForFreeDelivery =
-    priceSummary.subTotal >= freeDeliveryThreshold
+    const remainingForFreeDelivery =
+    priceSummary.subTotal >= priceSummary.freeThreshold
       ? 0
-      : freeDeliveryThreshold - priceSummary.subTotal;
+      : priceSummary.freeThreshold - priceSummary.subTotal;
   const progressPercent =
-    priceSummary.subTotal >= freeDeliveryThreshold
+    priceSummary.subTotal >= priceSummary.freeThreshold
       ? 100
-      : (priceSummary.subTotal / freeDeliveryThreshold) * 100;
+      : (priceSummary.subTotal / priceSummary.freeThreshold) * 100;
+
 
   return (
     <div className="px-4 py-6 max-w-7xl mx-auto relative">
