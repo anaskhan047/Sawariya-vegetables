@@ -23,6 +23,10 @@ type Order = {
   paymentStatus: string;
   createdAt: string;
   otp?: string;
+  // possible optional fields that invoice may show
+  coupon?: string;
+  discount?: number;
+  invoiceNumber?: string;
 };
 
 export default function AdminOrdersPage() {
@@ -138,7 +142,229 @@ export default function AdminOrdersPage() {
     }
   };
 
+  // ---------- PRINT / INVOICE ----------
 
+  // Helper to format currency (INR)
+  const formatINR = (value: number) => {
+    try {
+      return "₹" + value.toFixed(2);
+    } catch {
+      return "₹0.00";
+    }
+  };
+
+  // Create printable thermal invoice and trigger print
+  const printInvoice = (order: Order) => {
+    // Build invoice data
+    const companyName = "Shri Sawariya Mart";
+    const companySubHeading = "Quality Grocery & Essentials";
+    const logoUrl = "/logo.png"; // put your logo at public/logo.png or change path accordingly
+    const invoiceNumber = order.invoiceNumber ?? `INV-${order._id.slice(0, 8).toUpperCase()}`;
+    const orderDate = new Date(order.createdAt);
+    const orderDateStr = orderDate.toLocaleDateString();
+    const orderTimeStr = orderDate.toLocaleTimeString();
+
+    const discount = order.discount ?? 0;
+    const couponCode = order.coupon ?? "N/A";
+
+    // Build items table rows
+    const itemsHtml = order.items.map((it, idx) => {
+      const lineTotal = (it.price || 0) * (it.quantity || 0);
+      return `
+        <tr>
+          <td style="padding:6px 4px; text-align:center; font-size:12px;">${idx + 1}</td>
+          <td style="padding:6px 4px; font-size:12px;">${escapeHtml(it.name)} ${it.unit ? `(${escapeHtml(it.unit)})` : ""}</td>
+          <td style="padding:6px 4px; text-align:right; font-size:12px;">${formatINR(it.price)}</td>
+          <td style="padding:6px 4px; text-align:center; font-size:12px;">${it.quantity}</td>
+          <td style="padding:6px 4px; text-align:right; font-size:12px;">${formatINR(lineTotal)}</td>
+        </tr>
+      `;
+    }).join("");
+
+    // Shipping / address formatting
+    const address = order.address?.address ?? "--";
+    const area =
+      typeof order.address?.area === "object"
+        ? `${order.address.area?.name ?? ""} (${order.address.area?.pincode ?? ""})`
+        : order.address?.area ?? "--";
+
+    // Delivery charge
+    const deliveryCharge = order.deliveryCharge ?? 0;
+    const subTotal = order.subTotal ?? calculateSubTotal(order.items);
+    const afterDiscount = Math.max(0, subTotal - (discount || 0));
+    const grandTotal = afterDiscount + (deliveryCharge || 0);
+
+    // Build HTML for print (thermal friendly)
+    const html = `
+      <!doctype html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Invoice - ${invoiceNumber}</title>
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <style>
+          /* Thermal / receipt style */
+          @page { margin: 0; }
+          html,body{
+            margin:0;
+            padding:0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans";
+            color:#000;
+          }
+          .receipt {
+            width: 320px; /* ~72mm thermal width; adjust if needed */
+            padding: 8px 12px;
+            box-sizing: border-box;
+          }
+          .capitalize{ text-transform:capitalize; }
+          .center { text-align:center; }
+          .left { text-align:left; }
+          .right { text-align:right; }
+          h1 { margin:6px 0 2px; font-size:18px; letter-spacing:0.5px; }
+          h2 { margin:0 0 6px; font-size:12px; color:#222; font-weight:600; }
+          p { margin:2px 0; font-size:12px; }
+          .line { border-top:1px dashed #000; margin:8px 0; }
+          table { width:100%; border-collapse: collapse; }
+          th, td { padding:4px 2px; }
+          th { font-size:12px; text-align:left; }
+          td { font-size:12px; vertical-align:top; }
+          .totals td { font-weight:700; font-size:12px; }
+          .small { font-size:11px; color:#333; }
+          .note { font-size:11px; margin-top:6px; }
+          /* Hide elements not needed for print */
+          .no-print { display:none; }
+          /* Print-specific */
+          @media print {
+            body { -webkit-print-color-adjust: exact; }
+            .receipt { width: 72mm; padding: 6px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="receipt">
+          <div class="center">
+            <img src="${logoUrl}" alt="${escapeHtml(companyName)} Logo" style="max-width:120px; max-height:60px; object-fit:contain; margin-bottom:6px;" onerror="this.style.display='none'"/>
+            <h1>${escapeHtml(companyName)}</h1>
+            <h2>${escapeHtml(companySubHeading)}</h2>
+            <p class="small">Invoice: <b>${escapeHtml(invoiceNumber)}</b></p>
+            <p class="small">Order ID: <b>${escapeHtml(order._id)}</b></p>
+            <p class="small">${escapeHtml(orderDateStr)} ${escapeHtml(orderTimeStr)}</p>
+          </div>
+
+          <div class="line"></div>
+
+          <div>
+            <p style="margin-bottom:6px;"><b>Bill To:</b> <b class="capitalize">${escapeHtml(order.address?.name ?? "Customer")}</b></p>
+            <p class="small">📞 ${escapeHtml(order.address?.phone ?? "--")}</p>
+            <p class="small">📍 ${escapeHtml(address)}</p>
+            <p class="small">Area: ${escapeHtml(area)}</p>
+          </div>
+
+          <div class="line"></div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width:8%;">S.No</th>
+                <th style="width:50%;">Product</th>
+                <th style="width:18%; text-align:right;">Unit</th>
+                <th style="width:8%; text-align:center;">Qty</th>
+                <th style="width:16%; text-align:right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+
+          <div class="line"></div>
+
+          <table style="width:100%; margin-top:6px;">
+            <tbody>
+              <tr>
+                <td class="small">Subtotal</td>
+                <td class="right small">${formatINR(subTotal)}</td>
+              </tr>
+              <tr>
+                <td class="small">Discount (${escapeHtml(String(couponCode))})</td>
+                <td class="right small">-${formatINR(discount)}</td>
+              </tr>
+              <tr>
+                <td class="small">Delivery Charge</td>
+                <td class="right small">${formatINR(deliveryCharge)}</td>
+              </tr>
+              <tr class="totals">
+                <td class="small">Grand Total</td>
+                <td class="right small">${formatINR(grandTotal)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="line"></div>
+
+          <p class="small"><b>Payment Mode:</b> ${escapeHtml(order.paymentMethod === "upi" ? "UPI" : "Cash On Delivery")}</p>
+          ${order.upiId ? `<p class="small"><b>UPI ID:</b> ${escapeHtml(order.upiId)}</p>` : ""}
+          ${order.utr ? `<p class="small"><b>UTR:</b> ${escapeHtml(order.utr)}</p>` : ""}
+          ${order.upiTxnInfo?.txnRef ? `<p class="small"><b>Txn Ref:</b> ${escapeHtml(order.upiTxnInfo.txnRef)}</p>` : ""}
+
+          <div class="line"></div>
+
+          <p class="center note">Thank you for shopping with ${escapeHtml(companyName)}!</p>
+
+        </div>
+        <script>
+          // auto print once loaded
+          function doPrint() {
+            try {
+              window.print();
+            } catch(e) {
+              console.error(e);
+            }
+            // close after short delay
+            setTimeout(()=>{ window.close(); }, 500);
+          }
+          window.onload = function(){ setTimeout(doPrint, 200); };
+        </script>
+      </body>
+      </html>
+    `;
+
+    // open new window and write invoice html
+    const w = window.open("", "_blank", "width=420,height=800,scrollbars=yes");
+    if (!w) {
+      alert("Unable to open print window. Please allow popups for this site.");
+      return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    // print will be triggered by the onload script inside the invoice window
+  };
+
+  // utility: escape HTML to avoid injection
+  const escapeHtml = (unsafe: string | number | null | undefined) => {
+    if (unsafe === null || unsafe === undefined) return "";
+    const s = String(unsafe);
+    return s.replace(/[&<>"'`=\/]/g, function (c) {
+      return ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+        "/": "&#x2F;",
+        "`": "&#x60;",
+        "=": "&#x3D;"
+      } as Record<string, string>)[c] || c;
+    });
+  };
+
+  // utility: calculate subtotal if not provided
+  const calculateSubTotal = (items: Order["items"]) => {
+    return items.reduce((acc, it) => acc + (it.price || 0) * (it.quantity || 0), 0);
+  };
+
+  // ---------- END PRINT ----------
 
   return (
     <div className="mx-auto max-w-6xl px-3 sm:px-6 lg:px-8 space-y-6">
@@ -183,12 +409,14 @@ export default function AdminOrdersPage() {
       <div className="rounded-lg border border-[var(--border-color)] bg-white shadow-sm w-full">
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base sm:text-lg font-medium">All Orders</h2>
-          <button
-            onClick={exportToExcel}
-            className="rounded-lg border px-4 py-2 text-sm"
-          >
-            Export Orders
-          </button>
+          <div className="flex gap-2 items-center">
+            <button
+              onClick={exportToExcel}
+              className="rounded-lg border px-4 py-2 text-sm"
+            >
+              Export Orders
+            </button>
+          </div>
         </div>
 
         {/* Desktop Table */}
@@ -204,6 +432,7 @@ export default function AdminOrdersPage() {
                 <th className="px-4 py-2 text-left">Payment</th>
                 <th className="px-4 py-2 text-left">Address</th>
                 <th className="px-4 py-2 text-left">Area</th>
+                <th className="px-4 py-2 text-left">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -308,6 +537,17 @@ export default function AdminOrdersPage() {
                       : order.address?.area || "--"}
                   </td>
 
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => printInvoice(order)}
+                        className="rounded-lg border px-3 py-1 text-sm"
+                      >
+                        Print
+                      </button>
+                    </div>
+                  </td>
+
                 </tr>
               ))}
             </tbody>
@@ -394,6 +634,15 @@ export default function AdminOrdersPage() {
                   <option value="cancelled">Cancelled</option>
                   <option value="refunded">Refunded</option>
                 </select>
+              </div>
+
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => printInvoice(order)}
+                  className="rounded-lg border px-4 py-2 text-sm w-full"
+                >
+                  Print Invoice
+                </button>
               </div>
             </div>
           ))}
