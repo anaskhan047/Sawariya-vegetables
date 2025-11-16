@@ -1,4 +1,3 @@
-// app/components/Navbar.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -7,10 +6,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import { useAuth } from "@/app/context/AuthContext";
-import { ArrowBigDown } from "lucide-react";
-import { BiUpArrow } from "react-icons/bi";
-import { useCart } from "../context/CartContext";
-import { Product } from "../lib/types";
+import { useCart } from "@/app/context/CartContext";
+import type { Product } from "@/app/lib/types";
+
 interface NavLink {
   name: string;
   href: string;
@@ -18,10 +16,10 @@ interface NavLink {
 
 const navLinks: NavLink[] = [
   { name: "Home", href: "/" },
-  { name: "shop", href: "/shop" },
-  { name: "vegetables", href: "/vegetables" },
-  { name: "fruit", href: "/fruit" },
-  { name: "contact us", href: "/contact" },
+  { name: "Shop", href: "/shop" },
+  { name: "Vegetables", href: "/vegetables" },
+  { name: "Fruit", href: "/fruit" },
+  { name: "Contact Us", href: "/contact" },
 ];
 
 export default function Navbar() {
@@ -29,51 +27,19 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [searchOpen, setSearchOpen] = useState<boolean>(false);
   const [searchValue, setSearchValue] = useState<string>("");
-
-  const [cartCounts, setCartCounts] = useState<number>(0);
   const [userOpen, setUserOpen] = useState<boolean>(false);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
   const router = useRouter();
   const { user, isLoading, isLoggedIn, logout, refresh } = useAuth();
-  const [image, setImage] = useState<string | null>(null);
   const { cartCount } = useCart();
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const [image, setImage] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
-
-  // listen for cart update events
-  useEffect(() => {
-    async function fetchCart() {
-      if (!isLoggedIn) {
-        setCartCounts(0);
-        return;
-      }
-      try {
-        const res = await fetch("/api/cart");
-        if (res.ok) {
-          const data = await res.json();
-          setCartCounts(data.items?.length || 0);
-        }
-      } catch (err) {
-        console.error("Error fetching cart:", err);
-      }
-    }
-
-    fetchCart();
-
-    // subscribe to custom event
-    window.addEventListener("cartUpdated", fetchCart);
-
-    return () => {
-      window.removeEventListener("cartUpdated", fetchCart);
-    };
-  }, [isLoggedIn]);
-
-
-
-  // Loading state while fetching user data
   const [loading, setLoading] = useState(true);
+
   // close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -91,15 +57,14 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-
+  // fetch user image for avatar (keeps existing behavior)
   useEffect(() => {
     async function fetchUser() {
       try {
         const res = await fetch("/api/auth/me");
+        if (!res.ok) return;
         const data = await res.json();
-        if (data.loggedIn) {
-          setImage(data.user.image || null);
-        }
+        if (data.loggedIn) setImage(data.user?.image || null);
       } catch (err) {
         console.error("Error fetching user:", err);
       } finally {
@@ -108,6 +73,7 @@ export default function Navbar() {
     }
     fetchUser();
   }, []);
+
   async function handleLogout() {
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -128,16 +94,16 @@ export default function Navbar() {
   }
 
   const linkClass = (name: string) =>
-    `relative inline-block pb-1 transition ${active === name
-      ? "text-[var(--primary-color)] font-semibold"
-      : "text-[var(--text-color)]"
+    `relative inline-block pb-1 transition ${
+      active === name ? "text-[var(--primary-color)] font-semibold" : "text-[var(--text-color)]"
     } hover:text-[var(--hover-color)]`;
 
   const underline = (name: string) =>
     active === name && (
-      <span className="absolute left-0 -bottom-[2px] h-[2px] w-full bg-[var(--primary-color)] transition-all duration-700"></span>
+      <span className="absolute left-0 -bottom-[2px] h-[2px] w-full bg-[var(--primary-color)] transition-all duration-700" />
     );
 
+  // Debounced product search
   useEffect(() => {
     const fetchSearchResults = async () => {
       if (!searchValue.trim()) {
@@ -151,9 +117,10 @@ export default function Navbar() {
           const data = await res.json();
           if (data.success && data.products) {
             const filtered = (data.products as Product[]).filter((p) => {
-              const nameMatch = p.name.toLowerCase().includes(searchValue.toLowerCase());
-              const hindiMatch = p.inHindi?.toLowerCase().includes(searchValue.toLowerCase());
-              const tagsMatch = p.tags?.some(tag => tag.toLowerCase().includes(searchValue.toLowerCase()));
+              const q = searchValue.toLowerCase();
+              const nameMatch = p.name?.toLowerCase().includes(q);
+              const hindiMatch = p.inHindi?.toLowerCase().includes(q);
+              const tagsMatch = p.tags?.some((tag) => tag.toLowerCase().includes(q));
               return nameMatch || hindiMatch || tagsMatch;
             });
             setSearchResults(filtered);
@@ -164,17 +131,16 @@ export default function Navbar() {
       }
     };
 
-    const delay = setTimeout(fetchSearchResults, 400); // debounce
+    const delay = setTimeout(fetchSearchResults, 400);
     return () => clearTimeout(delay);
   }, [searchValue]);
 
-
- function handleProductClick(product: Product) {
-  setSearchOpen(false);
-  setSearchResults([]);
-  setSearchValue("");
-  router.push(`/shop?search=${encodeURIComponent(product.name)}`);
-}
+  function handleProductClick(product: Product) {
+    setSearchOpen(false);
+    setSearchResults([]);
+    setSearchValue("");
+    router.push(`/shop?search=${encodeURIComponent(product.name)}`);
+  }
 
   function handleSeeMore() {
     setSearchOpen(false);
@@ -182,20 +148,26 @@ export default function Navbar() {
     router.push(`/shop?search=${encodeURIComponent(searchValue)}`);
   }
 
-
-
   return (
     <nav className="w-full fixed top-0 left-0 z-50 bg-[var(--background-color)] shadow-sm">
-      <div className="container mx-auto flex items-center justify-between py-4 px-6">
+      <div className="container mx-auto flex items-center justify-between py-3 px-4 md:py-4 md:px-6">
         {/* Logo */}
-        <div className="flex items-center space-x-2">
-          <Link href="/">
-            <span className="font-bold text-lg text-[var(--primary-color)]">MyShop</span>
+        <div className="flex items-center gap-3">
+          <Link href="/" aria-label="Shri Sawariya Mart - Home" className="flex items-center">
+            <img
+              src="/logo/logo.png"
+              alt="Shri Sawariya Mart logo"
+              className="w-10 h-10 object-cover rounded"
+              loading="lazy"
+            />
+            <span className="ml-2 font-bold text-lg text-[var(--primary-color)] leading-tight hidden md:block">
+              Shri Sawariya Mart
+            </span>
           </Link>
         </div>
 
         {/* Desktop Menu */}
-        <ul className="hidden md:flex items-center space-x-8">
+        <ul className="hidden md:flex items-center space-x-6">
           {navLinks.map((link) => (
             <li className="capitalize" key={link.name}>
               <Link
@@ -211,17 +183,18 @@ export default function Navbar() {
         </ul>
 
         {/* Right Section */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3 md:space-x-4">
           {/* Search */}
           <div ref={searchRef} className="relative flex items-center">
             {searchOpen ? (
               <div className="relative">
                 <input
-                  type="text"
+                  type="search"
+                  aria-label="Search products"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
                   placeholder="Search products..."
-                  className="border border-[var(--border-color)] rounded-lg px-3 py-1 w-[250px] sm:w-[350px] max-w-[70vw] focus:outline-none focus:border-[var(--primary-color)]"
+                  className="border border-[var(--border-color)] rounded-lg px-3 py-1 w-[220px] sm:w-[320px] max-w-[70vw] focus:outline-none focus:border-[var(--primary-color)]"
                   autoFocus
                 />
                 {searchValue && searchResults.length > 0 && (
@@ -243,9 +216,7 @@ export default function Navbar() {
                             <p className="text-sm text-gray-500">{product.inHindi}</p>
                           </div>
                         </div>
-                        <span className="text-green-700 font-semibold text-sm">
-                          ₹{product.price}
-                        </span>
+                        <span className="text-green-700 font-semibold text-sm">₹{product.price}</span>
                       </div>
                     ))}
                     {searchResults.length > 7 && (
@@ -261,26 +232,20 @@ export default function Navbar() {
               </div>
             ) : (
               <FiSearch
+                role="button"
+                aria-label="Open search"
                 className="cursor-pointer text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]"
                 onClick={() => setSearchOpen(true)}
               />
             )}
           </div>
 
-
           {/* Cart */}
-          <div
-            className="relative cursor-pointer group"
-            onClick={() => router.push("/cart")}
-          >
+          <div className="relative cursor-pointer group" onClick={() => router.push("/cart")}>
             <FiShoppingCart className="text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]" />
-
-            {/* Tooltip */}
             <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-xs bg-[var(--text-color)] text-white px-2 py-1 rounded-md shadow transition w-20">
               Add to cart
             </span>
-
-            {/* Cart Count (only if logged in) */}
             {isLoggedIn && (
               <span className="absolute -top-2 -right-2 bg-[var(--primary-color)] text-white text-xs font-bold rounded-full px-2 py-0.5">
                 {cartCount}
@@ -288,69 +253,49 @@ export default function Navbar() {
             )}
           </div>
 
-
-
           {/* User Dropdown */}
-          <div ref={userRef} className="relative md:block">
-            <FiUser
-              className="cursor-pointer text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]"
+          <div ref={userRef} className="relative">
+            <button
+              className="flex items-center gap-2"
               onClick={() => {
                 if (isLoading) return;
                 if (!isLoggedIn) router.push("/login");
                 else setUserOpen((p) => !p);
               }}
-            />
+              aria-haspopup="true"
+              aria-expanded={userOpen}
+            >
+              {isLoggedIn && image ? (
+                <img src={image} alt={user?.name || "User avatar"} className="w-8 h-8 rounded-full object-cover" />
+              ) : (
+                <FiUser className="cursor-pointer text-xl text-[var(--text-color)] hover:text-[var(--hover-color)]" />
+              )}
+            </button>
 
-           {isLoggedIn && userOpen && (
-  <div className="absolute right-0 mt-2 w-64 bg-[var(--background-color)] shadow-lg rounded-xl border border-[var(--border-color)] overflow-hidden">
-    <div className="px-4 py-3 border-b border-[var(--border-color)]">
-      <p className="font-semibold capitalize">{user?.name || "User"}</p>
-      <p className="text-sm text-gray-500 truncate">{user?.email || ""}</p>
-    </div>
-    <ul className="flex flex-col">
-      <li>
-        <Link
-          href="/profile"
-          onClick={() => setUserOpen(false)}
-          className="flex items-center px-4 py-2 hover:bg-[var(--primary-color)] hover:text-white"
-        >
-          👤 Profile
-        </Link>
-      </li>
-      <li>
-        <Link
-          href="/order"
-          onClick={() => setUserOpen(false)}
-          className="flex items-center px-4 py-2 hover:bg-[var(--primary-color)] hover:text-white"
-        >
-          📦 Orders
-        </Link>
-      </li>
-
-      {user?.role === "admin" && (
-        <li>
-          <Link
-            href="/admin"
-            onClick={() => setUserOpen(false)}
-            className="flex items-center px-4 py-2 hover:bg-[var(--primary-color)] hover:text-white"
-          >
-            🧭 Admin Dashboard
-          </Link>
-        </li>
-      )}
-
-      <li>
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center px-4 py-2 hover:bg-[var(--accent-color)]"
-        >
-          🚪 Logout
-        </button>
-      </li>
-    </ul>
-  </div>
-)}
-
+            {isLoggedIn && userOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-[var(--background-color)] shadow-lg rounded-xl border border-[var(--border-color)] overflow-hidden">
+                <div className="px-4 py-3 border-b border-[var(--border-color)]">
+                  <p className="font-semibold capitalize">{user?.name || "User"}</p>
+                  <p className="text-sm text-gray-500 truncate">{user?.email || ""}</p>
+                </div>
+                <ul className="flex flex-col">
+                  <li>
+                    <Link href="/profile" onClick={() => setUserOpen(false)} className="flex items-center px-4 py-2 hover:bg-[var(--primary-color)] hover:text-white">👤 Profile</Link>
+                  </li>
+                  <li>
+                    <Link href="/order" onClick={() => setUserOpen(false)} className="flex items-center px-4 py-2 hover:bg-[var(--primary-color)] hover:text-white">📦 Orders</Link>
+                  </li>
+                  {user?.role === "admin" && (
+                    <li>
+                      <Link href="/admin" onClick={() => setUserOpen(false)} className="flex items-center px-4 py-2 hover:bg-[var(--primary-color)] hover:text-white">🧭 Admin Dashboard</Link>
+                    </li>
+                  )}
+                  <li>
+                    <button onClick={handleLogout} className="w-full flex items-center px-4 py-2 hover:bg-[var(--accent-color)]">🚪 Logout</button>
+                  </li>
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -365,12 +310,8 @@ export default function Navbar() {
       </div>
 
       {/* Mobile Dropdown Menu */}
-      {/* Mobile Dropdown Menu */}
       {isOpen && (
-        <div
-          ref={mobileMenuRef}
-          className="md:hidden bg-[var(--background-color)] border-t border-[var(--border-color)] shadow-md"
-        >
+        <div ref={mobileMenuRef} className="md:hidden bg-[var(--background-color)] border-t border-[var(--border-color)] shadow-md">
           <ul className="flex flex-col space-y-2 p-4">
             {navLinks.map((link) => (
               <li key={link.name}>
@@ -378,7 +319,7 @@ export default function Navbar() {
                   href={link.href}
                   onClick={() => {
                     setActive(link.name);
-                    setIsOpen(false); // Close menu on link click
+                    setIsOpen(false);
                   }}
                   className="block capitalize text-[var(--text-color)] hover:text-[var(--primary-color)] py-2"
                 >
@@ -389,7 +330,6 @@ export default function Navbar() {
           </ul>
         </div>
       )}
-
     </nav>
   );
 }

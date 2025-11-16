@@ -1,0 +1,16 @@
+{
+  "name": "Shri Sawariya Mart",
+  "short_name": "SawariyaMart",
+  "description": "Fresh and organic vegetables delivered to your doorstep",
+  "lang": "en-US",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#10B981",
+  "icons": [
+    { "src": "/logo/logo.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/logo/logo.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/logo/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable any" }
+  ]
+}

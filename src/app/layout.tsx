@@ -28,14 +28,22 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable}  ${geistMono.variable} antialiased`}
-      >
+      <head>
+        {/* PWA + install support */}
+        <meta name="theme-color" content="#10B981" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
+        {/* optional: prefer same-origin icons for faster install previews */}
+        <meta name="mobile-web-app-capable" content="yes" />
+      </head>
+
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
           <CartProvider>
             <NavbarFooterWrapper>
               {children}
-              <CartFloatingButton/>
+              <CartFloatingButton />
             </NavbarFooterWrapper>
           </CartProvider>
         </AuthProvider>

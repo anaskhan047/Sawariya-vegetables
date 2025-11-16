@@ -20,6 +20,7 @@
     "lucide-react": "^0.539.0",
     "mongoose": "^8.18.1",
     "next": "^15.4.6",
+    "next-pwa": "^5.6.0",
     "next-themes": "^0.4.6",
     "nodemailer": "^7.0.6",
     "qrcode": "^1.5.4",
@@ -33,6 +34,7 @@
     "swiper": "^12.0.1",
     "uuid": "^13.0.0",
     "web-push": "^3.6.7",
+    "workbox-core": "^7.3.0",
     "xlsx": "^0.18.5",
     "zod": "^4.0.17"
   },
