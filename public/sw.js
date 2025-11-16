@@ -37,15 +37,24 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
-      try {
-        await cache.addAll(PRECACHE_URLS);
-      } catch (err) {
-        // ignore if precache fails for any entry
-        console.warn("Precache addAll failed:", err);
+      for (const url of PRECACHE_URLS) {
+        try {
+          // Use network fetch to ensure we get the actual response (not cached by browser)
+          const res = await fetch(url, { cache: "no-cache" });
+          if (res && res.ok) {
+            await cache.put(url, res.clone());
+          } else {
+            console.warn("Precache skip (not ok):", url, res && res.status);
+          }
+        } catch (err) {
+          // ignore errors (404s, network) and continue
+          console.warn("Precache failed, skipping:", url, err && err.message ? err.message : err);
+        }
       }
     })()
   );
 });
+
 
 /* Activate: clean old caches */
 self.addEventListener("activate", (event) => {
