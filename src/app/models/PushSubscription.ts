@@ -2,12 +2,13 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IPushSubscription extends Document {
-  adminId?: string; // optional, link to admin user id if you have
+  adminId?: string;
   endpoint: string;
   keys: {
     p256dh: string;
     auth: string;
   };
+  origin?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,17 +21,14 @@ const PushSubscriptionSchema = new Schema<IPushSubscription>(
       p256dh: { type: String, required: true },
       auth: { type: String, required: true },
     },
+    origin: { type: String, default: "" }, // <-- store origin (e.g. https://www.shrisawariyamart.com)
   },
   { timestamps: true }
 );
 
-// ✅ Strongly typed mongoose model re-use (no `any`)
-const existingModel = mongoose.models.PushSubscription as
-  | Model<IPushSubscription>
-  | undefined;
+const existingModel = mongoose.models.PushSubscription as Model<IPushSubscription> | undefined;
 
 const PushSubscription =
-  existingModel ||
-  mongoose.model<IPushSubscription>("PushSubscription", PushSubscriptionSchema);
+  existingModel || mongoose.model<IPushSubscription>("PushSubscription", PushSubscriptionSchema);
 
 export default PushSubscription;

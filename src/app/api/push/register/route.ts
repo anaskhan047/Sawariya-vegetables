@@ -5,10 +5,7 @@ import PushSubscription from "@/app/models/PushSubscription";
 
 type Subscription = {
   endpoint: string;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
+  keys: { p256dh: string; auth: string };
 };
 
 export async function POST(req: Request) {
@@ -16,14 +13,12 @@ export async function POST(req: Request) {
     await dbConnect();
 
     const raw = (await req.json().catch(() => ({}))) as unknown;
-
-    // Narrow input shape safely
     const body = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
 
     const subscriptionCandidate = body["subscription"];
+    const originCandidate = body["origin"];
     const adminIdCandidate = body["adminId"];
 
-    // Validate subscription structure
     const isValidSubscription = (v: unknown): v is Subscription => {
       if (typeof v !== "object" || v === null) return false;
       const s = v as Record<string, unknown>;
@@ -36,16 +31,13 @@ export async function POST(req: Request) {
     };
 
     if (!isValidSubscription(subscriptionCandidate)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid subscription" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "Invalid subscription" }, { status: 400 });
     }
 
     const subscription = subscriptionCandidate as Subscription;
-    const adminId = typeof adminIdCandidate === "string" && adminIdCandidate.trim() !== "" ? adminIdCandidate.trim() : undefined;
+    const origin = typeof originCandidate === "string" && originCandidate.trim() ? originCandidate.trim() : "";
+    const adminId = typeof adminIdCandidate === "string" && adminIdCandidate.trim() ? adminIdCandidate.trim() : undefined;
 
-    // Upsert by endpoint
     await PushSubscription.findOneAndUpdate(
       { endpoint: subscription.endpoint },
       {
@@ -54,7 +46,9 @@ export async function POST(req: Request) {
           p256dh: subscription.keys.p256dh,
           auth: subscription.keys.auth,
         },
+        origin,
         ...(adminId ? { adminId } : {}),
+        updatedAt: new Date(),
       },
       { upsert: true, new: true }
     );
