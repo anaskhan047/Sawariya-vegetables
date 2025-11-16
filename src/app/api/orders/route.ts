@@ -120,10 +120,10 @@ async function afterOrderCreated(order: {
       typeof order.customerName === "string" && order.customerName.trim() !== ""
         ? order.customerName
         : typeof order.user === "string"
-        ? order.user
-        : order.user && typeof order.user === "object" && "name" in order.user && typeof (order.user as { name?: unknown }).name === "string"
-        ? (order.user as { name?: string }).name
-        : "customer";
+          ? order.user
+          : order.user && typeof order.user === "object" && "name" in order.user && typeof (order.user as { name?: unknown }).name === "string"
+            ? (order.user as { name?: string }).name
+            : "customer";
 
     const title = `New order #${orderIdStr}`;
     const message = `Order by ${customerLabel} — ₹${order.total ?? 0}.`;
@@ -306,7 +306,16 @@ export async function POST(req: Request) {
   let orderDoc;
   try {
     orderDoc = await Orders.create(orderPayload as unknown as Record<string, unknown>);
-    console.log("Order created:", (orderDoc as any)?._id ?? "<unknown>", "total:", (orderDoc as any)?.total, "by user:", user._id);
+
+    // safely extract _id and total without using `any`
+    type OrderLike = { _id?: unknown; total?: unknown };
+    const od = orderDoc as OrderLike;
+
+    const orderIdStr = typeof od._id === "string" ? od._id : (od._id && typeof (od._id as { toString?: unknown }).toString === "function" ? String((od._id as { toString(): string }).toString()) : "<unknown>");
+    const orderTotal = typeof od.total === "number" ? od.total : (typeof od.total === "string" && od.total !== "" ? Number(od.total) : undefined);
+
+    console.log("Order created:", orderIdStr, "total:", typeof orderTotal === "number" ? orderTotal : "<unknown>", "by user:", user._id);
+
 
     // debug subscriptions count (all origins)
     const subsCount = await PushSubscription.countDocuments();
