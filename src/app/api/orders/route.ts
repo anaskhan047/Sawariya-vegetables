@@ -12,13 +12,6 @@ import { sendPush } from "@/app/lib/webpush";
 import PushSubscription from "@/app/models/PushSubscription";
 import Notification from "@/app/models/Notification";
 
-/* Environment: set SITE_ORIGIN to your production origin (https://www.shrisawariyamart.com)
-   Optionally set SITE_ORIGIN_ALT to support the non-www variant (https://shrisawariyamart.com)
-*/
-const SITE_ORIGIN = process.env.SITE_ORIGIN || "https://www.shrisawariyamart.com";
-const SITE_ORIGIN_ALT = process.env.SITE_ORIGIN_ALT || "";
-
-// Example UPI ids (fallbacks)
 const UPI_IDS = [
   process.env.UPI_1 || "9301893055@ybl",
   process.env.UPI_2 || "9301893055@ibl",
@@ -73,7 +66,6 @@ type OrderPayload = {
 type PushSubDoc = {
   endpoint: string;
   keys: { p256dh: string; auth: string };
-  origin?: string;
 };
 
 // ---------- Helpers ----------
@@ -94,6 +86,8 @@ async function getUserFromReq(req: Request): Promise<UserPayload | null> {
   }
 }
 
+
+
 function extractStatusFromError(err: unknown): number | undefined {
   if (err && typeof err === "object") {
     const e = err as Record<string, unknown>;
@@ -104,7 +98,7 @@ function extractStatusFromError(err: unknown): number | undefined {
   return undefined;
 }
 
-// ---------- Notification helper ----------
+// updated function without `any`
 async function afterOrderCreated(order: {
   _id: string | { toString(): string };
   total?: number;
@@ -120,10 +114,10 @@ async function afterOrderCreated(order: {
       typeof order.customerName === "string" && order.customerName.trim() !== ""
         ? order.customerName
         : typeof order.user === "string"
-          ? order.user
-          : order.user && typeof order.user === "object" && "name" in order.user && typeof (order.user as { name?: unknown }).name === "string"
-            ? (order.user as { name?: string }).name
-            : "customer";
+        ? order.user
+        : (order.user && typeof order.user === "object" && "name" in order.user && typeof (order.user as { name?: unknown }).name === "string")
+        ? (order.user as { name?: string }).name
+        : "customer";
 
     const title = `New order #${orderIdStr}`;
     const message = `Order by ${customerLabel} — ₹${order.total ?? 0}.`;
@@ -136,17 +130,8 @@ async function afterOrderCreated(order: {
       forRole: "admin",
     });
 
-    // Build origin list to query subscriptions
-    const origins = [SITE_ORIGIN];
-    if (SITE_ORIGIN_ALT) origins.push(SITE_ORIGIN_ALT);
-
-    // fetch subscriptions for these origins
-    const subs = (await PushSubscription.find({ origin: { $in: origins } }).lean<PushSubDoc[]>()) || [];
-
-    console.log("afterOrderCreated: pushing to subs count:", subs.length, "origins:", origins);
-    subs.slice(0, 5).forEach((s, idx) => {
-      console.log(`sub sample [${idx}]:`, (s.endpoint && s.endpoint.slice ? s.endpoint.slice(0, 120) : s.endpoint), " origin:", s.origin);
-    });
+    // fetch all subscriptions as typed docs
+    const subs = (await PushSubscription.find({}).lean<PushSubDoc[]>()) || [];
 
     const payload = {
       type: "new-order",
@@ -162,14 +147,14 @@ async function afterOrderCreated(order: {
           await sendPush({ endpoint: s.endpoint, keys: s.keys }, payload);
         } catch (err: unknown) {
           const status = extractStatusFromError(err);
-          console.warn("Push send failed for endpoint (first 120 chars):", s.endpoint?.slice?.(0, 120), "error:", err);
           if (status === 410 || status === 404) {
             try {
               await PushSubscription.deleteOne({ endpoint: s.endpoint });
-              console.log("Deleted stale subscription for endpoint:", s.endpoint?.slice?.(0, 120));
-            } catch (cleanupErr) {
-              console.warn("Failed to delete stale subscription:", cleanupErr);
+            } catch {
+              // ignore cleanup errors
             }
+          } else {
+            console.warn("Push send failed", err);
           }
         }
       })
@@ -179,6 +164,7 @@ async function afterOrderCreated(order: {
     console.error("afterOrderCreated error:", err);
   }
 }
+
 
 // ---------- GET /api/orders ----------
 export async function GET(req: Request) {
@@ -306,20 +292,11 @@ export async function POST(req: Request) {
   let orderDoc;
   try {
     orderDoc = await Orders.create(orderPayload as unknown as Record<string, unknown>);
+    console.log("Order created:", orderDoc._id, "total:", orderDoc.total, "by user:", user._id);
 
-    // safely extract _id and total without using `any`
-    type OrderLike = { _id?: unknown; total?: unknown };
-    const od = orderDoc as OrderLike;
-
-    const orderIdStr = typeof od._id === "string" ? od._id : (od._id && typeof (od._id as { toString?: unknown }).toString === "function" ? String((od._id as { toString(): string }).toString()) : "<unknown>");
-    const orderTotal = typeof od.total === "number" ? od.total : (typeof od.total === "string" && od.total !== "" ? Number(od.total) : undefined);
-
-    console.log("Order created:", orderIdStr, "total:", typeof orderTotal === "number" ? orderTotal : "<unknown>", "by user:", user._id);
-
-
-    // debug subscriptions count (all origins)
+    // debug subscriptions count
     const subsCount = await PushSubscription.countDocuments();
-    console.log("Push subscriptions count (all origins):", subsCount);
+    console.log("Push subscriptions count:", subsCount);
 
     // Fire notification (non-blocking)
     afterOrderCreated(orderDoc).catch((e: unknown) => console.error("afterOrderCreated failed:", e));
