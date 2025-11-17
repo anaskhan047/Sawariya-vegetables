@@ -150,7 +150,7 @@ async function afterOrderCreated(order: {
     function extractStatusFromError(err: unknown): number | null {
       // example safe extraction — adapt to your error shape
       if (err && typeof err === "object") {
-       
+
         const maybe = (err as { status?: number; statusCode?: number }).status ?? (err as { status?: number; statusCode?: number }).statusCode;
         if (typeof maybe === "number") return maybe;
       }
@@ -173,11 +173,12 @@ async function afterOrderCreated(order: {
 
         const payload = {
           type: "new-order",
-          title,
-          message,
-          data: { orderId: orderIdStr, notificationId: notif._id, url },
+          title, 
+          message, 
+          data: { url },
           timestamp: new Date().toISOString(),
         };
+
 
         try {
           console.log("Sending push to", subscriptionOrigin, "payload url:", url);

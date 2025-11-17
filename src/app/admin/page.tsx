@@ -40,7 +40,7 @@ export default function Dashboard() {
         if (usersRes.data.success) setUsers(usersRes.data.users || []);
 
         // Fetch orders
-        const ordersRes = await axios.get("/apis", {
+        const ordersRes = await axios.get("/api/admin/orders", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const ordersData: Order[] = ordersRes.data.success
