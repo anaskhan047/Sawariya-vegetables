@@ -3,7 +3,7 @@ import webpush from "web-push";
 
 const publicKey = process.env.VAPID_PUBLIC_KEY || "";
 const privateKey = process.env.VAPID_PRIVATE_KEY || "";
-const subject = process.env.VAPID_SUBJECT ?? "mailto:anaskhany47@gmail.com";
+const subject = process.env.VAPID_SUBJECT ?? "mailto:shri@shrisawariyamart.com";
 
 if (!publicKey || !privateKey) {
   console.error("VAPID keys missing. Web push disabled. Make sure VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are set.");
