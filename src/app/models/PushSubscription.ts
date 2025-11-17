@@ -10,7 +10,6 @@ export interface IPushSubscription extends Document {
   };
   createdAt: Date;
   updatedAt: Date;
-  origin: String;
 }
 
 const PushSubscriptionSchema = new Schema<IPushSubscription>(
@@ -21,7 +20,6 @@ const PushSubscriptionSchema = new Schema<IPushSubscription>(
       p256dh: { type: String, required: true },
       auth: { type: String, required: true },
     },
-    origin: { type: String, default: "" } // <--- add this
   },
   { timestamps: true }
 );
