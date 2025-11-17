@@ -66,6 +66,7 @@ type OrderPayload = {
 type PushSubDoc = {
   endpoint: string;
   keys: { p256dh: string; auth: string };
+  origin?: string;
 };
 
 // ---------- Helpers ----------
@@ -85,8 +86,6 @@ async function getUserFromReq(req: Request): Promise<UserPayload | null> {
     return null;
   }
 }
-
-
 
 function extractStatusFromError(err: unknown): number | undefined {
   if (err && typeof err === "object") {
@@ -114,10 +113,10 @@ async function afterOrderCreated(order: {
       typeof order.customerName === "string" && order.customerName.trim() !== ""
         ? order.customerName
         : typeof order.user === "string"
-          ? order.user
-          : (order.user && typeof order.user === "object" && "name" in order.user && typeof (order.user as { name?: unknown }).name === "string")
-            ? (order.user as { name?: string }).name
-            : "customer";
+        ? order.user
+        : (order.user && typeof order.user === "object" && "name" in order.user && typeof (order.user as { name?: unknown }).name === "string")
+        ? (order.user as { name?: string }).name
+        : "customer";
 
     const title = `New order #${orderIdStr}`;
     const message = `Order by ${customerLabel} — ₹${order.total ?? 0}.`;
@@ -131,54 +130,56 @@ async function afterOrderCreated(order: {
     });
 
     // fetch all subscriptions as typed docs
-    // inside afterOrderCreated
     console.log("afterOrderCreated: creating notification for order:", orderIdStr);
 
+    // ---------- START: send per-subscription using subscription.origin or fallback ----------
+    const siteOriginFallback = process.env.SITE_ORIGIN || "https://www.shrisawariyamart.com";
+    console.log(siteOriginFallback)
+
     const subs = (await PushSubscription.find({}).lean<PushSubDoc[]>()) || [];
-    console.log(`afterOrderCreated: found ${subs.length} push subscriptions`);
-
-
-    // src/app/api/orders/route.ts -> inside afterOrderCreated
-    const siteOrigin = "https://www.shrisawariyamart.com";
-    const payload = {
-      type: "new-order",
-      title,
-      message,
-      data: {
-        orderId: orderIdStr,
-        notificationId: notif._id,
-        // full absolute URL that the SW should open on click:
-        url: `${siteOrigin}/admin?orderId=${orderIdStr}`,
-      },
-      timestamp: new Date().toISOString(),
-    };
-
+    console.log(`afterOrderCreated: found ${subs.length} push subscriptions for order ${orderIdStr}`);
 
     await Promise.all(
       subs.map(async (s) => {
+        const subscriptionOrigin =
+          s && typeof (s as any).origin === "string" && (s as any).origin
+            ? (s as any).origin
+            : siteOriginFallback;
+
+        const originClean = subscriptionOrigin.replace(/\/$/, "");
+        const url = `${originClean}/admin?orderId=${orderIdStr}`;
+
+        const payload = {
+          type: "new-order",
+          title,
+          message,
+          data: { orderId: orderIdStr, notificationId: notif._id, url },
+          timestamp: new Date().toISOString(),
+        };
+
         try {
+          console.log("Sending push to", subscriptionOrigin, "payload url:", url);
           await sendPush({ endpoint: s.endpoint, keys: s.keys }, payload);
         } catch (err: unknown) {
           const status = extractStatusFromError(err);
+          console.warn("sendPush error for endpoint:", s.endpoint, "status:", status, "err:", err);
           if (status === 410 || status === 404) {
             try {
               await PushSubscription.deleteOne({ endpoint: s.endpoint });
-            } catch {
-              // ignore cleanup errors
+              console.log("Deleted stale subscription:", s.endpoint);
+            } catch (delErr) {
+              console.warn("Failed to delete stale subscription", delErr);
             }
-          } else {
-            console.warn("Push send failed", err);
           }
         }
       })
     );
-
+    // ---------- END send loop ----------
   } catch (err: unknown) {
     // do not break order flow on notification errors
     console.error("afterOrderCreated error:", err);
   }
 }
-
 
 // ---------- GET /api/orders ----------
 export async function GET(req: Request) {
