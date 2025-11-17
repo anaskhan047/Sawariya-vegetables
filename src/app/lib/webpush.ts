@@ -24,7 +24,7 @@ export async function sendPush(
     throw new Error("VAPID keys missing on server — cannot send push");
   }
   try {
-    await webpush.sendNotification(subscription as any, JSON.stringify(payload));
+    await webpush.sendNotification(subscription as { endpoint: string; keys: { p256dh: string; auth: string } }, JSON.stringify(payload));
   } catch (err: unknown) {
     console.error("sendPush error:", err);
     throw err; // rethrow so caller can decide (and logs show the reason)
