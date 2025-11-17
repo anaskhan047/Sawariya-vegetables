@@ -40,7 +40,7 @@ export default function Dashboard() {
         if (usersRes.data.success) setUsers(usersRes.data.users || []);
 
         // Fetch orders
-        const ordersRes = await axios.get("/api/admin/orders", {
+        const ordersRes = await axios.get("/apis", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const ordersData: Order[] = ordersRes.data.success
@@ -116,7 +116,7 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold">Dashboard Overview</h1>
         <div className="relative">
           <button
-            onClick={() => window.location.href = "/admin/orders"}
+            onClick={() => window.location.href = "s"}
             className="px-3 py-2 rounded-lg border"
             style={{ borderColor: "var(--border-color)" }}
             title="Notifications"

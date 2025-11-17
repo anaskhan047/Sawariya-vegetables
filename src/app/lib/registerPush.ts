@@ -40,6 +40,7 @@ export async function registerAdminPush(adminToken?: string) {
         return null;
       }
       applicationServerKey = urlBase64ToUint8Array(publicKeyJson.key);
+      
 
       // subscribe
       // NOTE: TS expects a BufferSource (ArrayBuffer or ArrayBufferView). We cast to ArrayBuffer to satisfy types.

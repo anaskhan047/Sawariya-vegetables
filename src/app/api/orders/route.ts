@@ -114,10 +114,10 @@ async function afterOrderCreated(order: {
       typeof order.customerName === "string" && order.customerName.trim() !== ""
         ? order.customerName
         : typeof order.user === "string"
-        ? order.user
-        : (order.user && typeof order.user === "object" && "name" in order.user && typeof (order.user as { name?: unknown }).name === "string")
-        ? (order.user as { name?: string }).name
-        : "customer";
+          ? order.user
+          : (order.user && typeof order.user === "object" && "name" in order.user && typeof (order.user as { name?: unknown }).name === "string")
+            ? (order.user as { name?: string }).name
+            : "customer";
 
     const title = `New order #${orderIdStr}`;
     const message = `Order by ${customerLabel} — ₹${order.total ?? 0}.`;
@@ -131,15 +131,28 @@ async function afterOrderCreated(order: {
     });
 
     // fetch all subscriptions as typed docs
-    const subs = (await PushSubscription.find({}).lean<PushSubDoc[]>()) || [];
+    // inside afterOrderCreated
+    console.log("afterOrderCreated: creating notification for order:", orderIdStr);
 
+    const subs = (await PushSubscription.find({}).lean<PushSubDoc[]>()) || [];
+    console.log(`afterOrderCreated: found ${subs.length} push subscriptions`);
+
+
+    // src/app/api/orders/route.ts -> inside afterOrderCreated
+    const siteOrigin = "https://www.shrisawariyamart.com";
     const payload = {
       type: "new-order",
       title,
       message,
-      data: { orderId: orderIdStr, notificationId: notif._id },
+      data: {
+        orderId: orderIdStr,
+        notificationId: notif._id,
+        // full absolute URL that the SW should open on click:
+        url: `${siteOrigin}/admin?orderId=${orderIdStr}`,
+      },
       timestamp: new Date().toISOString(),
     };
+
 
     await Promise.all(
       subs.map(async (s) => {
@@ -159,6 +172,7 @@ async function afterOrderCreated(order: {
         }
       })
     );
+
   } catch (err: unknown) {
     // do not break order flow on notification errors
     console.error("afterOrderCreated error:", err);
