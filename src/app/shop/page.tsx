@@ -2,6 +2,7 @@
 import React, { useState, Suspense } from "react";
 import ShopSidebarWrapper from "../components/shop/ShopSidebarWrapper";
 import ShopGridWrapper from "../components/shop/ShopGridWrapper";
+import { Metadata } from "next";
 
 export default function ShopPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);

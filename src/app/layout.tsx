@@ -1,3 +1,4 @@
+// app/layout.tsx  (replace your existing RootLayout implementation)
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -21,6 +22,73 @@ export const metadata: Metadata = {
   description: "Fresh and organic vegetables delivered to your doorstep",
 };
 
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Shri Sawariya Mart",
+  url: "https://www.shrisawariyamart.com",
+  logo: "https://www.shrisawariyamart.com/logo/logo.png",
+  sameAs: [
+    "https://www.facebook.com/yourpage",
+    "https://www.instagram.com/yourpage",
+    "https://www.linkedin.com/company/yourpage"
+  ],
+  contactPoint: [
+    {
+      "@type": "ContactPoint",
+      contactType: "customer service",
+      telephone: "+91-XXXXXXXXXX",
+      areaServed: "IN",
+      availableLanguage: ["English","Hindi"]
+    }
+  ]
+};
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  url: "https://www.shrisawariyamart.com",
+  name: "Shri Sawariya Mart",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: "https://www.shrisawariyamart.com/shop?search={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+};
+
+// basic homepage breadcrumbs (Google only needs canonical important pages)
+// you can add page-specific breadcrumbs using the BreadcrumbJsonLd component below
+const homepageBreadcrumbs = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://www.shrisawariyamart.com"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Shop",
+      "item": "https://www.shrisawariyamart.com/shop"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Vegetables",
+      "item": "https://www.shrisawariyamart.com/vegetables"
+    },
+    {
+      "@type": "ListItem",
+      "position": 4,
+      "name": "Fruit",
+      "item": "https://www.shrisawariyamart.com/fruit"
+    }
+  ]
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,8 +102,21 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
-        {/* optional: prefer same-origin icons for faster install previews */}
         <meta name="mobile-web-app-capable" content="yes" />
+
+        {/* JSON-LD structured data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageBreadcrumbs) }}
+        />
       </head>
 
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
