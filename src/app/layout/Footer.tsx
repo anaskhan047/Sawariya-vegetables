@@ -5,6 +5,7 @@ import Link from "next/link";
 
 export default function Footer() {
   return (
+    <>
     <footer
       className="text-white"
       style={{
@@ -110,5 +111,7 @@ export default function Footer() {
         <hr className="border-white/50" />
       </div>
     </footer>
+   <p className="flex justify-center"> © 2025 SSM | Shri Sawariya Mart</p>
+</>
   );
 }

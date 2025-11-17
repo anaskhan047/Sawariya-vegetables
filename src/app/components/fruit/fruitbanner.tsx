@@ -17,10 +17,10 @@ export default function FruitBanner() {
 
       <div className="relative z-10 px-4">
         <h1 className="text-3xl md:text-5xl font-bold text-white drop-shadow-lg">
-          Sweet & Juicy Fruits
+          Fresh Fruits
         </h1>
         <p className="mt-4 text-lg md:text-xl text-white drop-shadow-md max-w-2xl mx-auto">
-          Discover our fresh picks for a healthy lifestyle, straight from the farm to your table.
+          Seasonal fruits handpicked daily…
         </p>
       </div>
     </section>

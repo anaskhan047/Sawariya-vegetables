@@ -17,10 +17,10 @@ export default function VegeBanner() {
 
       <div className="relative z-10 px-4">
         <h1 className="text-3xl md:text-5xl font-bold text-white drop-shadow-lg">
-          Fresh & Organic Vegetables
+          Fresh Vegetables
         </h1>
         <p className="mt-4 text-lg md:text-xl text-white drop-shadow-md max-w-2xl mx-auto">
-          Explore our wide variety of farm-fresh vegetables, handpicked for quality and taste.
+          Wide range of fresh vegetables delivered to your home…
         </p>
       </div>
     </section>

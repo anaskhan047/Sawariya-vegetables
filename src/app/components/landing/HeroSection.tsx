@@ -115,6 +115,11 @@ export default function HeroSection() {
         <p className="text-lg md:text-xl mb-6">
           Fresh vegetables and fruits delivered directly from the farm.
         </p>
+        <p className="text-lg md:text-xl mb-6">
+          Welcome to SSM — Shri Sawariya Mart
+        </p>
+        
+
         <div className="flex flex-col items-center gap-4 relative">
           <button
             onClick={() => router.push('/shop')}
