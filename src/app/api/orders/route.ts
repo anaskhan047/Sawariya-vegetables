@@ -68,7 +68,15 @@ type PushSubDoc = {
   keys: { p256dh: string; auth: string };
   origin?: string;
 };
-
+interface SubscriberRecord {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+    [key: string]: string;
+  };
+  origin?: string | null;
+}
 // ---------- Helpers ----------
 async function getUserFromReq(req: Request): Promise<UserPayload | null> {
   try {
@@ -113,10 +121,10 @@ async function afterOrderCreated(order: {
       typeof order.customerName === "string" && order.customerName.trim() !== ""
         ? order.customerName
         : typeof order.user === "string"
-        ? order.user
-        : (order.user && typeof order.user === "object" && "name" in order.user && typeof (order.user as { name?: unknown }).name === "string")
-        ? (order.user as { name?: string }).name
-        : "customer";
+          ? order.user
+          : (order.user && typeof order.user === "object" && "name" in order.user && typeof (order.user as { name?: unknown }).name === "string")
+            ? (order.user as { name?: string }).name
+            : "customer";
 
     const title = `New order #${orderIdStr}`;
     const message = `Order by ${customerLabel} — ₹${order.total ?? 0}.`;
@@ -139,12 +147,26 @@ async function afterOrderCreated(order: {
     const subs = (await PushSubscription.find({}).lean<PushSubDoc[]>()) || [];
     console.log(`afterOrderCreated: found ${subs.length} push subscriptions for order ${orderIdStr}`);
 
+    function extractStatusFromError(err: unknown): number | null {
+      // example safe extraction — adapt to your error shape
+      if (err && typeof err === "object") {
+       
+        const maybe = (err as { status?: number; statusCode?: number }).status ?? (err as { status?: number; statusCode?: number }).statusCode;
+        if (typeof maybe === "number") return maybe;
+      }
+      return null;
+    }
+
     await Promise.all(
-      subs.map(async (s) => {
+      subs.map(async (s: SubscriberRecord | null | undefined) => {
+        // skip invalid subscription entries early
+        if (!s || typeof s.endpoint !== "string" || !s.endpoint) {
+          console.warn("Skipping invalid subscription:", s);
+          return;
+        }
+
         const subscriptionOrigin =
-          s && typeof (s as any).origin === "string" && (s as any).origin
-            ? (s as any).origin
-            : siteOriginFallback;
+          typeof s.origin === "string" && s.origin.trim() !== "" ? s.origin : siteOriginFallback;
 
         const originClean = subscriptionOrigin.replace(/\/$/, "");
         const url = `${originClean}/admin?orderId=${orderIdStr}`;
@@ -159,7 +181,9 @@ async function afterOrderCreated(order: {
 
         try {
           console.log("Sending push to", subscriptionOrigin, "payload url:", url);
-          await sendPush({ endpoint: s.endpoint, keys: s.keys }, payload);
+          // ensure keys object exists and has expected properties
+          const keys = s.keys && typeof s.keys === "object" ? s.keys : { p256dh: "", auth: "" };
+          await sendPush({ endpoint: s.endpoint, keys }, payload);
         } catch (err: unknown) {
           const status = extractStatusFromError(err);
           console.warn("sendPush error for endpoint:", s.endpoint, "status:", status, "err:", err);
