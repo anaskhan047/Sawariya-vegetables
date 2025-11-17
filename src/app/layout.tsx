@@ -101,6 +101,9 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
+        <link rel="icon" href="/logo/logo.png" />
+        <link rel="apple-touch-icon" href="/logo/logo.png" />
+
         <meta name="mobile-web-app-capable" content="yes" />
 
         {/* JSON-LD structured data */}
