@@ -17,7 +17,7 @@ export async function POST(_req: Request) {
       return NextResponse.json({ success: false, message: "No subscriptions" }, { status: 404 });
     }
 
-    const siteOrigin = process.env.SITE_ORIGIN || "https://www.shrisawariyamart.com";
+    const siteOrigin = process.env.SITE_ORIGIN ;
     const payload = {
       title: "Test notification",
       message: "This is a test push from server",

@@ -116,7 +116,7 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold">Dashboard Overview</h1>
         <div className="relative">
           <button
-            onClick={() => window.location.href = "/admin/order"}
+            onClick={() => window.location.href = "/admin/orders"}
             className="px-3 py-2 rounded-lg border"
             style={{ borderColor: "var(--border-color)" }}
             title="Notifications"

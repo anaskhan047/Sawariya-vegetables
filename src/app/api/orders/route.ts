@@ -141,7 +141,7 @@ async function afterOrderCreated(order: {
     console.log("afterOrderCreated: creating notification for order:", orderIdStr);
 
     // ---------- START: send per-subscription using subscription.origin or fallback ----------
-    const siteOriginFallback = process.env.SITE_ORIGIN || "https://www.shrisawariyamart.com";
+    const siteOriginFallback = "https://www.shrisawariyamart.com";
     console.log(siteOriginFallback)
 
     const subs = (await PushSubscription.find({}).lean<PushSubDoc[]>()) || [];
