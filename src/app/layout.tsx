@@ -26,8 +26,14 @@ const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "Shri Sawariya Mart",
+  alternateName: "SSM",
   url: "https://www.shrisawariyamart.com",
-  logo: "https://www.shrisawariyamart.com/logo/logo.png",
+  logo: {
+    "@type": "ImageObject",
+    url: "https://www.shrisawariyamart.com/logo/logo.png",
+    width: 512,
+    height: 512
+  },
   sameAs: [
     "https://www.facebook.com/yourpage",
     "https://www.instagram.com/yourpage",
@@ -37,7 +43,7 @@ const organizationSchema = {
     {
       "@type": "ContactPoint",
       contactType: "customer service",
-      telephone: "+91-XXXXXXXXXX",
+      telephone: "+91 8120105444",
       areaServed: "IN",
       availableLanguage: ["English","Hindi"]
     }
@@ -49,12 +55,14 @@ const websiteSchema = {
   "@type": "WebSite",
   url: "https://www.shrisawariyamart.com",
   name: "Shri Sawariya Mart",
+  image: "https://www.shrisawariyamart.com/logo/logo.png",
   potentialAction: {
     "@type": "SearchAction",
     target: "https://www.shrisawariyamart.com/shop?search={search_term_string}",
     "query-input": "required name=search_term_string"
   }
 };
+
 
 // basic homepage breadcrumbs (Google only needs canonical important pages)
 // you can add page-specific breadcrumbs using the BreadcrumbJsonLd component below
