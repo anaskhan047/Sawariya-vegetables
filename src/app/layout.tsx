@@ -25,30 +25,21 @@ export const metadata: Metadata = {
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  name: "Shri Sawariya Mart",
-  alternateName: "SSM",
-  url: "https://www.shrisawariyamart.com",
-  logo: {
+  "name": "Shri Sawariya Mart",
+  "alternateName": "SSM",
+  "url": "https://www.shrisawariyamart.com",
+  "logo": {
     "@type": "ImageObject",
-    url: "https://www.shrisawariyamart.com/logo/logo.png",
-    width: 512,
-    height: 512
+    "url": "https://www.shrisawariyamart.com/logo/logo.png",
+    "width": 512,
+    "height": 512
   },
-  sameAs: [
+  "sameAs": [
     "https://www.facebook.com/yourpage",
-    "https://www.instagram.com/yourpage",
-    "https://www.linkedin.com/company/yourpage"
-  ],
-  contactPoint: [
-    {
-      "@type": "ContactPoint",
-      contactType: "customer service",
-      telephone: "+91 8120105444",
-      areaServed: "IN",
-      availableLanguage: ["English","Hindi"]
-    }
+    "https://www.instagram.com/yourpage"
   ]
 };
+
 
 const websiteSchema = {
   "@context": "https://schema.org",
