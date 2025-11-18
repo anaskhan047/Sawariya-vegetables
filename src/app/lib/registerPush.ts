@@ -30,24 +30,33 @@ export async function registerAdminPush(adminToken?: string) {
         console.warn("Failed to fetch VAPID key:", publicKeyRes.status, txt);
         return null;
       }
-      const publicKeyJson = await publicKeyRes.json().catch(async () => {
+
+      const publicKeyJson = (await publicKeyRes.json().catch(async () => {
         const t = await publicKeyRes.text().catch(() => "");
         console.error("public-key not valid JSON:", t);
         return null;
-      });
-      if (!publicKeyJson?.success || !publicKeyJson?.key) {
+      })) as { success?: boolean; key?: string } | null;
+
+      if (!publicKeyJson || !publicKeyJson.success || !publicKeyJson.key) {
         console.warn("Invalid public key response:", publicKeyJson);
         return null;
       }
-      applicationServerKey = urlBase64ToUint8Array(publicKeyJson.key);
-      
 
-      // subscribe
-      // NOTE: TS expects a BufferSource (ArrayBuffer or ArrayBufferView). We cast to ArrayBuffer to satisfy types.
+      applicationServerKey = urlBase64ToUint8Array(publicKeyJson.key);
+
+      // Convert to a plain ArrayBuffer that exactly represents the bytes (handles byteOffset)
+      const keyBuffer = applicationServerKey.buffer.slice(
+        applicationServerKey.byteOffset,
+        applicationServerKey.byteOffset + applicationServerKey.byteLength
+      );
+
+      // subscribe — pass ArrayBuffer (this matches TypeScript DOM types)
+      const keyForSubscribe = new Uint8Array(applicationServerKey);
+
+      // now subscribe (keyForSubscribe is an ArrayBufferView -> valid BufferSource)
       subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        // cast here to satisfy TypeScript
-        applicationServerKey: (applicationServerKey as unknown) as ArrayBuffer,
+        applicationServerKey: keyForSubscribe,
       });
     }
 
@@ -57,13 +66,12 @@ export async function registerAdminPush(adminToken?: string) {
     }
 
     // prepare body including origin so server stores domain for the subscription
-    const body: Record<string, unknown> = {
+    const body = {
       subscription,
-      origin: location.origin, // important: ensures server associates subscription with production domain
+      origin: location.origin, // ensures server associates subscription with current domain
     };
 
-    // include adminId if you want to store admin association. We're not passing adminId here.
-    // send to server with Authorization only if provided
+    // include Authorization only if provided and non-empty
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (adminToken && typeof adminToken === "string" && adminToken.trim() !== "") {
       headers["Authorization"] = `Bearer ${adminToken}`;
@@ -75,15 +83,27 @@ export async function registerAdminPush(adminToken?: string) {
       body: JSON.stringify(body),
     });
 
+    // prefer JSON response with { success: true }
     if (!registerRes.ok) {
       const t = await registerRes.text().catch(() => "");
-      console.warn("Push register failed:", registerRes.status, t);
+      console.warn("Push register failed (non-OK):", registerRes.status, t);
+      return null;
+    }
+
+    const registerJson = (await registerRes.json().catch(async () => {
+      const t = await registerRes.text().catch(() => "");
+      console.error("push/register not valid JSON:", t);
+      return null;
+    })) as { success?: boolean;[k: string]: unknown } | null;
+
+    if (!registerJson || registerJson.success !== true) {
+      console.warn("Push register returned error:", registerJson);
       return null;
     }
 
     console.info("Push subscription registered/updated for origin:", location.origin);
     return subscription;
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("registerAdminPush error:", err);
     return null;
   }

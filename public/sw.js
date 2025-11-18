@@ -1,5 +1,4 @@
 // public/sw.js
-
 self.addEventListener("install", (evt) => {
   self.skipWaiting();
 });
@@ -8,21 +7,21 @@ self.addEventListener("activate", (evt) => {
   clients.claim();
 });
 
-// Handle incoming push - always show a visible notification (fallback if payload missing)
 self.addEventListener("push", (event) => {
-  let payload = { title: "New message", message: "You have a new notification", data: {} };
+  // Default fallback
+  let payload = { title: "Notification", message: "You have a new notification", data: {} };
 
   try {
     if (event.data) {
+      // prefer JSON payload
       payload = event.data.json();
     }
   } catch (e) {
-    // If parsing fails, read plain text
     try {
-      payload = JSON.parse(event.data.text());
-    } catch (_) {
-      payload = { title: "Notification", message: event.data ? event.data.text() : "You have an update", data: {} };
-    }
+      // fallback to text
+      const txt = event.data ? event.data.text() : "";
+      payload = { title: "Notification", message: txt, data: {} };
+    } catch (_) {}
   }
 
   const title = payload.title || "Notification";
@@ -30,28 +29,31 @@ self.addEventListener("push", (event) => {
     body: payload.message || payload.body || "",
     icon: payload.icon || "/icons/icon-192.png",
     badge: payload.badge || "/icons/badge-72.png",
-    data: payload.data || payload, // used on click
-    tag: payload.tag || undefined,
-    renotify: payload.renotify || false,
-    requireInteraction: payload.requireInteraction || false, // if you want user to dismiss
+    data: payload.data || {},
+    tag: payload.tag,
+    renotify: !!payload.renotify,
+    requireInteraction: !!payload.requireInteraction,
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Handle click: focus existing client or open a new window
+// On click: focus existing matching window or open a new one
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const urlToOpen = (event.notification.data && event.notification.data.url) || "/";
+
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (new URL(client.url).origin === self.location.origin) {
-          // focus existing tab and navigate if needed
-          return client.focus().then(() => client.navigate(urlToOpen).catch(() => {}));
+        try {
+          if (new URL(client.url).origin === self.location.origin) {
+            return client.focus().then(() => client.navigate(urlToOpen).catch(() => {}));
+          }
+        } catch (err) {
+          // skip malformed client.url
         }
       }
-      // open new window
       return clients.openWindow(urlToOpen);
     })
   );
