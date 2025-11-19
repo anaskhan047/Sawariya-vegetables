@@ -61,12 +61,18 @@ export async function POST(req: Request) {
     }
 
     // Typed payload (no any)
-    const payload: PushPayload = {
+    let customPayload = null;
+    try {
+      const parsedBody = await req.json().catch(() => ({}));
+      customPayload = parsedBody?.payload ?? null;
+    } catch { customPayload = null; }
+
+    const payload = customPayload ?? {
       title: "Test notification",
       body: "This is a test push from server",
-      data: { origin: origin || "all" },
+      data: { origin: origin || "all", url: "https://www.shrisawariyamart.com" },
       tag: "test-notif",
-      renotify: false,
+      renotify: false
     };
 
     // Send notifications

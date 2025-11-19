@@ -8,7 +8,6 @@ self.addEventListener("push", function (event) {
       // try json first
       parsed = event.data.json();
       text = "json: " + JSON.stringify(parsed);
-      console.log(event.data.json())
     }
   } catch (e) {
     try {
