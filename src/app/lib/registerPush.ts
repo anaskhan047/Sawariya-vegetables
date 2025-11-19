@@ -2,118 +2,75 @@
 export async function registerAdminPush(adminToken?: string) {
   if (typeof window === "undefined") return null;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    console.warn("Push is not supported in this browser");
+    console.warn("Push not supported");
     return null;
   }
 
   try {
-    // register service worker (idempotent if already registered)
+    // register SW and wait ready
     const reg = await navigator.serviceWorker.register("/sw.js");
     await navigator.serviceWorker.ready;
 
-    // request permission for notifications
+    // permission
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
       console.warn("Push permission not granted");
       return null;
     }
 
-    // get existing subscription if any
+    // check existing subscription first (important)
     let subscription = await reg.pushManager.getSubscription();
 
-    // fetch VAPID key only if we need to subscribe
-    let applicationServerKey: Uint8Array | undefined;
     if (!subscription) {
-      const publicKeyRes = await fetch("/api/push/public-key");
-      if (!publicKeyRes.ok) {
-        const txt = await publicKeyRes.text().catch(() => "");
-        console.warn("Failed to fetch VAPID key:", publicKeyRes.status, txt);
+      // fetch public VAPID key
+      const res = await fetch("/api/push/public-key");
+      if (!res.ok) {
+        console.warn("Failed to fetch VAPID key");
         return null;
       }
-
-      const publicKeyJson = (await publicKeyRes.json().catch(async () => {
-        const t = await publicKeyRes.text().catch(() => "");
-        console.error("public-key not valid JSON:", t);
-        return null;
-      })) as { success?: boolean; key?: string } | null;
-
-      if (!publicKeyJson || !publicKeyJson.success || !publicKeyJson.key) {
-        console.warn("Invalid public key response:", publicKeyJson);
+      const json = await res.json();
+      const key = json?.key;
+      if (!key) {
+        console.warn("VAPID key missing");
         return null;
       }
-
-      applicationServerKey = urlBase64ToUint8Array(publicKeyJson.key);
-
-      // Convert to a plain ArrayBuffer that exactly represents the bytes (handles byteOffset)
-      const keyBuffer = applicationServerKey.buffer.slice(
-        applicationServerKey.byteOffset,
-        applicationServerKey.byteOffset + applicationServerKey.byteLength
-      );
-
-      // subscribe — pass ArrayBuffer (this matches TypeScript DOM types)
-      const keyForSubscribe = new Uint8Array(applicationServerKey);
-
-      // now subscribe (keyForSubscribe is an ArrayBufferView -> valid BufferSource)
+      const applicationServerKey = urlBase64ToUint8Array(key);
       subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: keyForSubscribe,
+        applicationServerKey,
       });
     }
 
     if (!subscription) {
-      console.warn("Could not obtain a push subscription");
+      console.warn("No subscription obtained");
       return null;
     }
 
-    // prepare body including origin so server stores domain for the subscription
-    const body = {
-      subscription,
-      origin: location.origin, // ensures server associates subscription with current domain
-    };
-
-    // include Authorization only if provided and non-empty
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (adminToken && typeof adminToken === "string" && adminToken.trim() !== "") {
-      headers["Authorization"] = `Bearer ${adminToken}`;
-    }
-
-    const registerRes = await fetch("/api/push/register", {
+    // send subscription to server with origin
+    await fetch("/api/push/register", {
       method: "POST",
-      headers,
-      body: JSON.stringify(body),
+      headers: {
+        "Content-Type": "application/json",
+        ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+      },
+      body: JSON.stringify({ subscription, origin: location.origin }),
     });
 
-    // prefer JSON response with { success: true }
-    if (!registerRes.ok) {
-      const t = await registerRes.text().catch(() => "");
-      console.warn("Push register failed (non-OK):", registerRes.status, t);
-      return null;
-    }
-
-    const registerJson = (await registerRes.json().catch(async () => {
-      const t = await registerRes.text().catch(() => "");
-      console.error("push/register not valid JSON:", t);
-      return null;
-    })) as { success?: boolean;[k: string]: unknown } | null;
-
-    if (!registerJson || registerJson.success !== true) {
-      console.warn("Push register returned error:", registerJson);
-      return null;
-    }
-
-    console.info("Push subscription registered/updated for origin:", location.origin);
+    console.info("Push subscription registered for", location.origin);
     return subscription;
-  } catch (err: unknown) {
-    console.error("registerAdminPush error:", err);
+  } catch (err) {
+    console.error("registerAdminPush error", err);
     return null;
   }
 }
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
   return outputArray;
 }

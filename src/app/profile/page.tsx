@@ -2,8 +2,7 @@
 
 import { useEffect, useState, ChangeEvent } from "react";
 import { User } from "@/app/lib/types";
-import { Eye, EyeOff, Loader } from "lucide-react"; // 👁 icons
-import { useAuth } from "@/app/context/AuthContext";
+import { Eye, EyeOff } from "lucide-react"; // 👁 icons
 import CircularLoader from "../components/Loader/Loader";
 
 

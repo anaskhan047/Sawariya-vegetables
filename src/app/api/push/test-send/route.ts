@@ -2,45 +2,121 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/app/lib/mongodb";
 import PushSubscription from "@/app/models/PushSubscription";
-import { sendPush } from "@/app/lib/webpush";
+import { sendPush, VapidSubscription, PushPayload } from "@/app/lib/webpush";
 
-type PushSubDoc = {
+// Define type for DB subscription document (lean() returns plain objects, _id can be ObjectId)
+type DbSubscription = {
   endpoint: string;
-  keys: { p256dh: string; auth: string };
+  keys?: {
+    p256dh?: string;
+    auth?: string;
+  };
+  origin?: string | null;
+  updatedAt?: Date;
+  _id?: unknown; // keep it generic to match mongoose lean() result
 };
 
-export async function POST(_req: Request) {
+type TestSendResult = {
+  endpoint: string;
+  ok: boolean;
+  error?: string;
+};
+
+export async function POST(req: Request) {
   try {
     await dbConnect();
-    const subs = (await PushSubscription.find({}).lean()) as PushSubDoc[];
-    if (!subs || subs.length === 0) {
-      return NextResponse.json({ success: false, message: "No subscriptions" }, { status: 404 });
+
+    // Parse origin from query OR body safely
+    const url = new URL(req.url);
+    const queryOrigin = url.searchParams.get("origin");
+
+    let bodyOrigin: string | null = null;
+    try {
+      const parsed = await req.json();
+      bodyOrigin = parsed?.origin ?? null;
+    } catch {
+      bodyOrigin = null;
     }
 
-    const siteOrigin = process.env.SITE_ORIGIN ;
-    const payload = {
+    const origin = queryOrigin || bodyOrigin || null;
+
+    // Fetch subscriptions (filtered if origin provided)
+    // NOTE: cast via `unknown` first to satisfy TS when converting from Mongoose result
+    const raw = await PushSubscription.find(origin ? { origin } : {}).lean();
+    const subs = (raw as unknown) as DbSubscription[];
+
+    if (!subs.length) {
+      return NextResponse.json(
+        { success: false, message: "No subscriptions" },
+        { status: 404 }
+      );
+    }
+
+    // Deduplicate by endpoint
+    const uniqueMap = new Map<string, DbSubscription>();
+    for (const sub of subs) {
+      if (sub.endpoint && !uniqueMap.has(sub.endpoint)) {
+        uniqueMap.set(sub.endpoint, sub);
+      }
+    }
+
+    // Typed payload (no any)
+    const payload: PushPayload = {
       title: "Test notification",
-      message: "This is a test push from server",
-      data: { test: true, ts: Date.now(), url: `${siteOrigin}/admin` }
+      body: "This is a test push from server",
+      data: { origin: origin || "all" },
+      tag: "test-notif",
+      renotify: false,
     };
 
-    await Promise.all(
-      subs.map(async (s) => {
+    // Send notifications
+    const results: TestSendResult[] = await Promise.all(
+      Array.from(uniqueMap.values()).map(async (s) => {
+        const subData: VapidSubscription = {
+          endpoint: s.endpoint,
+          keys: s.keys,
+        };
+
         try {
-          // s is PushSubDoc
-          await sendPush({ endpoint: s.endpoint, keys: s.keys }, payload);
-        } catch (err: unknown) {
-          // log safely without assuming shape
-          const msg = err instanceof Error ? err.message : JSON.stringify(err);
-          console.error("sendPush error for", s.endpoint, msg);
+          await sendPush(subData, payload);
+          return { endpoint: s.endpoint, ok: true };
+        } catch (err) {
+          const errorObj = err as { statusCode?: number; status?: number };
+
+          const statusCode =
+            errorObj.statusCode !== undefined
+              ? errorObj.statusCode
+              : errorObj.status ?? null;
+
+          if (statusCode === 410 || statusCode === 404) {
+            // stale subscription → delete it
+            await PushSubscription.deleteOne({ endpoint: s.endpoint });
+          }
+
+          return {
+            endpoint: s.endpoint,
+            ok: false,
+            error: String(err),
+          };
         }
       })
     );
 
-    return NextResponse.json({ success: true, sent: subs.length });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Server error";
-    console.error("test-send error:", message);
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: true,
+        sent: results.filter((r) => r.ok).length,
+        total: results.length,
+        results,
+      },
+      { status: 200 }
+    );
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+
+    return NextResponse.json(
+      { success: false, error: errorMsg },
+      { status: 500 }
+    );
   }
 }

@@ -1,16 +1,11 @@
 // src/app/api/push/public-key/route.ts
 import { NextResponse } from "next/server";
-import { getVapidPublicKey } from "@/app/lib/webpush";
+
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || ""; // set in env
 
 export async function GET() {
-  try {
-    const key = getVapidPublicKey();
-    if (!key) {
-      return NextResponse.json({ success: false, error: "VAPID key not configured" }, { status: 500 });
-    }
-    return NextResponse.json({ success: true, key });
-  } catch (err: unknown) {
-    console.error("public-key GET error:", err);
-    return NextResponse.json({ success: false, error: err instanceof Error ? err.message : "Server error" }, { status: 500 });
+  if (!VAPID_PUBLIC_KEY) {
+    return NextResponse.json({ success: false, message: "VAPID key not configured" }, { status: 500 });
   }
+  return NextResponse.json({ success: true, key: VAPID_PUBLIC_KEY });
 }

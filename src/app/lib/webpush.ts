@@ -1,39 +1,53 @@
 // src/app/lib/webpush.ts
-import webpush from "web-push";
+import webpush, { PushSubscription as WebPushSubscription } from "web-push";
 
-const publicKey = process.env.VAPID_PUBLIC_KEY || "";
-const privateKey = process.env.VAPID_PRIVATE_KEY || "";
-const subject = process.env.VAPID_SUBJECT ?? "mailto:shri@shrisawariyamart.com";
+const publicKey = process.env.VAPID_PUBLIC_KEY;
+const privateKey = process.env.VAPID_PRIVATE_KEY;
 
 if (!publicKey || !privateKey) {
-  console.error("VAPID keys missing. Web push disabled. Make sure VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are set.");
-} else {
-  try {
-    webpush.setVapidDetails(subject, publicKey, privateKey);
-  } catch (err) {
-    console.error("Failed to set VAPID details:", err);
-  }
+  // fail fast so build / runtime error is obvious
+  throw new Error("VAPID keys not configured. Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY env vars.");
 }
 
-export function getVapidPublicKey() {
-  return publicKey;
-}
+webpush.setVapidDetails(
+  "mailto:shrisawariyamart@gmail.com",
+  publicKey,
+  privateKey
+);
 
+/**
+ * Minimal shape of a subscription record stored in DB / coming from client.
+ * Keeps types explicit so we don't use `any`.
+ */
+export type VapidSubscription = {
+  endpoint: string;
+  expirationTime?: number | null;
+  keys?: {
+    p256dh?: string;
+    auth?: string;
+  };
+};
+
+/**
+ * JSON-safe payload shape for push messages.
+ * Use Record<string, unknown> to avoid `any`.
+ */
+export type PushPayload = Record<string, unknown>;
+
+/**
+ * Send a web-push notification.
+ * Accepts the local VapidSubscription shape and payload.
+ */
 export async function sendPush(
-  subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
-  payload: unknown
-) {
-  if (!publicKey || !privateKey) {
-    throw new Error("VAPID keys missing on server — cannot send push");
-  }
+  subscription: VapidSubscription,
+  payload: PushPayload
+): Promise<void> {
+  const body = JSON.stringify(payload);
 
-  try {
-    const payloadStr = JSON.stringify(payload ?? {});
-    console.log("webpush: sending to endpoint:", subscription.endpoint);
-    await webpush.sendNotification(subscription, payloadStr, { TTL: 60 });
-    console.log("webpush: sendNotification succeeded for endpoint:", subscription.endpoint);
-  } catch (err: unknown) {
-    console.error("sendPush error for endpoint:", subscription.endpoint, err);
-    throw err;
-  }
+  // web-push expects its own PushSubscription type. We cast safely because our
+  // VapidSubscription shape matches the essential fields.
+  const wpSub = subscription as unknown as WebPushSubscription;
+
+  // sendNotification returns a Promise; await it so errors bubble up
+  await webpush.sendNotification(wpSub, body);
 }
