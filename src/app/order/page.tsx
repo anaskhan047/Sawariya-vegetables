@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from "react";
+import React, { JSX, useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import 'sweetalert2/dist/sweetalert2.min.css';
 
@@ -10,21 +10,36 @@ const ORDER_STATUSES = [
   { key: "delivered", label: "Delivered", color: "bg-green-500" },
   { key: "cancelled", label: "Cancelled", color: "bg-red-500" },
   { key: "refunded", label: "Refunded", color: "bg-purple-500" },
-];
+] as const;
 
 type OrderStatus = typeof ORDER_STATUSES[number]['key'];
+
+type OrderItem = {
+  name: string;
+  quantity: number;
+  price: number;
+  unit: string;
+  inHindi?: string;
+};
+
+type OrderAddressArea = {
+  name?: string;
+  pincode?: string;
+};
+
+type OrderAddress = {
+  name?: string;
+  phone?: string;
+  address?: string;
+  area?: string | OrderAddressArea;
+  inHindi?: string;
+} | null | undefined;
 
 type Order = {
   _id: string;
   user: string;
-  items: { name: string; quantity: number; price: number; unit: string; inHindi: string }[];
-  address?: {
-    name?: string;
-    phone?: string;
-    address?: string;
-    area?: string | { name?: string; pincode?: string };
-    inHindi?: string;
-  } | null;
+  items: OrderItem[];
+  address?: OrderAddress;
   subTotal: number;
   deliveryCharge: number;
   total: number;
@@ -35,6 +50,57 @@ type Order = {
   otp?: string;
   otpExpiresAt?: string;
 };
+
+function isOrderItem(x: unknown): x is OrderItem {
+  if (typeof x !== "object" || x === null) return false;
+  const obj = x as Record<string, unknown>;
+  return typeof obj.name === "string"
+    && typeof obj.quantity === "number"
+    && typeof obj.price === "number"
+    && typeof obj.unit === "string";
+}
+
+function isAddressArea(x: unknown): x is OrderAddressArea {
+  if (typeof x !== "object" || x === null) return false;
+  const obj = x as Record<string, unknown>;
+  return (obj.name === undefined || typeof obj.name === "string")
+    && (obj.pincode === undefined || typeof obj.pincode === "string");
+}
+
+function isAddress(x: unknown): x is OrderAddress {
+  if (x === null || x === undefined) return true;
+  if (typeof x !== "object") return false;
+  const obj = x as Record<string, unknown>;
+  const area = obj.area;
+  const areaOk = area === undefined
+    || typeof area === "string"
+    || isAddressArea(area);
+  return (obj.name === undefined || typeof obj.name === "string")
+    && (obj.phone === undefined || typeof obj.phone === "string")
+    && (obj.address === undefined || typeof obj.address === "string")
+    && areaOk;
+}
+
+function isOrder(x: unknown): x is Order {
+  if (typeof x !== "object" || x === null) return false;
+  const o = x as Record<string, unknown>;
+  if (typeof o._id !== "string") return false;
+  if (typeof o.user !== "string") return false;
+  if (!Array.isArray(o.items) || o.items.some(i => !isOrderItem(i))) return false;
+  if (!isAddress(o.address)) return false;
+  if (typeof o.subTotal !== "number") return false;
+  if (typeof o.deliveryCharge !== "number") return false;
+  if (typeof o.total !== "number") return false;
+  if (typeof o.status !== "string") return false;
+  if (!["online", "cod", "upi"].includes(String(o.paymentMethod))) return false;
+  if (typeof o.paymentStatus !== "string") return false;
+  if (typeof o.createdAt !== "string") return false;
+  return true;
+}
+
+function isOrdersArray(x: unknown): x is Order[] {
+  return Array.isArray(x) && x.every(isOrder);
+}
 
 function getOrderTimelineHtml(order: Order) {
   const statusIdx = ORDER_STATUSES.findIndex(s => s.key === order.status);
@@ -56,14 +122,10 @@ function getOrderTimelineHtml(order: Order) {
   `;
 }
 
-/** Countdown component:
- *  shows mm:ss remaining from createdAt until 5 minutes,
- *  returns expired boolean via prop function or you can compute from remaining <= 0.
- */
 function Countdown({ createdAt, onExpired }: { createdAt: string; onExpired?: () => void }) {
   const FIVE_MIN_MS = 5 * 60 * 1000;
   const createdTs = new Date(createdAt).getTime();
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState<number>(() => Date.now());
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -80,29 +142,84 @@ function Countdown({ createdAt, onExpired }: { createdAt: string; onExpired?: ()
   return <span className="text-xs text-gray-500">{mm}:{ss}</span>;
 }
 
-export default function UserOrderList() {
+export default function UserOrderList(): JSX.Element {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+
     const token = localStorage.getItem("token");
     if (!token) {
-      setLoading(false);
-      return;
+      if (mounted) setLoading(false);
+      return () => {
+        mounted = false;
+        controller.abort();
+      };
     }
 
-    fetch("/api/orders", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(async (res) => {
-        const data = await res.json();
-        if (data.success) {
-          setOrders(data.orders || []);
+    (async () => {
+      try {
+        const res = await fetch("/api/orders", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+
+        const text = await res.text();
+        let parsed: unknown = {};
+        try {
+          parsed = text ? JSON.parse(text) : {};
+        } catch (err) {
+          console.warn("Could not parse /api/orders JSON:", err);
+          parsed = {};
         }
-      })
-      .catch((err) => console.error("  Fetch Error:", err))
-      .finally(() => setLoading(false));
+
+        if (!mounted) return;
+
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          setOrders([]);
+          return;
+        }
+
+        // If the server returns { success: true, orders: [...] }
+        if (typeof parsed === "object" && parsed !== null && "orders" in parsed) {
+          // @note: narrow safely without using `any`
+          const candidate = (parsed as Record<string, unknown>).orders;
+          if (isOrdersArray(candidate)) {
+            setOrders(candidate);
+            return;
+          }
+        }
+
+        // defensive: if top-level array returned
+        if (isOrdersArray(parsed)) {
+          setOrders(parsed);
+          return;
+        }
+
+        // fallback: no valid orders found
+        console.warn("/api/orders responded but no valid orders array found", { status: res.status, parsed });
+        setOrders([]);
+      } catch (err) {
+        if (!mounted) return;
+        // AbortError means component unmounted or cleanup triggered
+        const name = (err as Error).name;
+        if (name === "AbortError") return;
+        console.error("Fetch /api/orders failed:", err);
+        setOrders([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, []);
 
   const cancelOrder = async (orderId: string) => {
@@ -119,15 +236,43 @@ export default function UserOrderList() {
         },
         body: JSON.stringify({ orderId }),
       });
-      const data = await res.json();
+
+      const text = await res.text();
+      let parsed: unknown = {};
+      try {
+        parsed = text ? JSON.parse(text) : {};
+      } catch (err) {
+        console.warn("Could not parse /api/orders/cancel JSON:", err);
+        parsed = {};
+      }
+
       setCancellingId(null);
 
-      if (!res.ok || !data.success) {
-        return Swal.fire("Error", data?.message || "Failed to cancel", "error");
+      if (!res.ok) {
+        const message = (typeof parsed === "object" && parsed !== null && "message" in parsed)
+          ? String((parsed as Record<string, unknown>).message)
+          : "Failed to cancel";
+        return Swal.fire("Error", message, "error");
       }
-      // update UI: replace order in state
-      setOrders((prev) => prev.map((o) => (o._id === orderId ? data.order : o)));
-      Swal.fire("Cancelled", "Your order has been cancelled and stock restored.", "success");
+
+      if (typeof parsed === "object" && parsed !== null && "order" in parsed) {
+        const candidate = (parsed as Record<string, unknown>).order;
+        if (isOrder(candidate)) {
+          setOrders(prev => prev.map(o => (o._id === orderId ? candidate : o)));
+          Swal.fire("Cancelled", "Your order has been cancelled and stock restored.", "success");
+          return;
+        }
+      }
+
+      // fallback success update: if server returned updated orders array
+      if (isOrdersArray(parsed)) {
+        setOrders(parsed);
+        Swal.fire("Cancelled", "Your order has been cancelled and stock restored.", "success");
+        return;
+      }
+
+      // if no structured payload, still inform user of success if res.ok
+      Swal.fire("Cancelled", "Your order cancellation was processed.", "success");
     } catch (err) {
       console.error(err);
       setCancellingId(null);
@@ -135,7 +280,6 @@ export default function UserOrderList() {
     }
   };
 
-  // helper to check if order can be cancelled (server will validate again)
   const canCancelLocal = (order: Order) => {
     if (order.status !== "placed") return false;
     const createdTs = new Date(order.createdAt).getTime();
@@ -196,8 +340,7 @@ export default function UserOrderList() {
                     </td>
                     <td className="px-4 py-2 font-medium">₹ {order.total}</td>
                     <td className="px-4 py-2">
-                      <span className={`
-                        rounded-full px-3 py-1 text-xs
+                      <span className={`rounded-full px-3 py-1 text-xs
                         ${order.status === "delivered"
                           ? "bg-green-100 text-green-700"
                           : order.status === "packed"

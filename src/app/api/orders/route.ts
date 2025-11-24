@@ -68,6 +68,7 @@ type PushSubDoc = {
   keys: { p256dh: string; auth: string };
   origin?: string;
 };
+
 interface SubscriberRecord {
   endpoint: string;
   keys: {
@@ -77,6 +78,7 @@ interface SubscriberRecord {
   };
   origin?: string | null;
 }
+
 // ---------- Helpers ----------
 async function getUserFromReq(req: Request): Promise<UserPayload | null> {
   try {
@@ -105,7 +107,7 @@ function extractStatusFromError(err: unknown): number | undefined {
   return undefined;
 }
 
-// updated function without `any`
+// order create के बाद notification + push
 async function afterOrderCreated(order: {
   _id: string | { toString(): string };
   total?: number;
@@ -116,78 +118,100 @@ async function afterOrderCreated(order: {
   try {
     await dbConnect();
 
-    const orderIdStr = typeof order._id === "string" ? order._id : order._id?.toString();
+    const orderIdStr =
+      typeof order._id === "string" ? order._id : order._id?.toString();
+
     const customerLabel =
       typeof order.customerName === "string" && order.customerName.trim() !== ""
         ? order.customerName
         : typeof order.user === "string"
-          ? order.user
-          : (order.user && typeof order.user === "object" && "name" in order.user && typeof (order.user as { name?: unknown }).name === "string")
-            ? (order.user as { name?: string }).name
-            : "customer";
+        ? order.user
+        : order.user &&
+          typeof order.user === "object" &&
+          "name" in order.user &&
+          typeof (order.user as { name?: unknown }).name === "string"
+        ? (order.user as { name?: string }).name
+        : "customer";
 
     const title = `New order #${orderIdStr}`;
     const message = `Order by ${customerLabel} — ₹${order.total ?? 0}.`;
 
-    // create notification in DB
-    const notif = await Notification.create({
+    // DB notification
+    await Notification.create({
       title,
       message,
       meta: { orderId: orderIdStr },
       forRole: "admin",
     });
 
-    // fetch all subscriptions as typed docs
-    console.log("afterOrderCreated: creating notification for order:", orderIdStr);
-
-    // ---------- START: send per-subscription using subscription.origin or fallback ----------
     const siteOriginFallback = "https://www.shrisawariyamart.com";
-    console.log(siteOriginFallback)
-
     const subs = (await PushSubscription.find({}).lean<PushSubDoc[]>()) || [];
-    console.log(`afterOrderCreated: found ${subs.length} push subscriptions for order ${orderIdStr}`);
-
-    function extractStatusFromError(err: unknown): number | null {
-      // example safe extraction — adapt to your error shape
-      if (err && typeof err === "object") {
-
-        const maybe = (err as { status?: number; statusCode?: number }).status ?? (err as { status?: number; statusCode?: number }).statusCode;
-        if (typeof maybe === "number") return maybe;
-      }
-      return null;
-    }
+    console.log(
+      `afterOrderCreated: found ${subs.length} push subscriptions for order ${orderIdStr}`
+    );
 
     await Promise.all(
-      subs.map(async (s: SubscriberRecord | null | undefined) => {
-        // skip invalid subscription entries early
+      subs.map(async (raw) => {
+        const s = raw as unknown as SubscriberRecord | null | undefined;
+
         if (!s || typeof s.endpoint !== "string" || !s.endpoint) {
           console.warn("Skipping invalid subscription:", s);
           return;
         }
 
         const subscriptionOrigin =
-          typeof s.origin === "string" && s.origin.trim() !== "" ? s.origin : siteOriginFallback;
+          typeof s.origin === "string" && s.origin.trim() !== ""
+            ? s.origin
+            : siteOriginFallback;
 
         const originClean = subscriptionOrigin.replace(/\/$/, "");
         const url = `${originClean}/admin?orderId=${orderIdStr}`;
 
         const payload = {
           type: "new-order",
-          title, 
-          message, 
+          title,
+          message,
           data: { url },
           timestamp: new Date().toISOString(),
         };
 
-
         try {
-          console.log("Sending push to", subscriptionOrigin, "payload url:", url);
-          // ensure keys object exists and has expected properties
-          const keys = s.keys && typeof s.keys === "object" ? s.keys : { p256dh: "", auth: "" };
-          await sendPush({ endpoint: s.endpoint, keys }, payload);
+          console.log(
+            "Sending push to",
+            subscriptionOrigin,
+            "payload url:",
+            url
+          );
+
+          if (!s.keys || !s.keys.p256dh || !s.keys.auth) {
+            console.warn(
+              "Subscription missing keys, skipping:",
+              s.endpoint,
+              s.keys
+            );
+            return;
+          }
+
+          await sendPush(
+            {
+              endpoint: s.endpoint,
+              keys: {
+                p256dh: s.keys.p256dh,
+                auth: s.keys.auth,
+              },
+            },
+            payload
+          );
         } catch (err: unknown) {
           const status = extractStatusFromError(err);
-          console.warn("sendPush error for endpoint:", s.endpoint, "status:", status, "err:", err);
+          console.warn(
+            "sendPush error for endpoint:",
+            s.endpoint,
+            "status:",
+            status,
+            "err:",
+            err
+          );
           if (status === 410 || status === 404) {
             try {
               await PushSubscription.deleteOne({ endpoint: s.endpoint });
@@ -199,9 +223,7 @@ async function afterOrderCreated(order: {
         }
       })
     );
-    // ---------- END send loop ----------
   } catch (err: unknown) {
-    // do not break order flow on notification errors
     console.error("afterOrderCreated error:", err);
   }
 }
@@ -210,25 +232,31 @@ async function afterOrderCreated(order: {
 export async function GET(req: Request) {
   try {
     const user = await getUserFromReq(req);
-    console.log(" User from token:", user);
+    console.log("User from token:", user);
 
     if (!user) {
-      return NextResponse.json({ success: false, message: "Not authenticated" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, message: "Not authenticated" },
+        { status: 401 }
+      );
     }
 
     await dbConnect();
-    console.log(" DB connected");
+    console.log("DB connected");
 
     const orders = await Orders.find({ user: user._id })
       .populate("address.area", "name pincode")
       .sort({ createdAt: -1 })
       .lean();
 
-    console.log(" Orders fetched:", Array.isArray(orders) ? orders.length : 0);
+    console.log(
+      "Orders fetched:",
+      Array.isArray(orders) ? orders.length : 0
+    );
 
     return NextResponse.json({ success: true, orders });
   } catch (err: unknown) {
-    console.error("  Orders API Error:", err);
+    console.error("Orders API Error:", err);
     const message = err instanceof Error ? err.message : "Server error";
     return NextResponse.json({ success: false, message }, { status: 500 });
   }
@@ -237,55 +265,101 @@ export async function GET(req: Request) {
 // ---------- POST /api/orders ----------
 export async function POST(req: Request) {
   const user = await getUserFromReq(req);
-  if (!user) return NextResponse.json({ success: false, message: "Not authenticated" }, { status: 401 });
+  if (!user)
+    return NextResponse.json(
+      { success: false, message: "Not authenticated" },
+      { status: 401 }
+    );
 
-  // verify user is active
   const fullUser = await User.findById(user._id);
-  if (!fullUser) return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
+  if (!fullUser)
+    return NextResponse.json(
+      { success: false, message: "User not found" },
+      { status: 404 }
+    );
 
   if (!fullUser.isActive) {
     return NextResponse.json({
       success: false,
-      message: "Your account is inactive. You cannot place orders right now.",
+      message:
+        "Your account is inactive. You cannot place orders right now.",
     });
   }
 
   const raw = (await req.json().catch(() => ({}))) as unknown;
-  const body = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
+  const body =
+    typeof raw === "object" && raw !== null
+      ? (raw as Record<string, unknown>)
+      : {};
 
   const itemsRaw = body["items"];
   const address = body["address"];
-  const paymentMethod = typeof body["paymentMethod"] === "string" ? (body["paymentMethod"] as string) : "cod";
-  const deliveryCharge = typeof body["deliveryCharge"] === "number" ? (body["deliveryCharge"] as number) : 0;
-  const utr = typeof body["utr"] === "string" ? (body["utr"] as string) : undefined;
-  const upiId = typeof body["upiId"] === "string" ? (body["upiId"] as string) : undefined;
+  const paymentMethod =
+    typeof body["paymentMethod"] === "string"
+      ? (body["paymentMethod"] as string)
+      : "cod";
+  const deliveryCharge =
+    typeof body["deliveryCharge"] === "number"
+      ? (body["deliveryCharge"] as number)
+      : 0;
+  const utr =
+    typeof body["utr"] === "string" ? (body["utr"] as string) : undefined;
+  const upiId =
+    typeof body["upiId"] === "string"
+      ? (body["upiId"] as string)
+      : undefined;
 
   if (!Array.isArray(itemsRaw) || itemsRaw.length === 0)
-    return NextResponse.json({ success: false, message: "Cart empty" }, { status: 400 });
-  if (!address || (typeof address === "object" && !("area" in (address as Record<string, unknown>))))
-    return NextResponse.json({ success: false, message: "Delivery area required" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, message: "Cart empty" },
+      { status: 400 }
+    );
 
-  // Normalize items and validate shape minimally
+  if (
+    !address ||
+    (typeof address === "object" &&
+      !("area" in (address as Record<string, unknown>)))
+  )
+    return NextResponse.json(
+      { success: false, message: "Delivery area required" },
+      { status: 400 }
+    );
+
   const items: ItemPayload[] = itemsRaw.map((it: unknown) => {
-    const obj = typeof it === "object" && it !== null ? (it as Record<string, unknown>) : {};
+    const obj =
+      typeof it === "object" && it !== null
+        ? (it as Record<string, unknown>)
+        : {};
     return {
       productId: String(obj["productId"] ?? ""),
       name: String(obj["name"] ?? ""),
-      inHindi: typeof obj["inHindi"] === "string" ? (obj["inHindi"] as string) : undefined,
+      inHindi:
+        typeof obj["inHindi"] === "string"
+          ? (obj["inHindi"] as string)
+          : undefined,
       price: Number(obj["price"] ?? 0),
       quantity: Number(obj["quantity"] ?? 0),
       unit: String(obj["unit"] ?? "kg"),
     };
   });
 
-  const subTotal = items.reduce((s, it) => s + Number(it.price) * Number(it.quantity), 0);
-  if (subTotal < 50) return NextResponse.json({ success: false, message: "Minimum order amount is ₹50" }, { status: 400 });
+  const subTotal = items.reduce(
+    (s, it) => s + Number(it.price) * Number(it.quantity),
+    0
+  );
+  if (subTotal < 50)
+    return NextResponse.json(
+      { success: false, message: "Minimum order amount is ₹50" },
+      { status: 400 }
+    );
 
   await dbConnect();
   const total = subTotal + (deliveryCharge || 0);
 
   function generateOtp(length = 6) {
-    return Math.floor(100000 + Math.random() * 900000).toString().slice(0, length);
+    return Math.floor(100000 + Math.random() * 900000)
+      .toString()
+      .slice(0, length);
   }
 
   const orderPayload: OrderPayload = {
@@ -311,7 +385,8 @@ export async function POST(req: Request) {
   };
 
   if (paymentMethod === "upi") {
-    orderPayload.upiId = upiId || UPI_IDS[Math.floor(Math.random() * UPI_IDS.length)];
+    orderPayload.upiId =
+      upiId || UPI_IDS[Math.floor(Math.random() * UPI_IDS.length)];
 
     if (utr) {
       orderPayload.utr = utr;
@@ -324,36 +399,56 @@ export async function POST(req: Request) {
     }
   }
 
-  // Optionally attach customer name for nicer notification message
   if (typeof fullUser.name === "string" && fullUser.name.trim() !== "") {
     orderPayload.customerName = fullUser.name;
   }
 
   let orderDoc;
   try {
-    orderDoc = await Orders.create(orderPayload as unknown as Record<string, unknown>);
-    console.log("Order created:", orderDoc._id, "total:", orderDoc.total, "by user:", user._id);
+    orderDoc = await Orders.create(
+      orderPayload as unknown as Record<string, unknown>
+    );
+    console.log(
+      "Order created:",
+      orderDoc._id,
+      "total:",
+      orderDoc.total,
+      "by user:",
+      user._id
+    );
 
-    // debug subscriptions count
     const subsCount = await PushSubscription.countDocuments();
     console.log("Push subscriptions count:", subsCount);
 
-    // Fire notification (non-blocking)
-    afterOrderCreated(orderDoc).catch((e: unknown) => console.error("afterOrderCreated failed:", e));
+    // push + DB notification (non-blocking)
+    afterOrderCreated(orderDoc).catch((e: unknown) =>
+      console.error("afterOrderCreated failed:", e)
+    );
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ success: false, message }, { status: 500 });
+    const message =
+      err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json(
+      { success: false, message },
+      { status: 500 }
+    );
   }
 
-  // --------------------- Reduce stock for each product ---------------------
+  // stock reduce
   for (const it of items) {
     try {
-      await Product.findByIdAndUpdate(it.productId, { $inc: { stockQty: -Number(it.quantity) } });
+      await Product.findByIdAndUpdate(it.productId, {
+        $inc: { stockQty: -Number(it.quantity) },
+      });
     } catch (stockErr: unknown) {
-      console.error(`  Failed to update stock for product ${it.productId}`, stockErr);
+      console.error(
+        `Failed to update stock for product ${it.productId}`,
+        stockErr
+      );
     }
   }
-  // ---------------------------------------------------------------------------
 
-  return NextResponse.json({ success: true, order: orderDoc }, { status: 201 });
+  return NextResponse.json(
+    { success: true, order: orderDoc },
+    { status: 201 }
+  );
 }

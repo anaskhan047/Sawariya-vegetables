@@ -1,29 +1,38 @@
 // public/sw.js
-// Service worker: only show notifications on actual push events.
-// - Supports JSON payload or text fallback
-// - Respects payload.silent === true (no notification shown)
-// - Uses tag/renotify for dedupe
-// - Opens/focuses client on notificationclick
-self.addEventListener("install", (e) => {
-  console.log("[SW] install event");
+
+self.addEventListener("install", (event) => {
+  console.log("[SW] install");
+  event.waitUntil(self.skipWaiting());
 });
-self.addEventListener("activate", (e) => {
-  console.log("[SW] activate event");
+
+self.addEventListener("activate", (event) => {
+  console.log("[SW] activate");
+  event.waitUntil(
+    (async () => {
+      const notifications = await self.registration.getNotifications();
+      notifications.forEach((n) => {
+        try {
+          n.close();
+        } catch (e) {}
+      });
+      await self.clients.claim();
+    })()
+  );
 });
-self.addEventListener("push", (e) => {
-  console.log("[SW] push event, data:", e.data ? e.data.text() : null);
-});
+
+// SINGLE push listener
 self.addEventListener("push", (event) => {
-  // don't accidentally show notifications during registration/activate
-  // only react to an actual push event
+  console.log(
+    "[SW] push event raw:",
+    event.data ? event.data.text() : "no data"
+  );
+
   let payloadData = null;
   try {
     if (event.data) {
-      // Try JSON first
       payloadData = event.data.json();
     }
   } catch (e) {
-    // fallback to text
     try {
       payloadData = { body: event.data.text() };
     } catch (e2) {
@@ -31,7 +40,6 @@ self.addEventListener("push", (event) => {
     }
   }
 
-  // Default notify object
   const notifyDefault = {
     title: "Notification",
     body: "You have a new message",
@@ -39,16 +47,17 @@ self.addEventListener("push", (event) => {
     badge: "/icons/badge-72.png",
     data: { url: "/" },
     tag: undefined,
-    renotify: false,
+    renotify: true, // हर बार popup आने के लिए
     requireInteraction: false,
-    silent: false, // if true -> do not show notification
+    silent: false,
   };
 
-  const payload = typeof payloadData === "object" && payloadData !== null ? payloadData : {};
-  // Respect `silent` in payload (server can send { silent: true } for data-only pushes)
+  const payload =
+    typeof payloadData === "object" && payloadData !== null
+      ? payloadData
+      : {};
+
   if (payload.silent) {
-    // If it's a silent push, you can still do background work here (sync DB, fetch, etc.)
-    // But do NOT show a notification.
     event.waitUntil(Promise.resolve());
     return;
   }
@@ -60,8 +69,14 @@ self.addEventListener("push", (event) => {
     badge: payload.badge || notifyDefault.badge,
     data: { ...(notifyDefault.data || {}), ...(payload.data || {}) },
     tag: payload.tag || notifyDefault.tag,
-    renotify: payload.renotify ?? notifyDefault.renotify,
-    requireInteraction: payload.requireInteraction ?? notifyDefault.requireInteraction,
+    renotify:
+      typeof payload.renotify === "boolean"
+        ? payload.renotify
+        : notifyDefault.renotify,
+    requireInteraction:
+      typeof payload.requireInteraction === "boolean"
+        ? payload.requireInteraction
+        : notifyDefault.requireInteraction,
   };
 
   const options = {
@@ -74,51 +89,36 @@ self.addEventListener("push", (event) => {
     requireInteraction: notify.requireInteraction,
   };
 
-  // Ensure event.waitUntil resolves to the showNotification promise
   event.waitUntil(self.registration.showNotification(notify.title, options));
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const urlToOpen = (event.notification && event.notification.data && event.notification.data.url) || "/";
+  const urlToOpen =
+    (event.notification &&
+      event.notification.data &&
+      event.notification.data.url) ||
+    "/";
 
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        try {
-          // focus an existing window on the same origin and navigate if required
-          const clientUrl = new URL(client.url);
-          const openUrl = new URL(urlToOpen, self.location.origin);
-          if (clientUrl.origin === openUrl.origin) {
-            client.focus();
-            if (client.url !== openUrl.href) {
-              // navigate existing tab to the URL
-              client.navigate(openUrl.href).catch(() => {});
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          try {
+            const clientUrl = new URL(client.url);
+            const openUrl = new URL(urlToOpen, self.location.origin);
+            if (clientUrl.origin === openUrl.origin) {
+              client.focus();
+              if (client.url !== openUrl.href) {
+                client.navigate(openUrl.href).catch(() => {});
+              }
+              return;
             }
-            return;
-          }
-        } catch (e) {
-          // ignore parsing errors
+          } catch (e) {}
         }
-      }
-      // no window found — open new one
-      return clients.openWindow(urlToOpen);
-    })
-  );
-});
-
-// Optional: clean up old notifications on activate (no show here)
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    (async () => {
-      // Perform any cleanup if necessary
-      // For example, close old notifications (not required usually)
-      const notifications = await self.registration.getNotifications();
-      notifications.forEach((n) => {
-        // Do not automatically show notifications here — just close stale ones
-        try { n.close(); } catch (e) { /* ignore */ }
-      });
-    })()
+        return clients.openWindow(urlToOpen);
+      })
   );
 });

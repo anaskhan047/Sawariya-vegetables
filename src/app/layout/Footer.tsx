@@ -49,6 +49,11 @@ export default function Footer() {
               </Link>
             </li>
             <li>
+              <Link href="/vegetables" className="hover:underline">
+                Vegetable
+              </Link>
+            </li>
+            <li>
               <Link href="/fruit" className="hover:underline">
                 Fruit
               </Link>
@@ -81,6 +86,7 @@ export default function Footer() {
               </Link>
             </li>
           </ul>
+
         </div>
 
         {/* Support */}
@@ -103,6 +109,7 @@ export default function Footer() {
               </Link>
             </li>
           </ul>
+   <p className="mt-2"> © 2025 SSM | Shri Sawariya Mart</p>
         </div>
       </div>
 
@@ -111,7 +118,6 @@ export default function Footer() {
         <hr className="border-white/50" />
       </div>
     </footer>
-   <p className="flex justify-center"> © 2025 SSM | Shri Sawariya Mart</p>
 </>
   );
 }

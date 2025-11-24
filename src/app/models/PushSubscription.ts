@@ -1,24 +1,38 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IPushSubscription extends Document {
-  token: string;
-  origin?: string | null;
   adminId?: string;
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  origin?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const PushSubscriptionSchema = new Schema<IPushSubscription>(
   {
-    token: { type: String, required: true, unique: true },
+    adminId: { type: String, default: "" },
+    endpoint: { type: String, required: true, unique: true },
+    keys: {
+      p256dh: { type: String, required: true },
+      auth: { type: String, required: true },
+    },
     origin: { type: String, default: null },
-    adminId: { type: String, default: "" }
   },
   { timestamps: true }
 );
 
+const existingModel = mongoose.models
+  .PushSubscription as Model<IPushSubscription> | undefined;
+
 const PushSubscription =
-  (mongoose.models.PushSubscription as Model<IPushSubscription>) ||
-  mongoose.model<IPushSubscription>("PushSubscription", PushSubscriptionSchema);
+  existingModel ||
+  mongoose.model<IPushSubscription>(
+    "PushSubscription",
+    PushSubscriptionSchema
+  );
 
 export default PushSubscription;

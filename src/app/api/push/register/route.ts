@@ -6,19 +6,27 @@ export async function POST(req: Request) {
   try {
     await dbConnect();
     const body = await req.json();
-    const { token, origin, adminId } = body || {};
+    const { subscription, origin } = body ?? {};
 
-    if (!token) {
-      return NextResponse.json({ success: false, message: "Missing token" }, { status: 400 });
+    if (!subscription || !subscription.endpoint) {
+      return NextResponse.json(
+        { success: false, message: "Invalid subscription" },
+        { status: 400 }
+      );
     }
 
+    const siteOrigin =
+      (typeof origin === "string" && origin.startsWith("http")
+        ? origin
+        : process.env.SITE_ORIGIN) || null;
+
     await PushSubscription.updateOne(
-      { token },
+      { endpoint: subscription.endpoint },
       {
         $set: {
-          token,
-          origin: origin || null,
-          adminId: adminId || "",
+          endpoint: subscription.endpoint,
+          keys: subscription.keys || {},
+          origin: siteOrigin,
           updatedAt: new Date(),
         },
       },
@@ -28,6 +36,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("push register error", err);
-    return NextResponse.json({ success: false, message: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: (err as Error).message },
+      { status: 500 }
+    );
   }
 }
