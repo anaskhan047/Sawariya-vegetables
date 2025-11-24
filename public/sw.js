@@ -4,7 +4,15 @@
 // - Respects payload.silent === true (no notification shown)
 // - Uses tag/renotify for dedupe
 // - Opens/focuses client on notificationclick
-
+self.addEventListener("install", (e) => {
+  console.log("[SW] install event");
+});
+self.addEventListener("activate", (e) => {
+  console.log("[SW] activate event");
+});
+self.addEventListener("push", (e) => {
+  console.log("[SW] push event, data:", e.data ? e.data.text() : null);
+});
 self.addEventListener("push", (event) => {
   // don't accidentally show notifications during registration/activate
   // only react to an actual push event
