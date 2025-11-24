@@ -1,69 +1,50 @@
-// src/app/api/push/test-send/route.ts
 import { NextResponse } from "next/server";
 import dbConnect from "@/app/lib/mongodb";
 import PushSubscription from "@/app/models/PushSubscription";
-import { sendPush, VapidSubscription, PushPayload } from "@/app/lib/webpush";
+import admin from "firebase-admin";
 
-type DbSubscription = {
-  endpoint: string;
-  keys?: { p256dh?: string; auth?: string };
-  origin?: string | null;
-  updatedAt?: Date;
-  _id?: unknown;
-};
-
-type TestSendResult = { endpoint: string; ok: boolean; error?: string };
+if (!admin.apps.length) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "{}");
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
 
 export async function POST(req: Request) {
   try {
     await dbConnect();
-    const url = new URL(req.url);
-    const queryOrigin = url.searchParams.get("origin");
-
-    // parse body once
-    let parsedBody: Record<string, unknown> = {};
-    try { parsedBody = (await req.json().catch(() => ({}))) ?? {}; } catch { parsedBody = {}; }
-
-    const bodyOrigin = (parsedBody?.origin as string) ?? null;
-    const origin = queryOrigin || bodyOrigin || null;
-
-    const raw = await PushSubscription.find(origin ? { origin } : {}).lean();
-    const subs = (raw as unknown) as DbSubscription[];
-
-    if (!subs || !subs.length) return NextResponse.json({ success: false, message: "No subscriptions" }, { status: 404 });
-
-    const uniqueMap = new Map<string, DbSubscription>();
-    for (const s of subs) if (s.endpoint && !uniqueMap.has(s.endpoint)) uniqueMap.set(s.endpoint, s);
-
-    const customPayload = parsedBody?.payload as PushPayload | undefined;
-    const payload: PushPayload = customPayload ?? {
-      title: "Test notification",
-      body: "This is a test push from server",
-      data: { origin: origin ?? "all", url: "https://www.shrisawariyamart.com" },
-      tag: "test-notif",
-      renotify: false,
+    const body = await req.json();
+    const payload = body.payload || {
+      title: "Test Notification",
+      body: "FCM working",
+      data: { url: "https://www.shrisawariyamart.com/admin" },
     };
 
-    const results: TestSendResult[] = await Promise.all(
-      Array.from(uniqueMap.values()).map(async (s) => {
-        const subData: VapidSubscription = { endpoint: s.endpoint, keys: s.keys };
-        try {
-          await sendPush(subData, payload);
-          return { endpoint: s.endpoint, ok: true };
-        } catch (err) {
-          const errorObj = err as { statusCode?: number; status?: number };
-          const statusCode = errorObj.statusCode ?? errorObj.status ?? null;
-          if (statusCode === 410 || statusCode === 404) {
-            await PushSubscription.deleteOne({ endpoint: s.endpoint });
-          }
-          return { endpoint: s.endpoint, ok: false, error: String(err) };
-        }
-      })
-    );
+    const subs = await PushSubscription.find().lean();
+    if (!subs.length) {
+      return NextResponse.json({ success: false, message: "No tokens" });
+    }
 
-    return NextResponse.json({ success: true, sent: results.filter(r => r.ok).length, total: results.length, results }, { status: 200 });
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ success: false, error: errorMsg }, { status: 500 });
+    const tokens = subs.map((s) => s.token);
+
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens,
+      notification: {
+        title: payload.title,
+        body: payload.body,
+      },
+      data: Object.fromEntries(
+        Object.entries(payload.data || {}).map(([k, v]) => [k, String(v)])
+      ),
+    });
+
+    return NextResponse.json({
+      success: true,
+      sent: response.successCount,
+      failed: response.failureCount,
+    });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ success: false });
   }
 }

@@ -1,4 +1,3 @@
-// src/app/api/push/register/route.ts
 import { NextResponse } from "next/server";
 import dbConnect from "@/app/lib/mongodb";
 import PushSubscription from "@/app/models/PushSubscription";
@@ -7,19 +6,19 @@ export async function POST(req: Request) {
   try {
     await dbConnect();
     const body = await req.json();
-    const { subscription, origin } = body ?? {};
-    if (!subscription || !subscription.endpoint) {
-      return NextResponse.json({ success: false, message: "Invalid subscription" }, { status: 400 });
+    const { token, origin, adminId } = body || {};
+
+    if (!token) {
+      return NextResponse.json({ success: false, message: "Missing token" }, { status: 400 });
     }
 
-    // upsert by endpoint to avoid duplicates
     await PushSubscription.updateOne(
-      { endpoint: subscription.endpoint },
+      { token },
       {
         $set: {
-          endpoint: subscription.endpoint,
-          keys: subscription.keys || {},
+          token,
           origin: origin || null,
+          adminId: adminId || "",
           updatedAt: new Date(),
         },
       },
@@ -29,6 +28,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("push register error", err);
-    return NextResponse.json({ success: false, error: (err as Error).message }, { status: 500 });
+    return NextResponse.json({ success: false, message: "Server error" }, { status: 500 });
   }
 }

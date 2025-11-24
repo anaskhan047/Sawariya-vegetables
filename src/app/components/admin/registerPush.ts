@@ -20,7 +20,7 @@ export async function registerAdminPush(adminId?: string) {
   }
 
   try {
-    const reg = await navigator.serviceWorker.register("/sw.js");
+    const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
     await navigator.serviceWorker.ready;
 
     const permission = await Notification.requestPermission();

@@ -1,36 +1,24 @@
-// src/app/models/PushSubscription.ts
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IPushSubscription extends Document {
-  adminId?: string; // optional, link to admin user id if you have
-  endpoint: string;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
+  token: string;
+  origin?: string | null;
+  adminId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const PushSubscriptionSchema = new Schema<IPushSubscription>(
   {
-    adminId: { type: String, default: "" },
-    endpoint: { type: String, required: true, unique: true },
-    keys: {
-      p256dh: { type: String, required: true },
-      auth: { type: String, required: true },
-    },
+    token: { type: String, required: true, unique: true },
+    origin: { type: String, default: null },
+    adminId: { type: String, default: "" }
   },
   { timestamps: true }
 );
 
-// ✅ Strongly typed mongoose model re-use (no `any`)
-const existingModel = mongoose.models.PushSubscription as
-  | Model<IPushSubscription>
-  | undefined;
-
 const PushSubscription =
-  existingModel ||
+  (mongoose.models.PushSubscription as Model<IPushSubscription>) ||
   mongoose.model<IPushSubscription>("PushSubscription", PushSubscriptionSchema);
 
 export default PushSubscription;

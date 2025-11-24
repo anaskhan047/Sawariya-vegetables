@@ -12,7 +12,7 @@ export async function registerAdminPush(adminToken?: string) {
 
   try {
     // register SW and wait for ready
-    const reg = await navigator.serviceWorker.register("/sw.js");
+    const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
     await navigator.serviceWorker.ready;
 
     // request permission only when needed
