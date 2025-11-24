@@ -25,7 +25,7 @@ export default function VerifyRegisterClient() {
       if (!res.ok) {
         setError(data.error || "Verification failed");
       } else {
-        router.push(data.redirectUrl || "/shop");
+        router.push("/login");
       }
     } catch {
       setError("Network error");
