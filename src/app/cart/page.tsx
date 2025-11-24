@@ -43,10 +43,10 @@ type UserResponse = {
 };
 
 const UPI_IDS = [
-  process.env.NEXT_PUBLIC_UPI_1 || "9301893055@ybl",
-  process.env.NEXT_PUBLIC_UPI_2 || "7489988065@ibl",
-  process.env.NEXT_PUBLIC_UPI_3 || "7869600155@ybl",
-  process.env.NEXT_PUBLIC_UPI_4 || "9893404617@ybl",
+  process.env.NEXT_PUBLIC_UPI_1 || "rathorevishal7523-1@okaxis",
+  process.env.NEXT_PUBLIC_UPI_2 || "rathorevishal7523-1@okaxis",
+  process.env.NEXT_PUBLIC_UPI_3 || "rathorevishal7523-1@okaxis",
+  process.env.NEXT_PUBLIC_UPI_4 || "rathorevishal7523-1@okaxis",
 ];
 
 export default function CartPage() {

@@ -13,10 +13,10 @@ import PushSubscription from "@/app/models/PushSubscription";
 import Notification from "@/app/models/Notification";
 
 const UPI_IDS = [
-  process.env.UPI_1 || "9301893055@ybl",
-  process.env.UPI_2 || "9301893055@ibl",
-  process.env.UPI_3 || "9301893055@ybl",
-  process.env.UPI_4 || "9301893055@ibl",
+  process.env.UPI_1 || "rathorevishal7523-1@okaxis",
+  process.env.UPI_2 || "rathorevishal7523-1@okaxis",
+  process.env.UPI_3 || "rathorevishal7523-1@okaxis",
+  process.env.UPI_4 || "rathorevishal7523-1@okaxis",
 ];
 
 // ---------- Types ----------
