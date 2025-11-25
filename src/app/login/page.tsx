@@ -180,13 +180,13 @@ export default function Auth() {
               </button>
             </div>
 
-            {!isLogin && (
+            {/* {!isLogin && (
               <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-md">
                 <option value="user">User</option>
                 <option value="delivery">Delivery Boy</option>
                 <option value="admin">Admin</option>
               </select>
-            )}
+            )} */}
             {isLogin && (
               <div className="flex justify-end">
                 <button type="button" className="text-sm text-[var(--primary-color)] hover:underline" onClick={() => setForgotOpen(true)}>Forgot Password?</button>
