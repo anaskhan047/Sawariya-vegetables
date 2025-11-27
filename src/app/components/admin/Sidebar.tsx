@@ -13,6 +13,7 @@ import {
   Settings,
   Menu,
   Subscript,
+  X,
 } from "lucide-react";
 import { BiCube } from "react-icons/bi";
 import { MdDraw } from "react-icons/md";
@@ -31,7 +32,7 @@ const menuItems: MenuItem[] = [
   { name: "Product Management", icon: <Package size={20} />, link: "/admin/products" },
   { name: "Categories", icon: <Tag size={20} />, link: "/admin/categories" },
   { name: "UI", icon: <MdDraw size={20} />, link: "/admin/ui" },
-  { name: "Users", icon: <Users size={20} />, link: "/admin/users" ,notification: true},
+  { name: "Users", icon: <Users size={20} />, link: "/admin/users", notification: true },
   { name: "Messages", icon: <MessageSquare size={20} />, link: "/admin/messages" },
   { name: "Testimonials", icon: <MessageSquare size={20} />, link: "/admin/testimonials" },
   { name: "Subscribers", icon: <Subscript size={20} />, link: "/admin/subscribe" },
@@ -85,12 +86,20 @@ export default function Sidebar() {
     <>
       {/* Mobile Hamburger Button (CSS hides on md+) */}
       <button
-        aria-label="Open menu"
-        className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-white shadow-md hover:bg-gray-100 transition"
+        aria-label="Toggle menu"
+         className={clsx(
+          "md:hidden fixed z-50 p-2 rounded-md bg-white shadow-md hover:bg-gray-100 transition",
+          {
+            "top-14 right-50 ": isMobileOpen,
+            "top-4 left-4": !isMobileOpen,
+          }
+        )}
+        
         onClick={() => setIsMobileOpen((p) => !p)}
       >
-        <Menu size={20} />
+        {isMobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
+
 
       {/* Mobile overlay */}
       <div
@@ -120,22 +129,32 @@ export default function Sidebar() {
         )}
         aria-hidden={false}
       >
-       
+
 
         {/* Logo (always render small icon to avoid SSR/CSR differences) */}
-        <div className={clsx("flex items-center mb-8", { "justify-center": !isOpen })}>
+        <div
+          className={clsx(
+            "flex items-center mb-8",
+            isMobileOpen ? "justify-start" : !isOpen && "justify-center"
+          )}
+        >
           <div className="flex items-center gap-3">
-            {/* small icon/logo square — always visible */}
-            <div className="w-8 h-8 rounded-md bg-[var(--secondary-color)] flex items-center justify-center text-white font-bold">
-              A
+            <div className="w-19 h-8 rounded-md bg-[var(--secondary-color)] flex items-center justify-center text-white font-bold">
+              S.S.M.
             </div>
 
-            {/* Logo text hidden when collapsed */}
-            <span className={clsx("text-[var(--secondary-color)] font-bold text-xl tracking-wide transition-all", { hidden: !isOpen })}>
-              Logo
+            {/* Hide text only when collapsed on desktop */}
+            <span
+              className={clsx(
+                "text-[var(--secondary-color)] font-bold text-xl tracking-wide transition-all",
+                { hidden: !isOpen && !isMobileOpen }
+              )}
+            >
+              Shri Sawariya Mart
             </span>
           </div>
         </div>
+
 
         {/* Menu */}
         <nav className="space-y-1">

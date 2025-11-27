@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { FiSearch, FiShoppingCart, FiUser, FiMenu, FiX } from "react-icons/fi";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Swal from "sweetalert2";
 import { useAuth } from "@/app/context/AuthContext";
 import { useCart } from "@/app/context/CartContext";
@@ -34,11 +34,22 @@ export default function Navbar() {
   const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
+  const pathname = usePathname(); // ✅ current route
   const { user, isLoading, isLoggedIn, logout, refresh } = useAuth();
   const { cartCount } = useCart();
   const [image, setImage] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ✅ Sync active tab with current pathname
+  useEffect(() => {
+    const current = navLinks.find((link) => {
+      if (link.href === "/") return pathname === "/";
+      return pathname.startsWith(link.href);
+    });
+
+    setActive(current?.name ?? "Home");
+  }, [pathname]);
 
   // close dropdowns on outside click
   useEffect(() => {
@@ -318,7 +329,6 @@ export default function Navbar() {
                 <Link
                   href={link.href}
                   onClick={() => {
-                    setActive(link.name);
                     setIsOpen(false);
                   }}
                   className="block capitalize text-[var(--text-color)] hover:text-[var(--primary-color)] py-2"

@@ -126,6 +126,7 @@ export default function Testimonials() {
   };
 
   return (
+    <section id="testimonials" className="bg-[var(--section-background)]">
     <div className="max-w-6xl mx-auto py-12 bg-[var(--background-color)]">
       <h2 className="text-3xl font-bold text-center mb-8">
         What Our Customers Say
@@ -196,5 +197,6 @@ export default function Testimonials() {
         </div>
       </div>
     </div>
+    </section>
   );
 }
