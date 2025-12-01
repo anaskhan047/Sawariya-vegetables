@@ -14,6 +14,7 @@ interface Product {
   _id: string;
   id: string;
   name: string;
+  inHindi: string;
   price: number;
   marketPrice: number;
   unit: "kg" | "dozen" | "piece";
@@ -155,7 +156,7 @@ export default function FruitsPage() {
                 </div>
 
                 {/* Name */}
-                <h3 className="text-lg font-semibold mt-3">{fruit.name}</h3>
+                <h3 className="text-lg font-semibold mt-3">{fruit.name} {fruit.inHindi}</h3>
                 <p className="text-green-700 font-bold">
                   <span className="line-through text-red-500 mx-3">₹{fruit.marketPrice} </span>
                   ₹{fruit.price} / {fruit.unit}

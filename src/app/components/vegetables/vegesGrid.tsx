@@ -15,6 +15,7 @@ interface Product {
   _id: string;
   id: string;
   name: string;
+  inHindi: string;
   price: number;
   marketPrice: number;
   unit: "kg" | "dozen" | "piece";
@@ -158,7 +159,7 @@ export default function VegetablePage() {
                   <img src={imgUrl} alt={veg.name} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
                 </div>
 
-                <h3 className="text-lg font-semibold mt-3">{veg.name}</h3>
+                <h3 className="text-lg font-semibold mt-3">{veg.name} / {veg.inHindi}</h3>
 
                 <p className="text-green-700 font-bold">
                   <span className="line-through text-red-500 mx-3">₹{veg.marketPrice}</span>
