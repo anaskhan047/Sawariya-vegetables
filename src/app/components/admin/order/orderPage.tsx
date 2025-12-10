@@ -231,11 +231,11 @@ export default function AdminOrdersPage() {
   const revenueDelivered = orders
     .filter((o) => o.status === "delivered")
     .reduce((sum, o) => sum + (o.total || 0), 0);
-  const codAmount = orders
-    .filter((o) => o.paymentMethod === "cod")
-    .reduce((sum, o) => sum + (o.total || 0), 0);
+ const codAmount = orders
+  .filter((o) => o.paymentMethod === "cod" && o.status === "delivered")
+  .reduce((sum, o) => sum + (o.total || 0), 0);
   const upiAmount = orders
-    .filter((o) => o.paymentMethod === "upi")
+    .filter((o) => o.paymentMethod === "upi" && o.status === "delivered")
     .reduce((sum, o) => sum + (o.total || 0), 0);
 
   const exportToExcel = () => {
