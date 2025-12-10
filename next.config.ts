@@ -4,20 +4,30 @@ const withPWA = require("next-pwa")({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
-   buildExcludes: [/app-build-manifest\.json$/, /middleware-manifest\.json$/, /react-loadable-manifest\.json$/],
+  buildExcludes: [
+    /app-build-manifest\.json$/,
+    /middleware-manifest\.json$/,
+    /react-loadable-manifest\.json$/,
+  ],
 });
 
-module.exports = withPWA({
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
 
   images: {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**", // allow all external images
+        hostname: "**",
       },
     ],
   },
 
-  // You can add more config options here if needed
-});
+  // optional: explicitly say we’re not using Turbopack
+  future: {
+    unstable_turbo: false,
+  },
+};
+
+module.exports = withPWA(nextConfig);
