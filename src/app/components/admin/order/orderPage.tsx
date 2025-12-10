@@ -3,37 +3,167 @@
 import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import axios from "axios";
-import Swal from "sweetalert2"; //  Import SweetAlert2
+import Swal from "sweetalert2";
 
 type OrderStatus = "placed" | "packed" | "in_transit" | "delivered" | "cancelled" | "refunded";
+
+type OrderItem = {
+  name: string;
+  quantity: number;
+  price: number;
+  unit: string;
+  inHindi: string;
+};
+
+type OrderAddress = {
+  name: string;
+  phone: string;
+  address: string;
+  area: string | { name: string; pincode: string };
+};
 
 type Order = {
   _id: string;
   user: string;
-  items: { name: string; quantity: number; price: number; unit: string; inHindi: string; }[];
-  address: { name: string; phone: string; address: string; area: string | { name: string; pincode: string }; };
+  items: OrderItem[];
+  address: OrderAddress;
   subTotal: number;
   deliveryCharge: number;
   total: number;
   status: OrderStatus;
   paymentMethod: string;
   upiId?: string;
-  utr?: string;            //  add this
+  utr?: string;
   upiTxnInfo?: { paidTo?: string; txnRef?: string };
   paymentStatus: string;
   createdAt: string;
   otp?: string;
-  // possible optional fields that invoice may show
   coupon?: string;
   discount?: number;
   invoiceNumber?: string;
 };
 
+const statusFlow: OrderStatus[] = ["placed", "packed", "in_transit", "delivered"];
+
+const getStatusLabel = (status: OrderStatus): string => {
+  switch (status) {
+    case "placed":
+      return "Placed";
+    case "packed":
+      return "Packed";
+    case "in_transit":
+      return "In Transit";
+    case "delivered":
+      return "Delivered";
+    case "cancelled":
+      return "Cancelled";
+    case "refunded":
+      return "Refunded";
+    default:
+      return status;
+  }
+};
+
+const getStatusPillClass = (status: OrderStatus): string => {
+  if (status === "delivered") return "bg-green-100 text-green-700";
+  if (status === "packed") return "bg-yellow-100 text-yellow-700";
+  if (status === "placed") return "bg-slate-100 text-slate-700";
+  if (status === "in_transit") return "bg-blue-100 text-blue-700";
+  if (status === "cancelled") return "bg-red-100 text-red-700";
+  if (status === "refunded") return "bg-purple-100 text-purple-700";
+  return "bg-slate-100 text-slate-700";
+};
+
+const canChangeStatus = (current: OrderStatus, next: OrderStatus): boolean => {
+  if (current === next) return false;
+
+  if (current === "delivered" || current === "refunded") return false;
+
+  if (next === "cancelled") {
+    return current === "placed" || current === "packed" || current === "in_transit";
+  }
+
+  if (next === "refunded") {
+    return current === "cancelled";
+  }
+
+  const currentIndex = statusFlow.indexOf(current);
+  const nextIndex = statusFlow.indexOf(next);
+
+  if (currentIndex === -1 || nextIndex === -1) return false;
+
+  return nextIndex > currentIndex;
+};
+
+const getStatusButtonClass = (
+  current: OrderStatus,
+  candidate: OrderStatus,
+  clickable: boolean,
+): string => {
+  const base =
+    "inline-flex items-center justify-center rounded-full px-3 py-1 text-xs sm:text-[11px] font-medium border transition-all duration-150 whitespace-nowrap";
+
+  if (!clickable) {
+    if (current === candidate) {
+      return `${base} ${getStatusPillClass(candidate)} cursor-default shadow-sm`;
+    }
+    return `${base} border-dashed border-slate-200 text-slate-400 bg-slate-50/60 cursor-not-allowed`;
+  }
+
+  if (current === candidate) {
+    return `${base} ${getStatusPillClass(
+      candidate,
+    )} cursor-pointer shadow-sm ring-1 ring-slate-200`;
+  }
+
+  return [
+    base,
+    "border-slate-300 text-slate-700 bg-white",
+    "hover:bg-slate-900 hover:text-white",
+    "hover:-translate-y-0.5 hover:shadow-md hover:border-slate-900",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/30",
+    "cursor-pointer",
+  ].join(" ");
+};
+
+const formatINR = (value: number): string => {
+  try {
+    return "₹" + value.toFixed(2);
+  } catch {
+    return "₹0.00";
+  }
+};
+
+const escapeHtml = (unsafe: string | number | null | undefined): string => {
+  if (unsafe === null || unsafe === undefined) return "";
+  const s = String(unsafe);
+  return s.replace(/[&<>"'`=\/]/g, function (c) {
+    return (
+      {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+        "/": "&#x2F;",
+        "`": "&#x60;",
+        "=": "&#x3D;",
+      }[c] || c
+    );
+  });
+};
+
+const calculateSubTotal = (items: Order["items"]): number => {
+  return items.reduce((acc, it) => acc + (it.price || 0) * (it.quantity || 0), 0);
+};
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState<string>("All");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-  //  Fetch all orders
   useEffect(() => {
     const fetchOrders = async () => {
       try {
@@ -43,18 +173,71 @@ export default function AdminOrdersPage() {
         const res = await axios.get("/api/admin/orders", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        // console.log(res.data)
+
         if (res.data.success) setOrders(res.data.orders || []);
       } catch (err) {
-        console.error("  Error fetching orders:", err);
+        console.error("Error fetching orders:", err);
       }
     };
     fetchOrders();
   }, []);
 
-  const filteredOrders = statusFilter === "All" ? orders : orders.filter((o) => o.status === statusFilter);
+  const filteredOrders = orders
+    .filter((order) => {
+      if (statusFilter === "All") return true;
+      return order.status === statusFilter;
+    })
+    .filter((order) => {
+      if (!dateFrom && !dateTo) return true;
 
-  //  Export to Excel
+      const orderDate = new Date(order.createdAt);
+      if (Number.isNaN(orderDate.getTime())) return false;
+
+      if (dateFrom) {
+        const from = new Date(`${dateFrom}T00:00:00`);
+        if (orderDate < from) return false;
+      }
+
+      if (dateTo) {
+        const to = new Date(`${dateTo}T23:59:59`);
+        if (orderDate > to) return false;
+      }
+
+      return true;
+    })
+    .filter((order) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      const idMatch = order._id.toLowerCase().includes(q);
+      const nameMatch = order.address.name.toLowerCase().includes(q);
+      const phoneMatch = order.address.phone.toLowerCase().includes(q);
+      const areaText =
+        typeof order.address.area === "object"
+          ? `${order.address.area.name ?? ""} ${order.address.area.pincode ?? ""}`
+          : order.address.area ?? "";
+      const areaMatch = areaText.toLowerCase().includes(q);
+      return idMatch || nameMatch || phoneMatch || areaMatch;
+    });
+
+  const today = new Date();
+  const todayString = today.toISOString().slice(0, 10);
+
+  const totalOrders = orders.length;
+  const todayOrders = orders.filter((o) => o.createdAt.slice(0, 10) === todayString).length;
+  const deliveredCount = orders.filter((o) => o.status === "delivered").length;
+  const pendingCount = orders.filter(
+    (o) => o.status === "placed" || o.status === "packed" || o.status === "in_transit",
+  ).length;
+  const revenueDelivered = orders
+    .filter((o) => o.status === "delivered")
+    .reduce((sum, o) => sum + (o.total || 0), 0);
+  const codAmount = orders
+    .filter((o) => o.paymentMethod === "cod")
+    .reduce((sum, o) => sum + (o.total || 0), 0);
+  const upiAmount = orders
+    .filter((o) => o.paymentMethod === "upi")
+    .reduce((sum, o) => sum + (o.total || 0), 0);
+
   const exportToExcel = () => {
     const ws = XLSX.utils.json_to_sheet(
       filteredOrders.map((o) => ({
@@ -62,6 +245,10 @@ export default function AdminOrdersPage() {
         "Customer Name": o.address.name,
         Phone: o.address.phone,
         Address: o.address.address,
+        Area:
+          typeof o.address.area === "object"
+            ? `${o.address.area.name ?? ""} (${o.address.area.pincode ?? ""})`
+            : o.address.area,
         "Order Items": o.items.map((i) => `${i.name} (${i.quantity} ${i.unit})`).join(", "),
         Subtotal: o.subTotal,
         "Delivery Charge": o.deliveryCharge,
@@ -71,20 +258,18 @@ export default function AdminOrdersPage() {
         "Payment Status": o.paymentStatus,
         "Order Date": new Date(o.createdAt).toLocaleString(),
         OTP: o.otp || "N/A",
-      }))
+      })),
     );
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Orders");
     XLSX.writeFile(wb, "Orders.xlsx");
   };
 
-  //  Update status with OTP confirmation if delivered
   const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      //  If marking as delivered, ask for OTP
       if (newStatus === "delivered") {
         const { value: otp } = await Swal.fire({
           title: "Enter OTP to confirm delivery",
@@ -103,7 +288,7 @@ export default function AdminOrdersPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ orderId, verifyOtp: otp }), //  FIXED
+          body: JSON.stringify({ orderId, verifyOtp: otp }),
         });
 
         const data = await res.json();
@@ -113,14 +298,12 @@ export default function AdminOrdersPage() {
         }
 
         setOrders((prev) =>
-          prev.map((o) => (o._id === orderId ? { ...o, status: "delivered" } : o))
+          prev.map((o) => (o._id === orderId ? { ...o, status: "delivered" } : o)),
         );
 
         return Swal.fire("Delivered!", "Order marked as delivered.", "success");
       }
 
-
-      //  Normal status update (no OTP needed)
       const res = await fetch("/api/admin/orders", {
         method: "PATCH",
         headers: {
@@ -133,32 +316,41 @@ export default function AdminOrdersPage() {
       const data = await res.json();
       if (data.success) {
         setOrders((prev) =>
-          prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o))
+          prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o)),
         );
       }
     } catch (err) {
-      console.error("  Failed to update status:", err);
+      console.error("Failed to update status:", err);
       Swal.fire("Error", "Failed to update status", "error");
     }
   };
 
-  // ---------- PRINT / INVOICE ----------
+  const handleStatusClick = async (order: Order, nextStatus: OrderStatus) => {
+    if (!canChangeStatus(order.status, nextStatus)) return;
 
-  // Helper to format currency (INR)
-  const formatINR = (value: number) => {
-    try {
-      return "₹" + value.toFixed(2);
-    } catch {
-      return "₹0.00";
+    if (nextStatus === "cancelled" || nextStatus === "refunded") {
+      const result = await Swal.fire({
+        title: `Confirm ${getStatusLabel(nextStatus)}?`,
+        text:
+          nextStatus === "cancelled"
+            ? "This will cancel this order for the customer."
+            : "Use this only after refund is processed.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, continue",
+        cancelButtonText: "No",
+      });
+
+      if (!result.isConfirmed) return;
     }
+
+    await updateStatus(order._id, nextStatus);
   };
 
-  // Create printable thermal invoice and trigger print
   const printInvoice = (order: Order) => {
-    // Build invoice data
     const companyName = "Shri Sawariya Mart";
     const companySubHeading = "Quality Grocery & Essentials";
-    const logoUrl = "/logo.png"; // put your logo at public/logo.png or change path accordingly
+    const logoUrl = "/logo.png";
     const invoiceNumber = order.invoiceNumber ?? `INV-${order._id.slice(0, 8).toUpperCase()}`;
     const orderDate = new Date(order.createdAt);
     const orderDateStr = orderDate.toLocaleDateString();
@@ -167,34 +359,36 @@ export default function AdminOrdersPage() {
     const discount = order.discount ?? 0;
     const couponCode = order.coupon ?? "N/A";
 
-    // Build items table rows
-    const itemsHtml = order.items.map((it, idx) => {
-      const lineTotal = (it.price || 0) * (it.quantity || 0);
-      return `
+    const itemsHtml = order.items
+      .map((it, idx) => {
+        const lineTotal = (it.price || 0) * (it.quantity || 0);
+        return `
         <tr>
           <td style="padding:6px 4px; text-align:center; font-size:12px;">${idx + 1}</td>
-          <td style="padding:6px 4px; font-size:12px;">${escapeHtml(it.name)} ${it.unit ? `(${escapeHtml(it.unit)})` : ""}</td>
+          <td style="padding:6px 4px; font-size:12px;">${escapeHtml(it.name)} ${
+          it.unit ? `(${escapeHtml(it.unit)})` : ""
+        }</td>
           <td style="padding:6px 4px; text-align:right; font-size:12px;">${formatINR(it.price)}</td>
           <td style="padding:6px 4px; text-align:center; font-size:12px;">${it.quantity}</td>
-          <td style="padding:6px 4px; text-align:right; font-size:12px;">${formatINR(lineTotal)}</td>
+          <td style="padding:6px 4px; text-align:right; font-size:12px;">${formatINR(
+            lineTotal,
+          )}</td>
         </tr>
       `;
-    }).join("");
+      })
+      .join("");
 
-    // Shipping / address formatting
     const address = order.address?.address ?? "--";
     const area =
       typeof order.address?.area === "object"
         ? `${order.address.area?.name ?? ""} (${order.address.area?.pincode ?? ""})`
         : order.address?.area ?? "--";
 
-    // Delivery charge
     const deliveryCharge = order.deliveryCharge ?? 0;
     const subTotal = order.subTotal ?? calculateSubTotal(order.items);
     const afterDiscount = Math.max(0, subTotal - (discount || 0));
     const grandTotal = afterDiscount + (deliveryCharge || 0);
 
-    // Build HTML for print (thermal friendly)
     const html = `
       <!doctype html>
       <html>
@@ -203,7 +397,6 @@ export default function AdminOrdersPage() {
         <title>Invoice - ${invoiceNumber}</title>
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <style>
-          /* Thermal / receipt style */
           @page { margin: 0; }
           html,body{
             margin:0;
@@ -212,7 +405,7 @@ export default function AdminOrdersPage() {
             color:#000;
           }
           .receipt {
-            width: 320px; /* ~72mm thermal width; adjust if needed */
+            width: 320px;
             padding: 8px 12px;
             box-sizing: border-box;
           }
@@ -231,9 +424,6 @@ export default function AdminOrdersPage() {
           .totals td { font-weight:700; font-size:12px; }
           .small { font-size:11px; color:#333; }
           .note { font-size:11px; margin-top:6px; }
-          /* Hide elements not needed for print */
-          .no-print { display:none; }
-          /* Print-specific */
           @media print {
             body { -webkit-print-color-adjust: exact; }
             .receipt { width: 72mm; padding: 6px; }
@@ -243,7 +433,9 @@ export default function AdminOrdersPage() {
       <body>
         <div class="receipt">
           <div class="center">
-            <img src="${logoUrl}" alt="${escapeHtml(companyName)} Logo" style="max-width:120px; max-height:60px; object-fit:contain; margin-bottom:6px;" onerror="this.style.display='none'"/>
+            <img src="${logoUrl}" alt="${escapeHtml(
+      companyName,
+    )} Logo" style="max-width:120px; max-height:60px; object-fit:contain; margin-bottom:6px;" onerror="this.style.display='none'"/>
             <h1>${escapeHtml(companyName)}</h1>
             <h2>${escapeHtml(companySubHeading)}</h2>
             <p class="small">Invoice: <b>${escapeHtml(invoiceNumber)}</b></p>
@@ -254,7 +446,9 @@ export default function AdminOrdersPage() {
           <div class="line"></div>
 
           <div>
-            <p style="margin-bottom:6px;"><b>Bill To:</b> <b class="capitalize">${escapeHtml(order.address?.name ?? "Customer")}</b></p>
+            <p style="margin-bottom:6px;"><b>Bill To:</b> <b class="capitalize">${escapeHtml(
+              order.address?.name ?? "Customer",
+            )}</b></p>
             <p class="small">📞 ${escapeHtml(order.address?.phone ?? "--")}</p>
             <p class="small">📍 ${escapeHtml(address)}</p>
             <p class="small">Area: ${escapeHtml(area)}</p>
@@ -302,10 +496,16 @@ export default function AdminOrdersPage() {
 
           <div class="line"></div>
 
-          <p class="small"><b>Payment Mode:</b> ${escapeHtml(order.paymentMethod === "upi" ? "UPI" : "Cash On Delivery")}</p>
+          <p class="small"><b>Payment Mode:</b> ${escapeHtml(
+            order.paymentMethod === "upi" ? "UPI" : "Cash On Delivery",
+          )}</p>
           ${order.upiId ? `<p class="small"><b>UPI ID:</b> ${escapeHtml(order.upiId)}</p>` : ""}
           ${order.utr ? `<p class="small"><b>UTR:</b> ${escapeHtml(order.utr)}</p>` : ""}
-          ${order.upiTxnInfo?.txnRef ? `<p class="small"><b>Txn Ref:</b> ${escapeHtml(order.upiTxnInfo.txnRef)}</p>` : ""}
+          ${
+            order.upiTxnInfo?.txnRef
+              ? `<p class="small"><b>Txn Ref:</b> ${escapeHtml(order.upiTxnInfo.txnRef)}</p>`
+              : ""
+          }
 
           <div class="line"></div>
 
@@ -313,14 +513,12 @@ export default function AdminOrdersPage() {
 
         </div>
         <script>
-          // auto print once loaded
           function doPrint() {
             try {
               window.print();
             } catch(e) {
               console.error(e);
             }
-            // close after short delay
             setTimeout(()=>{ window.close(); }, 500);
           }
           window.onload = function(){ setTimeout(doPrint, 200); };
@@ -329,7 +527,6 @@ export default function AdminOrdersPage() {
       </html>
     `;
 
-    // open new window and write invoice html
     const w = window.open("", "_blank", "width=420,height=800,scrollbars=yes");
     if (!w) {
       alert("Unable to open print window. Please allow popups for this site.");
@@ -338,314 +535,328 @@ export default function AdminOrdersPage() {
     w.document.open();
     w.document.write(html);
     w.document.close();
-    // print will be triggered by the onload script inside the invoice window
   };
 
-  // utility: escape HTML to avoid injection
-  const escapeHtml = (unsafe: string | number | null | undefined) => {
-    if (unsafe === null || unsafe === undefined) return "";
-    const s = String(unsafe);
-    return s.replace(/[&<>"'`=\/]/g, function (c) {
-      return ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-        "/": "&#x2F;",
-        "`": "&#x60;",
-        "=": "&#x3D;"
-      } as Record<string, string>)[c] || c;
-    });
-  };
-
-  // utility: calculate subtotal if not provided
-  const calculateSubTotal = (items: Order["items"]) => {
-    return items.reduce((acc, it) => acc + (it.price || 0) * (it.quantity || 0), 0);
-  };
-
-  // ---------- END PRINT ----------
+  const statsCards = [
+    {
+      label: "Total Orders",
+      value: totalOrders.toString(),
+      sub: "All-time",
+    },
+    {
+      label: "Today",
+      value: todayOrders.toString(),
+      sub: "Created today",
+    },
+    {
+      label: "Delivered",
+      value: deliveredCount.toString(),
+      sub: "Completed",
+    },
+    {
+      label: "Pending",
+      value: pendingCount.toString(),
+      sub: "Placed / Packed / Transit",
+    },
+    {
+      label: "Delivered Revenue",
+      value: formatINR(revenueDelivered),
+      sub: "Delivered only",
+    },
+    {
+      label: "UPI Amount",
+      value: formatINR(upiAmount),
+      sub: "UPI value",
+    },
+    {
+      label: "COD Amount",
+      value: formatINR(codAmount),
+      sub: "Cash value",
+    },
+  ];
 
   return (
-    <div className="mx-auto max-w-6xl px-3 sm:px-6 lg:px-8 space-y-6">
-      <h1 className="text-xl sm:text-2xl font-semibold">Orders</h1>
+    <div className="mx-auto max-w-6xl px-3 sm:px-6 lg:px-8 space-y-6 pb-8">
+      {/* Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Orders Overview</h1>
+          <p className="text-xs sm:text-sm text-[var(--text-light)]">
+            Track, filter and control every order with one premium panel.
+          </p>
+        </div>
+        <button
+          onClick={exportToExcel}
+          className="self-start rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs sm:text-sm font-medium hover:bg-slate-900 hover:text-white transition-colors shadow-sm"
+        >
+          Export Visible Orders
+        </button>
+      </div>
 
-      {/* Filters */}
-      <div className="rounded-lg border border-[var(--border-color)] bg-white p-4 shadow-sm w-full">
-        <h2 className="mb-4 text-base sm:text-lg font-medium">Filter Orders</h2>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <select
-            className="w-full sm:w-auto rounded-lg border border-[var(--border-color)] px-3 py-2 text-sm"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+      {/* STATS */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {statsCards.map((stat) => (
+          <div
+            key={stat.label}
+            className="rounded-xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 px-3 py-3 sm:px-4 sm:py-4 shadow-[0_1px_2px_rgba(15,23,42,0.08)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.15)] transition-all hover:-translate-y-0.5"
           >
-            <option value="All">All Statuses</option>
-            <option value="placed">Placed</option>
-            <option value="packed">Packed</option>
-            <option value="in_transit">In Transit</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="refunded">Refunded</option>
-          </select>
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">
+              {stat.label}
+            </p>
+            <p className="mt-1 text-base sm:text-lg font-semibold text-slate-900">{stat.value}</p>
+            {stat.sub && (
+              <p className="mt-0.5 text-[11px] text-slate-500 truncate">{stat.sub}</p>
+            )}
+          </div>
+        ))}
+      </div>
 
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <button
-              className="w-full sm:w-auto rounded-lg bg-[var(--primary-color)] px-4 py-2 text-sm text-white"
-              onClick={() => setStatusFilter(statusFilter)}
+      {/* FILTER BAR */}
+      <div className="rounded-xl border border-[var(--border-color)] bg-white/80 backdrop-blur px-3 py-3 sm:px-4 sm:py-4 shadow-sm space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm sm:text-base font-semibold">Filters</h2>
+          <button
+            onClick={() => {
+              setStatusFilter("All");
+              setDateFrom("");
+              setDateTo("");
+              setSearchQuery("");
+            }}
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs sm:text-sm hover:bg-slate-900 hover:text-white transition-colors"
+          >
+            Reset Filters
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600">Status</label>
+            <select
+              className="rounded-lg border border-[var(--border-color)] bg-white px-3 py-2 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
             >
-              Filter
-            </button>
-            <button
-              className="w-full sm:w-auto rounded-lg border px-4 py-2 text-sm"
-              onClick={() => setStatusFilter("All")}
-            >
-              Clear
-            </button>
+              <option value="All">All statuses</option>
+              <option value="placed">Placed</option>
+              <option value="packed">Packed</option>
+              <option value="in_transit">In Transit</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="refunded">Refunded</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600">From date</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="rounded-lg border border-[var(--border-color)] bg-white px-3 py-2 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600">To date</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="rounded-lg border border-[var(--border-color)] bg-white px-3 py-2 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-2">
+            <label className="text-xs font-medium text-slate-600">
+              Search (Order ID, name, phone, area)
+            </label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Type to search..."
+              className="rounded-lg border border-[var(--border-color)] bg-white px-3 py-2 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+            />
           </div>
         </div>
       </div>
 
-      {/* Orders Table / Cards */}
-      <div className="rounded-lg border border-[var(--border-color)] bg-white shadow-sm w-full">
-        <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-base sm:text-lg font-medium">All Orders</h2>
-          <div className="flex gap-2 items-center">
-            <button
-              onClick={exportToExcel}
-              className="rounded-lg border px-4 py-2 text-sm"
-            >
-              Export Orders
-            </button>
-          </div>
+      {/* ORDERS LIST */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm sm:text-base font-semibold">
+            Orders ({filteredOrders.length})
+          </h2>
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden lg:block overflow-x-auto">
-          <table className="min-w-auto text-sm table-auto">
-            <thead className="bg-gray-50 text-[var(--text-light)]">
-              <tr>
-                <th className="px-4 py-2 text-left">Order ID</th>
-                <th className="px-4 py-2 text-left">Customer</th>
-                <th className="px-4 py-2 text-left">Items</th>
-                <th className="px-4 py-2 text-left">Total</th>
-                <th className="px-4 py-2 text-left">Status</th>
-                <th className="px-4 py-2 text-left">Payment</th>
-                <th className="px-4 py-2 text-left">Address</th>
-                <th className="px-4 py-2 text-left">Area</th>
-                <th className="px-4 py-2 text-left">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredOrders.map((order) => (
-                <tr key={order._id} className="border-t border-[var(--border-color)] hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium">{order._id}</td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{order.address?.name ?? "No Name"}</div>
-                    <div className="text-xs text-[var(--text-light)]">
-                      📞 {order.address?.phone ?? "N/A"}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-[var(--text-light)]">
-                    {order.items.map((i, idx) => (
-                      <div key={idx}>{i.name} /{i.inHindi} ({i.quantity} {i.unit}) - ₹{i.price}</div>
-                    ))}
-                  </td>
-                  <td className="px-4 py-3 font-medium">₹{order.total}</td>
-                  <td className="px-4 py-3 flex flex-col gap-1">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs ${order.status === "delivered"
-                        ? "bg-green-100 text-green-700"
-                        : order.status === "packed"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : order.status === "placed"
-                            ? "bg-gray-100 text-gray-700"
-                            : order.status === "in_transit"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-red-100 text-red-700"
-                        }`}
-                    >
-                      {order.status}
-                    </span>
+        {filteredOrders.length === 0 && (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+            No orders found for the current filters.
+          </div>
+        )}
 
-                    {/* Dropdown to update status */}
-                    <select
-                      value={
-                        order.status === "cancelled" || order.status === "refunded"
-                          ? order.status
-                          : order.status // value always matches rendered options
-                      }
-                      onChange={(e) => updateStatus(order._id, e.target.value as OrderStatus)}
-                      className="mt-1 rounded border px-2 py-1 text-xs"
-                      disabled={order.status === "delivered" || order.status === "refunded"}
-                    >
-                      {order.status === "cancelled" ? (
-                        <>
-                          <option value="cancelled">Cancelled</option>
-                          <option value="refunded">Refunded</option>
-                        </>
-                      ) : order.status === "refunded" ? (
-                        <option value="refunded">Refunded</option>
-                      ) : (
-                        <>
-                          <option value="placed">Placed</option>
-                          <option value="packed">Packed</option>
-                          <option value="in_transit">In Transit</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
-                        </>
-                      )}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3">
-                    {order.paymentMethod === "upi" ? (
-                      <div className="text-xs space-y-1">
-                        <span className="rounded-full bg-indigo-100 text-indigo-700 px-3 py-1">
-                          UPI
-                        </span>
+        <div className="space-y-3">
+          {filteredOrders.map((order) => {
+            const created = new Date(order.createdAt);
+            const createdDate = created.toLocaleDateString();
+            const createdTime = created.toLocaleTimeString();
 
-                        {order.upiId && (
-                          <div className="text-gray-600">
-                            <b>UPI ID:</b> {order.upiId}
-                          </div>
-                        )}
+            const areaText =
+              typeof order.address.area === "object"
+                ? `${order.address.area.name ?? ""} (${order.address.area.pincode ?? ""})`
+                : order.address.area ?? "--";
 
-                        {order.utr && ( //  utr direct show
-                          <div className="text-gray-600">
-                            <b>UTR:</b> {order.utr}
-                          </div>
-                        )}
+            const statuses: OrderStatus[] = [
+              "placed",
+              "packed",
+              "in_transit",
+              "delivered",
+              "cancelled",
+              "refunded",
+            ];
 
-                        {order.upiTxnInfo?.txnRef && (
-                          <div className="text-gray-600">
-                            <b>UTR:</b> {order.upiTxnInfo.txnRef}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="rounded-full bg-orange-100 text-orange-700 px-3 py-1">
-                        COD
+            return (
+              <div
+                key={order._id}
+                className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] hover:shadow-[0_10px_30px_rgba(15,23,42,0.18)] transition-all px-3 py-3 sm:px-4 sm:py-4"
+              >
+                {/* Top row */}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs sm:text-sm font-semibold text-slate-900 break-all">
+                        {order._id}
                       </span>
-                    )}
-                  </td>
+                      <span className="text-[11px] text-slate-500">
+                        {createdDate} · {createdTime}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {order.items.length} items · Subtotal {formatINR(order.subTotal)} · Delivery{" "}
+                      {formatINR(order.deliveryCharge)}
+                    </div>
+                  </div>
 
+                  <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+                    <div className="text-right">
+                      <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                        Order Total
+                      </p>
+                      <p className="text-base sm:text-lg font-semibold text-slate-900">
+                        {formatINR(order.total)}
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-medium ${getStatusPillClass(
+                        order.status,
+                      )}`}
+                    >
+                      {getStatusLabel(order.status)}
+                    </span>
+                  </div>
+                </div>
 
+                {/* Content grid */}
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                  {/* Customer */}
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      Customer
+                    </p>
+                    <p className="text-sm font-medium text-slate-900">{order.address.name}</p>
+                    <p className="text-xs text-slate-600">📞 {order.address.phone}</p>
+                    <p className="text-xs text-slate-600">
+                      📍 {order.address.address}
+                      <br />
+                      <span className="text-[11px] text-slate-500">Area: {areaText}</span>
+                    </p>
+                  </div>
 
-                  <td className="px-4 py-3">{order.address?.address ?? "--"}</td>
-                  <td className="px-4 py-3">
-                    {typeof order.address?.area === "object"
-                      ? `${order.address?.area?.name ?? ""} (${order.address?.area?.pincode ?? ""})`
-                      : order.address?.area || "--"}
-                  </td>
+                  {/* Items */}
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      Items
+                    </p>
+                    <div className="max-h-28 overflow-y-auto pr-1 space-y-0.5 text-xs text-slate-700">
+                      {order.items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between gap-2">
+                          <span className="truncate">
+                            {item.name} / {item.inHindi} ({item.quantity} {item.unit})
+                          </span>
+                          <span className="shrink-0 font-medium">
+                            {formatINR(item.price * item.quantity)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
+                  {/* Payment + actions */}
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      Payment
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700">
+                      {order.paymentMethod === "upi" ? (
+                        <span className="rounded-full bg-indigo-50 text-indigo-700 px-3 py-1 text-[11px] font-medium">
+                          UPI · {order.paymentStatus}
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-orange-50 text-orange-700 px-3 py-1 text-[11px] font-medium">
+                          COD · {order.paymentStatus}
+                        </span>
+                      )}
+
+                      {order.upiId && (
+                        <span className="text-[11px] text-slate-600">
+                          UPI ID: <span className="font-medium">{order.upiId}</span>
+                        </span>
+                      )}
+                      {order.utr && (
+                        <span className="text-[11px] text-slate-600">
+                          UTR: <span className="font-medium">{order.utr}</span>
+                        </span>
+                      )}
+                      {order.upiTxnInfo?.txnRef && (
+                        <span className="text-[11px] text-slate-600">
+                          Txn Ref: <span className="font-medium">{order.upiTxnInfo.txnRef}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-1">
                       <button
                         onClick={() => printInvoice(order)}
-                        className="rounded-lg border px-3 py-1 text-sm"
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-900 hover:text-white transition-colors shadow-sm"
                       >
-                        Print
+                        Print Invoice
                       </button>
                     </div>
-                  </td>
-
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="block lg:hidden p-4 space-y-4">
-          {filteredOrders.map((order) => (
-            <div key={order._id} className="rounded-lg border border-[var(--border-color)] p-4 bg-white shadow-sm space-y-2">
-              <div className="flex justify-between">
-                <span className="font-medium">{order._id}</span>
-                <span
-                  className={`rounded-full px-2 py-1 text-xs ${order.status === "delivered"
-                    ? "bg-green-100 text-green-700"
-                    : order.status === "packed"
-                      ? "bg-yellow-100 text-yellow-700"
-                      : order.status === "placed"
-                        ? "bg-gray-100 text-gray-700"
-                        : order.status === "in_transit"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-red-100 text-red-700"
-                    }`}
-                >
-                  {order.status}
-                </span>
-              </div>
-
-              <div>
-                <div className="font-medium">{order.address.name}</div>
-                <div className="text-xs text-[var(--text-light)]">📞 {order.address.phone}</div>
-              </div>
-
-              <div className="text-sm text-[var(--text-light)]">
-                {order.items.map((i, idx) => (
-                  <div key={idx}>{i.name} ({i.quantity} {i.unit}) - ₹{i.price}</div>
-                ))}
-              </div>
-
-              <div className="font-medium">₹ {order.total}</div>
-
-              <div>
-                {order.paymentMethod === "upi" ? (
-                  <div className="text-xs space-y-1">
-                    <span className="rounded-full bg-indigo-100 text-indigo-700 px-2 py-1 text-xs">
-                      UPI
-                    </span>
-
-                    {order.upiId && (
-                      <div className="text-gray-600">
-                        <b>UPI ID:</b> {order.upiId}
-                      </div>
-                    )}
-
-                    {order.utr && ( //  utr show here too
-                      <div className="text-gray-600">
-                        <b>UTR:</b> {order.utr}
-                      </div>
-                    )}
                   </div>
-                ) : (
-                  <span className="rounded-full bg-orange-100 text-orange-700 px-2 py-1 text-xs">
-                    COD
-                  </span>
-                )}
+                </div>
+
+                {/* STATUS BUTTON ROW */}
+                <div className="mt-3 pt-3 border-t border-slate-100 -mx-1 px-1">
+                  <div className="flex flex-wrap gap-2 justify-start">
+                    {statuses.map((st) => {
+                      const clickable = canChangeStatus(order.status, st);
+                      return (
+                        <button
+                          key={st}
+                          type="button"
+                          disabled={!clickable}
+                          onClick={() => handleStatusClick(order, st)}
+                          className={getStatusButtonClass(order.status, st, clickable)}
+                        >
+                          {getStatusLabel(st)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-
-
-
-              <div className="text-xs text-[var(--text-light)]">📍 {order.address.address}</div>
-
-              {/* Status Update Dropdown */}
-              <div className="mt-2">
-                <select
-                  value={order.status}
-                  onChange={(e) => updateStatus(order._id, e.target.value as OrderStatus)}
-                  className="rounded border px-2 py-1 text-xs w-full"
-                  disabled={order.status === "delivered" || order.status === "refunded"}
-                >
-                  <option value="placed">Placed</option>
-                  <option value="packed">Packed</option>
-                  <option value="in_transit">In Transit</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="refunded">Refunded</option>
-                </select>
-              </div>
-
-              <div className="flex gap-2 mt-2">
-                <button
-                  onClick={() => printInvoice(order)}
-                  className="rounded-lg border px-4 py-2 text-sm w-full"
-                >
-                  Print Invoice
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
