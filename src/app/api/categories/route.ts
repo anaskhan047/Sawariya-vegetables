@@ -10,19 +10,22 @@ type CategoryCreateInput = {
   public_id?: string;
 };
 export async function GET() {
-  await dbConnect();
   try {
+    await dbConnect();
     const categories = await Category.find().sort({ createdAt: -1 });
     return NextResponse.json({ success: true, data: categories });
   } catch (err) {
     console.error("Error fetching categories:", err);
-    return NextResponse.json({ success: false, error: "Fetch failed" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Fetch failed" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(req: Request) {
-  await dbConnect();
   try {
+    await dbConnect();
     const formData = await req.formData();
     const name = formData.get("name") as string;
     const file = formData.get("image") as File | null;

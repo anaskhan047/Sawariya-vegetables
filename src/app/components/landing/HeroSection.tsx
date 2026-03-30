@@ -1,195 +1,115 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
-import Image from "next/image";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Autoplay, EffectFade } from "swiper/modules";
-import "swiper/css";
-import "swiper/css/effect-fade";
-
-import gsap from "gsap";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
-/* =========================
-   TYPES
-========================= */
-
-interface SlideItem {
-  url: string;
-}
-
-interface Area {
+type Area = {
   _id: string;
   name: string;
   pincode: string;
-}
+};
 
 export default function HeroSection() {
   const router = useRouter();
-
-  const [slides, setSlides] = useState<SlideItem[]>([
-    { url: "/hero/hero.png" }, // instant paint
-  ]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [showAreas, setShowAreas] = useState(false);
-
-  const contentRef = useRef<HTMLDivElement | null>(null);
-
-  /* =========================
-     LOAD HERO SLIDES (NON BLOCKING)
-  ========================= */
-
-  useEffect(() => {
-    const loadSlides = async () => {
-      try {
-        const res = await fetch("/api/hero", { cache: "force-cache" });
-        if (!res.ok) return;
-        const data: SlideItem[] = await res.json();
-        if (data.length > 0) {
-          setSlides([{ url: "/hero/hero.png" }, ...data]);
-        }
-      } catch {
-        // fallback already present
-      }
-    };
-
-    loadSlides();
-  }, []);
-
-  /* =========================
-     LOAD AREAS ON DEMAND
-  ========================= */
+  const [isLoadingAreas, setIsLoadingAreas] = useState(false);
 
   const loadAreas = useCallback(async () => {
-    if (areas.length > 0) return;
+    if (areas.length > 0 || isLoadingAreas) return;
+    setIsLoadingAreas(true);
     try {
       const res = await fetch("/api/delivery-area", { cache: "force-cache" });
       if (!res.ok) return;
       const data: Area[] = await res.json();
       setAreas(data);
-    } catch {}
-  }, [areas.length]);
-
-  /* =========================
-     GSAP AFTER IMAGE PAINT
-  ========================= */
+    } finally {
+      setIsLoadingAreas(false);
+    }
+  }, [areas.length, isLoadingAreas]);
 
   useEffect(() => {
-    if (!contentRef.current) return;
-
-    gsap.fromTo(
-      contentRef.current,
-      { opacity: 0, y: 24 },
-      { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }
-    );
-  }, []);
-
-  /* =========================
-     SWIPER SETTINGS
-  ========================= */
-
-  const settings = {
-    modules: [Autoplay, EffectFade],
-    effect: "fade" as const,
-    autoplay: slides.length > 1 ? { delay: 4000 } : false,
-    speed: 700,
-    slidesPerView: 1,
-    loop: slides.length > 1,
-    fadeEffect: { crossFade: true },
-  };
+    if (showAreas) loadAreas();
+  }, [showAreas, loadAreas]);
 
   return (
-    <section className="relative w-full h-[80vh] overflow-hidden">
-      {/* SLIDER */}
-      <Swiper {...settings} className="h-full">
-        {slides.map((img, idx) => (
-          <SwiperSlide key={idx}>
-            <div className="relative h-[80vh]">
-              <Image
-                src={img.url}
-                alt="Fresh vegetables and fruits delivery in Indore"
-                fill
-                priority={idx === 0}
-                sizes="100vw"
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-black/40" />
-            </div>
-          </SwiperSlide>
-        ))}
-      </Swiper>
+    <section className="relative overflow-hidden bg-gradient-to-br from-[#edf6ea] via-[#f4fbf2] to-[#e6f3df] pb-12 pt-24 sm:pt-28 lg:pt-32">
+      <div className="pointer-events-none absolute -left-20 top-8 h-64 w-64 rounded-full bg-emerald-200/40 blur-3xl" />
+      <div className="pointer-events-none absolute -right-16 bottom-0 h-72 w-72 rounded-full bg-lime-200/40 blur-3xl" />
 
-      {/* CONTENT */}
-      <div
-        ref={contentRef}
-        className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center text-white px-4"
-      >
-        <h1 className="text-4xl md:text-6xl font-bold mb-4">
-          Farm Fresh to Your Doorstep
-        </h1>
+      <div className="relative mx-auto grid w-full max-w-[1280px] grid-cols-1 items-center gap-8 px-4 sm:px-6 lg:grid-cols-2 lg:gap-10 lg:px-8">
+        <motion.div
+          initial={{ opacity: 0, y: 22 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: "easeOut" }}
+          className="order-2 lg:order-1"
+        >
+          <p className="mb-3 inline-block rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 sm:text-xs">
+            All Natural Products
+          </p>
 
-        <p className="text-lg md:text-xl mb-2">
-          Fresh vegetables and fruits delivered directly from the farm.
-        </p>
+          <h1 className="max-w-xl text-3xl font-black leading-tight text-slate-900 sm:text-4xl lg:text-6xl">
+            Fresh and Healthy
+            <span className="block text-emerald-700">Veggies Market</span>
+          </h1>
 
-        <p className="text-lg md:text-xl mb-6">
-          Welcome to SSM — Shri Sawariya Mart
-        </p>
+          <p className="mt-4 max-w-lg text-sm leading-6 text-slate-600 sm:text-base">
+            Daily farm-picked vegetables and fruits, carefully packed and delivered fast across Indore.
+            Pure quality, fair pricing, and freshness you can trust every day.
+          </p>
 
-        <div className="flex flex-col items-center gap-4 relative">
-          <button
-            onClick={() => router.push("/shop")}
-            className="bg-[var(--primary-color)] hover:bg-[var(--secondary-color)] text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition-colors duration-300"
-          >
-            Shop Now
-          </button>
-
-          <div className="relative w-full">
+          <div className="mt-6 flex flex-wrap items-center gap-3 sm:gap-4">
             <button
-              onClick={() => {
-                setShowAreas((v) => !v);
-                loadAreas();
-              }}
-              className="bg-white hover:bg-gray-100 text-[var(--primary-color)] font-semibold py-3 px-6 rounded-lg shadow-lg transition w-full"
+              onClick={() => router.push("/shop")}
+              className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(5,150,105,0.28)] transition hover:-translate-y-0.5 hover:bg-emerald-700"
             >
-              {showAreas ? "Hide Delivery Areas" : "Check Delivery Area"}
+              Shop Now
             </button>
-
-            <AnimatePresence>
-              {showAreas && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.25 }}
-                  className="absolute top-full mt-2 w-full bg-white rounded-lg shadow-lg p-4 text-gray-800 h-40 overflow-y-auto z-50"
-                >
-                  <h3 className="font-semibold mb-2 text-[var(--primary-color)]">
-                    Available Areas
-                  </h3>
-
-                  {areas.length > 0 ? (
-                    <ul className="space-y-2 text-left">
-                      {areas.map((area) => (
-                        <li
-                          key={area._id}
-                          className="px-3 py-2 border-b last:border-none text-sm"
-                        >
-                          {area.name}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      Loading delivery areas…
-                    </p>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <button
+              onClick={() => setShowAreas((v) => !v)}
+              className="rounded-xl border border-slate-300 bg-white/90 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+            >
+              {showAreas ? "Hide Delivery Areas" : "Check Delivery Areas"}
+            </button>
           </div>
-        </div>
+
+          {showAreas ? (
+            <div className="mt-4 w-full max-w-md rounded-2xl border border-emerald-100 bg-white/95 p-3 shadow-sm">
+              <p className="mb-2 text-sm font-semibold text-emerald-700">Available Areas</p>
+              <div className="max-h-36 space-y-1 overflow-y-auto pr-1 text-sm text-slate-700">
+                {isLoadingAreas ? (
+                  <p className="text-slate-500">Loading areas...</p>
+                ) : areas.length > 0 ? (
+                  areas.map((area) => (
+                    <div key={area._id} className="rounded-lg border border-slate-100 px-2 py-1.5">
+                      {area.name} ({area.pincode})
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-slate-500">No areas found.</p>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut", delay: 0.05 }}
+          className="relative order-1 lg:order-2"
+        >
+          <div className="relative mx-auto aspect-[4/3] w-full max-w-[620px] overflow-hidden rounded-[28px] border border-emerald-100 bg-white/60 p-3 shadow-[0_24px_40px_rgba(15,23,42,0.12)] sm:p-4">
+            <div className="absolute right-4 top-4 h-10 w-10 rounded-full bg-white/80 shadow-sm" />
+            <div className="absolute bottom-5 left-5 h-3 w-3 rounded-full bg-emerald-500" />
+            <img
+              src="/hero/hero.png"
+              alt="Fresh vegetables and fruits"
+              className="h-full w-full rounded-[22px] object-contain bg-[#eef6e9]"
+            />
+          </div>
+        </motion.div>
       </div>
     </section>
   );

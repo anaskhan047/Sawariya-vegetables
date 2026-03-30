@@ -133,7 +133,7 @@ export default function FruitsPage() {
         </div>
 
         {/* Fruits Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 md:gap-5">
           {sortedFruits.map((fruit) => {
             const imgUrl =
               fruit.images && fruit.images.length > 0
@@ -143,8 +143,7 @@ export default function FruitsPage() {
             return (
               <div
                 key={fruit._id}
-                className="group bg-white border border-[var(--border-color)] rounded-lg overflow-hidden shadow-sm 
-                           hover:shadow-lg hover:-translate-y-2 hover:scale-[1.02] transform transition duration-300 flex flex-col text-center pb-4"
+                className="group flex flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-white p-1.5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md md:p-3"
               >
                 {/* Image */}
                 <div className="w-full aspect-square bg-gray-100 overflow-hidden">
@@ -156,30 +155,31 @@ export default function FruitsPage() {
                 </div>
 
                 {/* Name */}
-                <h3 className="text-lg font-semibold mt-3">{fruit.name} {fruit.inHindi}</h3>
+                <h3 className="mt-2 line-clamp-2 text-center text-[11px] font-semibold leading-4 md:mt-3 md:text-sm">{fruit.name}</h3>
+                <p className="line-clamp-1 text-center text-[10px] text-[var(--text-light)] md:text-xs">{fruit.inHindi}</p>
                 <p className="text-green-700 font-bold">
                   <span className="line-through text-red-500 mx-3">₹{fruit.marketPrice} </span>
                   ₹{fruit.price} / {fruit.unit}
                 </p>
 
                 {/* Quantity Counter */}
-                <div className="flex items-center justify-center gap-3 mt-3">
+                <div className="mt-2 flex items-center justify-center gap-1.5 md:gap-2">
                   <button
                     onClick={() =>
                       handleQuantityChange(fruit, fruit.unit === "kg" ? -0.5 : -1)
                     }
-                    className="p-2 border rounded-md hover:bg-gray-100"
+                    className="rounded border px-1.5 py-1 text-xs hover:bg-gray-100 md:px-2"
                   >
                     <Minus size={18} />
                   </button>
-                  <span className="font-semibold">
+                  <span className="text-[11px] font-semibold md:text-xs">
                     {quantities[fruit.id] || fruit.minQty} {fruit.unit}
                   </span>
                   <button
                     onClick={() =>
                       handleQuantityChange(fruit, fruit.unit === "kg" ? 0.5 : 1)
                     }
-                    className="p-2 border rounded-md hover:bg-gray-100"
+                    className="rounded border px-1.5 py-1 text-xs hover:bg-gray-100 md:px-2"
                   >
                     <Plus size={18} />
                   </button>
@@ -189,7 +189,7 @@ export default function FruitsPage() {
                 <button
                   onClick={() => handleAddToCart(fruit)}
                   disabled={fruit.stockQty !== undefined && fruit.stockQty <= 0}
-                  className={`mt-4 px-4 py-2 rounded-md flex items-center gap-2 mx-auto shadow-md transition transform duration-200
+                  className={`mt-2 mx-auto flex items-center gap-1 rounded-md px-2 py-1.5 text-[10px] shadow-md transition duration-200 md:mt-3 md:gap-2 md:px-4 md:py-2 md:text-sm
                     ${
                       fruit.stockQty === undefined || fruit.stockQty > 0
                         ? "bg-[var(--primary-color)] text-white hover:opacity-90 hover:scale-105 active:scale-95"

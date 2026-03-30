@@ -9,6 +9,7 @@ import React, {
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { registerFcmTokenClient } from "@/app/lib/notifications/registerFcmTokenClient";
 
 interface User {
   id?: string;
@@ -67,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(data.token);
 
         // console.log(" Token saved in localStorage:", data.token);
+        await registerFcmTokenClient(data.token);
 
         await refresh();
         router.push("/shop");
@@ -81,14 +83,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try {
       const storedToken = localStorage.getItem("token");
+      const storedFcmToken = localStorage.getItem("fcm_token");
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (storedToken) headers.Authorization = `Bearer ${storedToken}`;
+
+      if (storedToken && storedFcmToken) {
+        await fetch("/api/fcm/token", {
+          method: "DELETE",
+          headers,
+          body: JSON.stringify({ token: storedFcmToken }),
+        });
+      }
 
       await fetch("/api/auth/logout", { method: "POST", headers });
     } catch (err) {
       console.warn("Logout request failed:", err);
     } finally {
       localStorage.removeItem("token");
+      localStorage.removeItem("fcm_token");
       setToken(null);
       setUser(null);
       setIsLoggedIn(false);

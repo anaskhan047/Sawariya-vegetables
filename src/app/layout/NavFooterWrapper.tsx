@@ -8,11 +8,12 @@ export default function NavbarFooterWrapper({ children }: { children: React.Reac
   const pathname = usePathname();
   const isAdminRoute = pathname.startsWith("/admin");
   const isDeliveryBoyRoute = pathname.startsWith("/delivery");
+  const isShopRoute = pathname.startsWith("/shop");
   return (
     <>
       {!isAdminRoute && !isDeliveryBoyRoute && <Navbar />}
       {children}
-      {!isAdminRoute && !isDeliveryBoyRoute && <Footer />}
+      {!isAdminRoute && !isDeliveryBoyRoute && !isShopRoute && <Footer />}
     </>
   );
 }

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/app/context/AuthContext";
+import { registerFcmTokenClient } from "@/app/lib/notifications/registerFcmTokenClient";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -24,7 +25,7 @@ export default function Auth() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [image, setImage] = useState<string | null>(null);
-  const { setUserDirect } = useAuth();
+  const { setUserDirect, refresh } = useAuth();
 
   // LOGIN / REGISTER
   async function handleSubmit(e: React.FormEvent) {
@@ -55,7 +56,11 @@ export default function Auth() {
       } else {
         setMessage(data.message || "Success");
         if (isLogin) {
+          if (data?.token) {
+            await registerFcmTokenClient(data.token);
+          }
           setUserDirect(data.user);
+          await refresh();
           router.push(data.redirectUrl || "/");
         } else {
           router.push(`/auth/verify-register?email=${encodeURIComponent(email)}`);

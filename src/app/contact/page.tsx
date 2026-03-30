@@ -1,4 +1,4 @@
-import ContactBanner from "../components/contact/ContactBAnner";
+import ContactBanner from "../components/contact/ContactBanner";
 import ContactInfo from "../components/contact/ContactInfo";
 
 export const metadata = {

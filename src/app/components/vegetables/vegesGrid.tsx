@@ -144,7 +144,7 @@ export default function VegetablePage() {
           </select>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 md:gap-5">
           {sortedVegetables.map((veg) => {
             const imgUrl = veg.images && veg.images.length > 0 ? veg.images[0].url : "/placeholder.png";
             const qty = quantities[veg.id] ?? veg.minQty ?? (veg.unit === "kg" ? 0.5 : 1);
@@ -152,28 +152,28 @@ export default function VegetablePage() {
             return (
               <div
                 key={veg._id}
-                className="group bg-white border border-[var(--border-color)] rounded-lg overflow-hidden shadow-sm 
-                           hover:shadow-lg hover:-translate-y-2 hover:scale-[1.02] transform transition duration-300 flex flex-col text-center pb-4"
+                className="group flex flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-white p-1.5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md md:p-3"
               >
                 <div className="w-full aspect-square bg-gray-100 overflow-hidden">
                   <img src={imgUrl} alt={veg.name} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
                 </div>
 
-                <h3 className="text-lg font-semibold mt-3">{veg.name} / {veg.inHindi}</h3>
+                <h3 className="mt-2 line-clamp-2 text-center text-[11px] font-semibold leading-4 md:mt-3 md:text-sm">{veg.name}</h3>
+                <p className="line-clamp-1 text-center text-[10px] text-[var(--text-light)] md:text-xs">{veg.inHindi}</p>
 
                 <p className="text-green-700 font-bold">
                   <span className="line-through text-red-500 mx-3">₹{veg.marketPrice}</span>
                   ₹{veg.price} / {veg.unit}
                 </p>
 
-                <div className="flex items-center justify-center gap-3 mt-3">
-                  <button onClick={() => handleQuantityChange(veg, veg.unit === "kg" ? -0.5 : -1)} className="p-2 border rounded-md hover:bg-gray-100">
+                <div className="mt-2 flex items-center justify-center gap-1.5 md:gap-2">
+                  <button onClick={() => handleQuantityChange(veg, veg.unit === "kg" ? -0.5 : -1)} className="rounded border px-1.5 py-1 text-xs hover:bg-gray-100 md:px-2">
                     <Minus size={18} />
                   </button>
-                  <span className="font-semibold">
+                  <span className="text-[11px] font-semibold md:text-xs">
                     {qty} {veg.unit}
                   </span>
-                  <button onClick={() => handleQuantityChange(veg, veg.unit === "kg" ? 0.5 : 1)} className="p-2 border rounded-md hover:bg-gray-100">
+                  <button onClick={() => handleQuantityChange(veg, veg.unit === "kg" ? 0.5 : 1)} className="rounded border px-1.5 py-1 text-xs hover:bg-gray-100 md:px-2">
                     <Plus size={18} />
                   </button>
                 </div>
@@ -181,7 +181,7 @@ export default function VegetablePage() {
                 <button
                   onClick={() => handleAddToCart(veg)}
                   disabled={veg.stockQty !== undefined && veg.stockQty <= 0}
-                  className={`mt-4 px-4 py-2 rounded-md flex items-center gap-2 mx-auto shadow-md transition transform duration-200
+                  className={`mt-2 mx-auto flex items-center gap-1 rounded-md px-2 py-1.5 text-[10px] shadow-md transition duration-200 md:mt-3 md:gap-2 md:px-4 md:py-2 md:text-sm
                     ${veg.stockQty === undefined || veg.stockQty > 0 ? "bg-[var(--primary-color)] text-white hover:opacity-90 hover:scale-105 active:scale-95" : "bg-gray-400 text-white cursor-not-allowed"}`}
                 >
                   <ShoppingCart size={18} /> Add to Cart

@@ -1,12 +1,12 @@
-// src/app/models/Notification.ts
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { Document, Model, Schema } from "mongoose";
 
 export interface INotification extends Document {
   title: string;
   message: string;
-  meta?: Record<string, unknown>; // ✅ replaced `any` with `unknown`
+  meta?: Record<string, unknown>;
   read: boolean;
-  forRole?: string; // "admin"
+  forRole?: "admin" | "user";
+  userId?: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt?: Date;
 }
@@ -17,14 +17,13 @@ const NotificationSchema = new Schema<INotification>(
     message: { type: String, required: true },
     meta: { type: Schema.Types.Mixed, default: {} },
     read: { type: Boolean, default: false },
-    forRole: { type: String, default: "admin" },
+    forRole: { type: String, enum: ["admin", "user"], default: "admin", index: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
   },
   { timestamps: true }
 );
 
-// Safely access mongoose.models with typing — no `any` used
-const existingModel =
-  (mongoose.models.Notification as Model<INotification>) || undefined;
+const existingModel = mongoose.models.Notification as Model<INotification> | undefined;
 
 const Notification =
   existingModel || mongoose.model<INotification>("Notification", NotificationSchema);

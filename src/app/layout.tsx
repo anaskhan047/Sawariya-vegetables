@@ -6,6 +6,7 @@ import NavbarFooterWrapper from "./layout/NavFooterWrapper";
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import CartFloatingButton from "./components/CartFloatingButton";
+import FcmTokenManager from "./components/notifications/FcmTokenManager";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -364,6 +365,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
+          <FcmTokenManager />
           <CartProvider>
             <NavbarFooterWrapper>
               {children}

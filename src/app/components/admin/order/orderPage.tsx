@@ -163,8 +163,11 @@ export default function AdminOrdersPage() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [lastSyncAt, setLastSyncAt] = useState<string>("");
 
   useEffect(() => {
+    let mounted = true;
+
     const fetchOrders = async () => {
       try {
         const token = localStorage.getItem("token");
@@ -174,12 +177,32 @@ export default function AdminOrdersPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (res.data.success) setOrders(res.data.orders || []);
+        if (res.data.success && mounted) {
+          setOrders(res.data.orders || []);
+          setLastSyncAt(new Date().toLocaleTimeString());
+        }
       } catch (err) {
         console.error("Error fetching orders:", err);
       }
     };
+
+    const onVisibleOrFocus = () => {
+      if (document.visibilityState === "visible") {
+        fetchOrders();
+      }
+    };
+
     fetchOrders();
+    const pollInterval = window.setInterval(fetchOrders, 10_000);
+    window.addEventListener("focus", onVisibleOrFocus);
+    document.addEventListener("visibilitychange", onVisibleOrFocus);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(pollInterval);
+      window.removeEventListener("focus", onVisibleOrFocus);
+      document.removeEventListener("visibilitychange", onVisibleOrFocus);
+    };
   }, []);
 
   const filteredOrders = orders
@@ -584,6 +607,9 @@ export default function AdminOrdersPage() {
           <p className="text-xs sm:text-sm text-[var(--text-light)]">
             Track, filter and control every order with one premium panel.
           </p>
+          {lastSyncAt && (
+            <p className="text-[11px] text-slate-500 mt-1">Live sync: {lastSyncAt}</p>
+          )}
         </div>
         <button
           onClick={exportToExcel}

@@ -81,13 +81,13 @@ export default function ProductGrid() {
         Our Fresh Picks
       </h2>
 
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6 px-4">
+      <div className="grid grid-cols-3 gap-2 px-2 sm:gap-3 sm:px-4 md:grid-cols-4 md:gap-5">
         {products.map((product) => (
           <div
             key={product.id}
-            className="bg-white border border-[var(--border-color)] rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300"
+            className="group flex flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-white p-1.5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md md:p-3"
           >
-            <div className="relative w-full h-48">
+            <div className="relative w-full aspect-square overflow-hidden rounded-lg bg-gray-100">
               <Image
                 src={product.images?.[0]?.url ?? "/placeholder.png"}
                 alt={product.name}
@@ -126,11 +126,11 @@ export default function ProductGrid() {
               )}
             </div>
 
-            <div className="p-4">
-              <h3 className="text-lg font-semibold text-[var(--text-color)] mb-1">
+            <div className="pt-2 md:pt-3">
+              <h3 className="line-clamp-2 text-center text-[11px] font-semibold text-[var(--text-color)] md:text-sm">
                 {product.name} 
               </h3>
-              <h3 className="text-lg font-semibold text-[var(--text-color)] mb-1">
+              <h3 className="line-clamp-1 text-center text-[10px] text-[var(--text-light)] md:text-xs">
                 {product.inHindi} 
               </h3>
               <p className="text-sm text-[var(--text-light)] mb-3">
@@ -140,18 +140,18 @@ export default function ProductGrid() {
               </p>
 
               {/* Quantity */}
-              <div className="flex items-center gap-2 mb-3">
+              <div className="mb-2 flex items-center justify-center gap-1.5 md:gap-2">
                 <button
-                  className="px-2 py-1 border border-[var(--border-color)] rounded"
+                  className="rounded border border-[var(--border-color)] px-1.5 py-1 text-xs md:px-2"
                   onClick={() => updateQuantity(product.id, -0.5)}
                 >
                   -
                 </button>
-                <span className="w-8 text-center">
+                <span className="w-8 text-center text-[11px] md:text-xs">
                   {quantities[product.id]}
                 </span>
                 <button
-                  className="px-2 py-1 border border-[var(--border-color)] rounded"
+                  className="rounded border border-[var(--border-color)] px-1.5 py-1 text-xs md:px-2"
                   onClick={() => updateQuantity(product.id, 0.5)}
                 >
                   +
@@ -162,7 +162,7 @@ export default function ProductGrid() {
               <button
                 onClick={() => handleAddToCart(product)}
                 disabled={product.stockQty !== undefined && product.stockQty <= 0}
-                className={`w-full py-2 rounded font-medium transition-all duration-200 transform
+                className={`w-full rounded-md py-1.5 text-[10px] font-medium transition-all duration-200 transform md:py-2 md:text-sm
                   ${
                     product.stockQty === undefined || product.stockQty > 0
                       ? "bg-[var(--primary-color)] text-white hover:bg-[var(--secondary-color)] hover:scale-105 active:scale-95"

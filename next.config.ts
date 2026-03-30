@@ -23,11 +23,6 @@ const nextConfig = {
       },
     ],
   },
-
-  // optional: explicitly say we’re not using Turbopack
-  future: {
-    unstable_turbo: false,
-  },
 };
 
 module.exports = withPWA(nextConfig);

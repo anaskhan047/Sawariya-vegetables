@@ -6,7 +6,6 @@ import RevenueChart from "../components/admin/dashboard/RevenueChart";
 import axios from "axios";
 import RecentOrdersTable from "../components/admin/dashboard/RecentOrdersTable";
 import { User } from "../lib/types";
-import { registerAdminPush } from "../lib/registerPush";
 
 type Order = {
   _id: string;
@@ -82,10 +81,6 @@ export default function Dashboard() {
 
     fetchData();
 
-    // register push subscription for admin (ask for permission etc.)
-    // localStorage.getItem may return null; normalize to undefined for the optional parameter
-    registerAdminPush(token ?? undefined).catch((e) => console.error("registerAdminPush", e));
-
     // fetch unread notifications count (and poll)
     let cancelled = false;
     async function fetchUnread() {
@@ -116,7 +111,7 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold">Dashboard Overview</h1>
         <div className="relative">
           <button
-            onClick={() => window.location.href = "/admin/orders"}
+            onClick={() => window.location.href = "/admin/notifications"}
             className="px-3 py-2 rounded-lg border"
             style={{ borderColor: "var(--border-color)" }}
             title="Notifications"

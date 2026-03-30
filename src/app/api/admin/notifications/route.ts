@@ -5,6 +5,7 @@ import User from "@/app/models/User";
 import jwt from "jsonwebtoken";
 import type { NextRequest } from "next/server";
 import Notification from "@/app/models/Notification";
+import { notifyAllUsersFromAdmin } from "@/app/lib/notifications/orderNotifications";
 
 type MaybeUser = {
   _id?: string;
@@ -49,6 +50,56 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: true, notifications: notifs });
   } catch (err: unknown) {
     console.error("admin/notifications GET error:", err);
+    const message = err instanceof Error ? err.message : "Server error";
+    return NextResponse.json({ success: false, message }, { status: 500 });
+  }
+}
+
+// POST: send broadcast notification to all users
+export async function POST(req: Request) {
+  try {
+    const user = await getUserFromReq(req);
+    if (!user || user.role !== "admin") {
+      return NextResponse.json({ success: false, message: "Not authorized" }, { status: 403 });
+    }
+
+    await dbConnect();
+
+    const rawBody = (await req.json().catch(() => ({}))) as unknown;
+    const body =
+      typeof rawBody === "object" && rawBody !== null
+        ? (rawBody as Record<string, unknown>)
+        : {};
+
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    const message = typeof body.message === "string" ? body.message.trim() : "";
+    const link = typeof body.link === "string" ? body.link.trim() : "";
+
+    if (!title || !message) {
+      return NextResponse.json(
+        { success: false, message: "title and message are required" },
+        { status: 400 }
+      );
+    }
+
+    const result = await notifyAllUsersFromAdmin(title, message, link || undefined);
+    if (result.skipped) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            result.reason === "firebase-admin-not-configured"
+              ? "Push send"
+              : "Push send skipped.",
+          ...result,
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, ...result });
+  } catch (err: unknown) {
+    console.error("admin/notifications POST error:", err);
     const message = err instanceof Error ? err.message : "Server error";
     return NextResponse.json({ success: false, message }, { status: 500 });
   }

@@ -29,6 +29,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { name: "Dashboard", icon: <BiCube size={20} />, link: "/admin" },
   { name: "Orders", icon: <Receipt size={20} />, link: "/admin/orders" },
+  { name: "Notifications", icon: <MessageSquare size={20} />, link: "/admin/notifications" },
   { name: "Product Management", icon: <Package size={20} />, link: "/admin/products" },
   { name: "Categories", icon: <Tag size={20} />, link: "/admin/categories" },
   { name: "UI", icon: <MdDraw size={20} />, link: "/admin/ui" },
