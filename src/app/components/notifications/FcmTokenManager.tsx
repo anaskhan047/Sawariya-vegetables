@@ -88,7 +88,21 @@ export default function FcmTokenManager() {
     const icon = "/logo/android-launchericon-192-192.png";
     const tag = payload.tag;
 
+    let shown = false;
     try {
+      const notification = new Notification(title, {
+        body,
+        data: { url },
+        icon,
+        tag,
+      });
+      shown = true;
+      notification.onclick = () => {
+        if (url) window.location.href = url;
+        window.focus();
+        notification.close();
+      };
+
       if ("serviceWorker" in navigator) {
         const swRegistration =
           (await navigator.serviceWorker.getRegistration("/firebase-cloud-messaging-push-scope")) ||
@@ -103,25 +117,14 @@ export default function FcmTokenManager() {
             badge: icon,
             tag,
           });
-          return true;
+          shown = true;
         }
       }
 
-      const notification = new Notification(title, {
-        body,
-        data: { url },
-        icon,
-        tag,
-      });
-      notification.onclick = () => {
-        if (url) window.location.href = url;
-        window.focus();
-        notification.close();
-      };
-      return true;
+      return shown;
     } catch (err) {
       fcmDebug("showSystemNotification failed", err);
-      return false;
+      return shown;
     }
   };
 
@@ -234,12 +237,7 @@ export default function FcmTokenManager() {
       user.role === "admin" || user.role === "delivery"
         ? "/api/admin/notifications?unread=true"
         : "/api/notifications?unread=true";
-    const shouldPoll =
-      user.role === "admin"
-        ? pathname.startsWith("/admin")
-        : user.role === "delivery"
-        ? pathname.startsWith("/deliveryBoy") || pathname.startsWith("/admin")
-        : true;
+    const shouldPoll = true;
     if (!shouldPoll) return;
 
     const fetchUnreadAndNotify = async () => {

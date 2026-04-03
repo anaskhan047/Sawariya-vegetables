@@ -67,7 +67,14 @@ export async function GET(req: Request) {
       .sort({ createdAt: -1 })
       .lean();
 
-    return NextResponse.json({ success: true, orders });
+    return NextResponse.json(
+      { success: true, orders },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
+    );
   } catch (error) {
     console.error("GET /api/orders failed:", error);
     return NextResponse.json({ success: false, message: "Server error" }, { status: 500 });

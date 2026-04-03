@@ -70,6 +70,15 @@ type Order = {
 function toStr(value: unknown, fallback = ""): string {
   if (typeof value === "string") return value;
   if (typeof value === "number") return String(value);
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.$oid === "string") return obj.$oid;
+    const maybeToString = (value as { toString?: () => string }).toString;
+    if (typeof maybeToString === "function") {
+      const converted = maybeToString.call(value);
+      if (converted && converted !== "[object Object]") return converted;
+    }
+  }
   return fallback;
 }
 
