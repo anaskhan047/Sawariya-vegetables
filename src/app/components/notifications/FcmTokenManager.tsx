@@ -33,34 +33,39 @@ export default function FcmTokenManager() {
   const pathname = usePathname();
   const savedStateRef = useRef<SavedState | null>(null);
   const seenNotificationIdsRef = useRef<Set<string>>(new Set());
+  const unreadBootstrapDoneRef = useRef<boolean>(false);
   const lastAdminSoundAtRef = useRef<number>(0);
 
-  const playAdminOrderNotificationSound = (payload: {
+  const getAdminOrderSoundType = (payload: {
     type?: string;
     status?: string;
     title?: string;
     message?: string;
-  }) => {
-    if (user?.role !== "admin" || typeof window === "undefined") return;
+  }): "new" | "cancel" | null => {
+    if (user?.role !== "admin" || typeof window === "undefined") return null;
 
     const type = (payload.type || "").toLowerCase();
     const status = (payload.status || "").toLowerCase();
     const text = `${payload.title || ""} ${payload.message || ""}`.toLowerCase();
-    const isOrderNotification =
-      type.includes("order") || text.includes("order");
-    if (!isOrderNotification) return;
+    const isOrderNotification = type.includes("order") || text.includes("order");
+    if (!isOrderNotification) return null;
 
-    const isCancelled =
-      status === "cancelled" ||
-      type.includes("cancel") ||
-      text.includes("cancel");
+    if (type === "order_cancelled") return "cancel";
+    if (type === "order_created") return "new";
+    if (status === "cancelled" && type.includes("order")) return "cancel";
+    if (type.includes("order")) return "new";
+    return null;
+  };
+
+  const playAdminOrderNotificationSound = (soundType: "new" | "cancel" | null) => {
+    if (soundType === null || user?.role !== "admin" || typeof window === "undefined") return;
 
     // Avoid duplicate bell sound bursts for the same event.
     const now = Date.now();
     if (now - lastAdminSoundAtRef.current < 1200) return;
     lastAdminSoundAtRef.current = now;
 
-    const src = isCancelled ? "/sound%203.mp3" : "/sound%202.mp3";
+    const src = soundType === "cancel" ? "/sound%203.mp3" : "/sound%202.mp3";
     const audio = new Audio(src);
     audio.preload = "auto";
     audio.play().catch(() => {
@@ -68,9 +73,63 @@ export default function FcmTokenManager() {
     });
   };
 
+  const showSystemNotification = async (payload: {
+    title: string;
+    body: string;
+    url?: string;
+    tag?: string;
+  }) => {
+    if (typeof window === "undefined") return false;
+    if (!("Notification" in window) || Notification.permission !== "granted") return false;
+
+    const title = payload.title || "Shri Sawariya Mart";
+    const body = payload.body || "";
+    const url = payload.url || "/";
+    const icon = "/logo/android-launchericon-192-192.png";
+    const tag = payload.tag;
+
+    try {
+      if ("serviceWorker" in navigator) {
+        const swRegistration =
+          (await navigator.serviceWorker.getRegistration("/firebase-cloud-messaging-push-scope")) ||
+          (await navigator.serviceWorker.getRegistration()) ||
+          (await navigator.serviceWorker.ready);
+
+        if (swRegistration) {
+          await swRegistration.showNotification(title, {
+            body,
+            data: { url },
+            icon,
+            badge: icon,
+            tag,
+          });
+          return true;
+        }
+      }
+
+      const notification = new Notification(title, {
+        body,
+        data: { url },
+        icon,
+        tag,
+      });
+      notification.onclick = () => {
+        if (url) window.location.href = url;
+        window.focus();
+        notification.close();
+      };
+      return true;
+    } catch (err) {
+      fcmDebug("showSystemNotification failed", err);
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (!isLoggedIn) {
       savedStateRef.current = null;
+      unreadBootstrapDoneRef.current = false;
+      seenNotificationIdsRef.current.clear();
       localStorage.removeItem("fcm_token");
     }
   }, [isLoggedIn]);
@@ -123,28 +182,24 @@ export default function FcmTokenManager() {
     listenForegroundMessages((payload) => {
       if (!mounted || typeof window === "undefined") return;
 
-      const url = payload.data?.url;
-      const title = payload.notification?.title || "Shri Sawariya Mart";
-      const body = payload.notification?.body || "";
-      playAdminOrderNotificationSound({
-        type: payload.data?.type,
-        status: payload.data?.status,
-        title,
-        message: body,
-      });
-
-      if ("Notification" in window && Notification.permission === "granted") {
-        const notification = new Notification(title, {
-          body,
-          data: { url },
-          icon: "/logo/android-launchericon-192-192.png",
+      void (async () => {
+        const url = payload.data?.url;
+        const title = payload.notification?.title || "Shri Sawariya Mart";
+        const body = payload.notification?.body || "";
+        const tag =
+          payload.data?.type && payload.data?.orderId
+            ? `${payload.data.type}:${payload.data.orderId}`
+            : undefined;
+        const shown = await showSystemNotification({ title, body, url, tag });
+        if (!shown) return;
+        const soundType = getAdminOrderSoundType({
+          type: payload.data?.type,
+          status: payload.data?.status,
+          title,
+          message: body,
         });
-        notification.onclick = () => {
-          if (url) window.location.href = url;
-          window.focus();
-          notification.close();
-        };
-      }
+        playAdminOrderNotificationSound(soundType);
+      })();
     })
       .then((stop) => {
         unsubscribe = stop;
@@ -203,28 +258,42 @@ export default function FcmTokenManager() {
 
       // Oldest -> newest for natural notification order
       const items = [...data.notifications].reverse();
+
+      if (!unreadBootstrapDoneRef.current) {
+        items.forEach((item) => {
+          if (item?._id) seenNotificationIdsRef.current.add(item._id);
+        });
+        unreadBootstrapDoneRef.current = true;
+        return;
+      }
+
       items.forEach((item) => {
         if (!item?._id) return;
         if (seenNotificationIdsRef.current.has(item._id)) return;
         seenNotificationIdsRef.current.add(item._id);
 
         const url = typeof item.meta?.url === "string" ? item.meta.url : "";
-        playAdminOrderNotificationSound({
-          type: typeof item.meta?.type === "string" ? item.meta.type : "",
-          status: typeof item.meta?.status === "string" ? item.meta.status : "",
-          title: item.title,
-          message: item.message,
-        });
-        const notification = new Notification(item.title || "Shri Sawariya Mart", {
-          body: item.message || "",
-          data: { url },
-          icon: "/logo/android-launchericon-192-192.png",
-        });
-        notification.onclick = () => {
-          if (url) window.location.href = url;
-          window.focus();
-          notification.close();
-        };
+        const metaType = typeof item.meta?.type === "string" ? item.meta.type : "";
+        const metaStatus = typeof item.meta?.status === "string" ? item.meta.status : "";
+        const orderId = typeof item.meta?.orderId === "string" ? item.meta.orderId : "";
+        const tag = metaType && orderId ? `${metaType}:${orderId}` : undefined;
+
+        void (async () => {
+          const shown = await showSystemNotification({
+            title: item.title || "Shri Sawariya Mart",
+            body: item.message || "",
+            url,
+            tag,
+          });
+          if (!shown) return;
+          const soundType = getAdminOrderSoundType({
+            type: metaType,
+            status: metaStatus,
+            title: item.title,
+            message: item.message,
+          });
+          playAdminOrderNotificationSound(soundType);
+        })();
       });
     };
 
