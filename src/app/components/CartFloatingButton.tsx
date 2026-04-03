@@ -9,10 +9,10 @@ import { motion, AnimatePresence } from "framer-motion";
 export default function CartFloatingButton(): JSX.Element {
   const router = useRouter();
   const pathname = usePathname() ?? "/";
-  const { cartCount } = useCart(); // assume number
+  const { cartCount } = useCart();
 
-  // Hide button on admin / delivery pages
-  const isRestrictedPage = pathname.startsWith("/admin") || pathname.startsWith("/deliveryBoy");
+  const isRestrictedPage =
+    pathname.startsWith("/admin") || pathname.startsWith("/deliveryBoy") || pathname.startsWith("/cart");
   const showButton = (cartCount ?? 0) > 0 && !isRestrictedPage;
 
   const handleClick = (): void => {
@@ -21,13 +21,13 @@ export default function CartFloatingButton(): JSX.Element {
 
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.75, y: 12 },
-    visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 500, damping: 26 } },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      transition: { type: "spring", stiffness: 500, damping: 26 },
+    },
     exit: { opacity: 0, scale: 0.8, y: 6, transition: { duration: 0.18 } },
-  } as const;
-
-  const pulseVariants = {
-    idle: { scale: 1 },
-    pulse: { scale: [1, 1.06, 1], boxShadow: ["0 0 0 0 rgba(34,197,94,0.35)", "0 0 18px 6px rgba(34,197,94,0.12)", "0 0 0 0 rgba(34,197,94,0)"] , transition: { duration: 1.6, repeat: Infinity } },
   } as const;
 
   return (
@@ -40,12 +40,11 @@ export default function CartFloatingButton(): JSX.Element {
           exit="exit"
           variants={containerVariants}
           onClick={handleClick}
-          className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-full shadow-2xl bg-gradient-to-r from-green-600 to-emerald-500 text-white border border-white/10 backdrop-blur-md"
+          className="fixed bottom-3 left-1/2 z-50 flex w-[calc(100%-14px)] max-w-[360px] -translate-x-1/2 items-center gap-2 rounded-2xl border border-white/10 bg-gradient-to-r from-green-600 to-emerald-500 px-2.5 py-2 text-white shadow-2xl backdrop-blur-md sm:bottom-5 sm:w-auto sm:max-w-none sm:gap-3 sm:rounded-full sm:px-4 sm:py-2.5"
           style={{ WebkitTapHighlightColor: "transparent" }}
         >
-          {/* animated badge + icon */}
           <motion.span
-            className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/10"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white/10 sm:h-10 sm:w-10"
             initial={{ rotate: -10 }}
             animate={{ rotate: 0 }}
             whileHover={{ rotate: 8, scale: 1.04 }}
@@ -53,15 +52,22 @@ export default function CartFloatingButton(): JSX.Element {
           >
             <motion.span
               className="absolute inset-0 rounded-full"
-              animate="pulse"
+              animate={{
+                scale: [1, 1.06, 1],
+                boxShadow: [
+                  "0 0 0 0 rgba(34,197,94,0.35)",
+                  "0 0 18px 6px rgba(34,197,94,0.12)",
+                  "0 0 0 0 rgba(34,197,94,0)",
+                ],
+              }}
+              transition={{ duration: 1.6, repeat: Infinity }}
             />
 
-            <ShoppingCart className="w-5 h-5 text-white drop-shadow-md" />
+            <ShoppingCart className="h-5 w-5 text-white drop-shadow-md" />
 
-            {/* count bubble */}
             <motion.span
               layout
-              className="absolute -top-2 -right-2 flex items-center justify-center min-w-[22px] h-5 px-1 rounded-full bg-white text-green-700 text-xs font-semibold shadow-inner"
+              className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white px-1 text-[11px] font-semibold text-green-700 shadow-inner sm:-right-2 sm:-top-2 sm:min-w-[22px] sm:text-xs"
               initial={{ scale: 0 }}
               animate={{ scale: 1, transition: { type: "spring", stiffness: 700, damping: 20 } }}
             >
@@ -69,26 +75,25 @@ export default function CartFloatingButton(): JSX.Element {
             </motion.span>
           </motion.span>
 
-          <div className="flex flex-col items-start leading-tight">
+          <div className="min-w-0 flex-1 leading-tight sm:flex-none">
             <motion.span
-              className="text-sm font-semibold tracking-tight"
+              className="truncate text-xs font-semibold tracking-tight sm:text-sm"
               initial={{ y: 6, opacity: 0 }}
               animate={{ y: 0, opacity: 1, transition: { delay: 0.06 } }}
             >
               View cart
             </motion.span>
             <motion.span
-              className="text-[13px] opacity-90 text-white/90"
+              className="block truncate text-[11px] text-white/90 opacity-90 sm:text-[13px]"
               initial={{ y: 6, opacity: 0 }}
               animate={{ y: 0, opacity: 1, transition: { delay: 0.12 } }}
             >
-              {cartCount} item{cartCount > 1 ? "s" : ""} • Checkout now
+              {cartCount} item{cartCount > 1 ? "s" : ""} | Checkout now
             </motion.span>
           </div>
 
-          {/* subtle chevron */}
           <motion.span
-            className="ml-3 flex items-center justify-center rounded-full w-8 h-8 bg-white/8"
+            className="ml-1 flex h-7 w-7 items-center justify-center rounded-full bg-white/8 sm:ml-2 sm:h-8 sm:w-8"
             whileHover={{ x: 6 }}
             transition={{ type: "spring", stiffness: 400, damping: 24 }}
           >

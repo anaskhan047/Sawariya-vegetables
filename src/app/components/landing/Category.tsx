@@ -3,6 +3,7 @@
 import Image from "next/image";
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 interface Category {
   name: string;
@@ -13,27 +14,19 @@ interface Category {
 export default function Categories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
-
   const router = useRouter();
-
-  /* =========================
-     FETCH WITH CACHE (FAST)
-  ========================= */
 
   useEffect(() => {
     let ignore = false;
 
     const fetchCategories = async () => {
       try {
-        const res = await fetch("/api/categories", {
-          cache: "force-cache",
-        });
-
+        const res = await fetch("/api/categories", { cache: "force-cache" });
         if (!res.ok) return;
 
         const data = await res.json();
-        if (!ignore && data?.success) {
-          setCategories(data.data);
+        if (!ignore && data?.success && Array.isArray(data.data)) {
+          setCategories(data.data as Category[]);
         }
       } catch (err) {
         console.error(err);
@@ -42,15 +35,10 @@ export default function Categories() {
     };
 
     fetchCategories();
-
     return () => {
       ignore = true;
     };
   }, []);
-
-  /* =========================
-     HANDLER
-  ========================= */
 
   const handleCategoryClick = useCallback(
     (categoryName: string) => {
@@ -61,57 +49,89 @@ export default function Categories() {
     [router]
   );
 
-  /* =========================
-     RENDER
-  ========================= */
+  const cardItems = categories.length > 0 ? categories : Array.from({ length: 6 });
 
   return (
-    <section className="bg-[var(--background-color)] py-10 max-w-6xl mx-auto">
-      <div className="container mx-auto px-4">
-        <h2 className="text-center text-3xl font-bold text-[var(--text-color)] mb-8">
-          Explore Our Categories
-        </h2>
+    <section className="relative mx-auto my-8 w-full max-w-7xl px-3 py-8 sm:px-5 md:py-12">
+      <div className="absolute inset-x-0 top-8 -z-10 mx-auto h-40 w-[92%] rounded-3xl bg-gradient-to-r from-emerald-100 via-lime-50 to-cyan-100 blur-2xl" />
 
-        {/* ERROR */}
-        {error && (
-          <p className="text-center py-4 text-red-500 text-sm">{error}</p>
-        )}
-
-        {/* GRID */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 capitalize">
-          {(categories.length > 0 ? categories : Array.from({ length: 5 })).map(
-            (category: any, index) => (
-              <div
-                key={category?._id || index}
-                onClick={() =>
-                  category?.name && handleCategoryClick(category.name)
-                }
-                className="bg-white rounded-xl overflow-hidden shadow-sm border border-[var(--border-color)] hover:shadow-lg transition-shadow duration-300 cursor-pointer"
-              >
-                <div className="relative w-full h-40 bg-gray-100">
-                  {category?.imageUrl ? (
-                    <Image
-                      src={category.imageUrl}
-                      alt={category.name}
-                      fill
-                      sizes="(max-width: 768px) 50vw, 20vw"
-                      priority={index < 2} // first images priority
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full animate-pulse bg-gray-200" />
-                  )}
-                </div>
-
-                <div className="p-3 text-center">
-                  <h3 className="text-lg font-medium text-[var(--text-color)]">
-                    {category?.name || "Loading..."}
-                  </h3>
-                </div>
-              </div>
-            )
-          )}
+      <div className="mb-8 flex flex-col gap-3 md:mb-10 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">Shop By Collection</p>
+          <h2 className="mt-2 text-2xl font-extrabold leading-tight text-slate-900 sm:text-3xl md:text-4xl" style={{ fontFamily: '"Poppins", "Segoe UI", sans-serif' }}>
+            Explore Fresh Categories
+          </h2>
+          <p className="mt-2 max-w-xl text-sm text-slate-600 sm:text-base">
+            Handpicked sections for your daily essentials. Tap any category to jump directly into filtered products.
+          </p>
         </div>
+
+        <button
+          onClick={() => router.push("/shop")}
+          className="inline-flex w-fit items-center rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50"
+        >
+          View Full Shop
+        </button>
+      </div>
+
+      {error && <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</p>}
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        {cardItems.map((category, index) => {
+          const isLoaded = typeof category === "object" && category !== null && "name" in category;
+
+          return (
+            <motion.button
+              key={isLoaded ? (category as Category)._id : `placeholder-${index}`}
+              type="button"
+              onClick={() => {
+                if (!isLoaded) return;
+                handleCategoryClick((category as Category).name);
+              }}
+              whileHover={isLoaded ? { y: -6, scale: 1.01 } : {}}
+              whileTap={isLoaded ? { scale: 0.985 } : {}}
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.25 }}
+              transition={{ duration: 0.28, delay: Math.min(index * 0.03, 0.2) }}
+              className={`group relative overflow-hidden rounded-2xl border text-left shadow-sm transition ${
+                isLoaded
+                  ? "border-slate-200 bg-white hover:shadow-[0_14px_30px_rgba(15,23,42,0.14)]"
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <div className="relative h-32 w-full overflow-hidden sm:h-36 lg:h-40">
+                {isLoaded ? (
+                  <>
+                    <Image
+                      src={(category as Category).imageUrl}
+                      alt={(category as Category).name}
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
+                      priority={index < 4}
+                      className="object-cover transition duration-500 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/65 via-slate-900/15 to-transparent" />
+                  </>
+                ) : (
+                  <div className="h-full w-full animate-pulse bg-slate-200" />
+                )}
+              </div>
+
+              <div className="absolute inset-x-0 bottom-0 p-3">
+                <p
+                  className={`line-clamp-2 text-sm font-semibold sm:text-base ${isLoaded ? "text-white" : "text-slate-500"}`}
+                  style={{ fontFamily: '"Poppins", "Segoe UI", sans-serif' }}
+                >
+                  {isLoaded ? (category as Category).name : "Loading..."}
+                </p>
+                <span className={`mt-1 inline-block text-[11px] font-medium ${isLoaded ? "text-emerald-100" : "text-slate-400"}`}>
+                  {isLoaded ? "Tap to explore" : "Please wait"}
+                </span>
+              </div>
+            </motion.button>
+          );
+        })}
       </div>
     </section>
   );

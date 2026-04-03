@@ -10,6 +10,14 @@ type NewOrderPayload = {
   status: string;
 };
 
+type CancelledOrderPayload = {
+  orderId: string;
+  customerName: string;
+  total: number;
+  itemCount: number;
+  status: string;
+};
+
 type OrderStatusPayload = {
   orderId: string;
   status: string;
@@ -17,6 +25,45 @@ type OrderStatusPayload = {
   itemCount: number;
   userId: string;
 };
+
+async function notifyAdminsForOrderEvent(params: {
+  title: string;
+  body: string;
+  type: "ORDER_CREATED" | "ORDER_CANCELLED";
+  orderId: string;
+  status: string;
+  total: number;
+  itemCount: number;
+}) {
+  await Notification.create({
+    title: params.title,
+    message: params.body,
+    forRole: "admin",
+    meta: {
+      type: params.type,
+      orderId: params.orderId,
+      status: params.status,
+      total: params.total,
+      itemCount: params.itemCount,
+      url: `/admin/orders?orderId=${params.orderId}`,
+    },
+  });
+
+  const tokens = await getRoleTokens("admin");
+  console.info("admin tokens fetched count", { count: tokens.length });
+  const result = await sendFcmNotification({
+    tokens,
+    title: params.title,
+    body: params.body,
+    data: {
+      type: params.type,
+      orderId: params.orderId,
+      status: params.status,
+      url: `/admin/orders?orderId=${params.orderId}`,
+    },
+  });
+  console.info("admin push send success/failure", result);
+}
 
 export async function notifyAdminsForNewOrder(payload: NewOrderPayload) {
   console.info("order created", {
@@ -30,32 +77,38 @@ export async function notifyAdminsForNewOrder(payload: NewOrderPayload) {
   const title = "New Order Received";
   const body = `Order ${payload.orderId} by ${payload.customerName} | ${payload.itemCount} items | Rs ${payload.total} | ${payload.status}`;
 
-  await Notification.create({
-    title,
-    message: body,
-    forRole: "admin",
-    meta: {
-      orderId: payload.orderId,
-      status: payload.status,
-      total: payload.total,
-      itemCount: payload.itemCount,
-    },
-  });
-
-  const tokens = await getRoleTokens("admin");
-  console.info("admin tokens fetched count", { count: tokens.length });
-  const result = await sendFcmNotification({
-    tokens,
+  await notifyAdminsForOrderEvent({
     title,
     body,
-    data: {
-      type: "ORDER_CREATED",
-      orderId: payload.orderId,
-      status: payload.status,
-      url: `/admin/orders?orderId=${payload.orderId}`,
-    },
+    type: "ORDER_CREATED",
+    orderId: payload.orderId,
+    status: payload.status,
+    total: payload.total,
+    itemCount: payload.itemCount,
   });
-  console.info("admin push send success/failure", result);
+}
+
+export async function notifyAdminsForCancelledOrder(payload: CancelledOrderPayload) {
+  console.info("order cancelled by user", {
+    orderId: payload.orderId,
+    status: payload.status,
+    total: payload.total,
+    itemCount: payload.itemCount,
+  });
+  console.info("admin cancellation notification send started", { orderId: payload.orderId });
+
+  const title = "Order Cancelled By User";
+  const body = `Order ${payload.orderId} cancelled by ${payload.customerName} | ${payload.itemCount} items | Rs ${payload.total}`;
+
+  await notifyAdminsForOrderEvent({
+    title,
+    body,
+    type: "ORDER_CANCELLED",
+    orderId: payload.orderId,
+    status: payload.status,
+    total: payload.total,
+    itemCount: payload.itemCount,
+  });
 }
 
 export async function notifyUserForOrderStatus(payload: OrderStatusPayload) {

@@ -5,6 +5,7 @@ import Orders from "@/app/models/Orders";
 import Product from "@/app/models/Product";
 import User from "@/app/models/User";
 import jwt from "jsonwebtoken";
+import { notifyAdminsForCancelledOrder } from "@/app/lib/notifications/orderNotifications";
 
 async function getUserFromReq(req: Request) {
   try {
@@ -65,6 +66,16 @@ export async function PATCH(req: Request) {
         console.error("Failed to restore stock for", it.productId, err);
       }
     }
+
+    notifyAdminsForCancelledOrder({
+      orderId: String(order._id),
+      customerName: String((user as { name?: string })?.name || "Customer"),
+      total: Number(order.total || 0),
+      itemCount: Array.isArray(order.items) ? order.items.length : 0,
+      status: String(order.status || "cancelled"),
+    }).catch((notificationError) => {
+      console.error("Admin cancel-order notification failed:", notificationError);
+    });
 
     return NextResponse.json({ success: true, order }, { status: 200 });
   } catch (err: unknown) {

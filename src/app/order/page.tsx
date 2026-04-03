@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
-import React, { JSX, useEffect, useState } from "react";
+import React, { JSX, useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
@@ -306,8 +307,8 @@ function buildInvoiceHtml(order: Order): string {
             <p style="margin-bottom:6px;"><b>Bill To:</b> <b class="capitalize">${escapeHtml(
               order.address?.name ?? "Customer"
             )}</b></p>
-            <p class="small">📞 ${escapeHtml(order.address?.phone ?? "--")}</p>
-            <p class="small">📍 ${escapeHtml(address)}</p>
+            <p class="small">ðŸ“ž ${escapeHtml(order.address?.phone ?? "--")}</p>
+            <p class="small">ðŸ“ ${escapeHtml(address)}</p>
             <p class="small">Area: ${escapeHtml(area)}</p>
           </div>
 
@@ -450,9 +451,12 @@ function Countdown({
 }
 
 export default function UserOrderList(): JSX.Element {
+  const PAGE_SIZE = 20;
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -526,6 +530,28 @@ export default function UserOrderList(): JSX.Element {
       controller.abort();
     };
   }, []);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [orders.length]);
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node) return;
+    if (visibleCount >= orders.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (!first?.isIntersecting) return;
+        setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, orders.length));
+      },
+      { root: null, rootMargin: "320px 0px", threshold: 0.1 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [orders.length, visibleCount]);
 
   const cancelOrder = async (orderId: string) => {
     try {
@@ -608,6 +634,8 @@ export default function UserOrderList(): JSX.Element {
     return Date.now() - createdTs <= 5 * 60 * 1000;
   };
 
+  const visibleOrders = orders.slice(0, visibleCount);
+
   if (loading) {
     return (
       <div className="min-h-screen flex justify-center items-center">
@@ -617,59 +645,69 @@ export default function UserOrderList(): JSX.Element {
   }
 
   return (
-    <div className="min-h-screen p-2 md:p-6 flex justify-center bg-gray-50">
-      <div className="w-full max-w-6xl bg-white rounded-2xl shadow-lg p-2 md:p-6">
-        <h1 className="text-2xl font-bold mb-4 mt-10">📦 My Orders</h1>
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-slate-50 px-1.5 py-3 sm:px-3 md:px-6 md:py-6">
+      <div className="mx-auto w-full max-w-6xl rounded-2xl border border-emerald-100 bg-white/90 p-2 shadow-sm backdrop-blur-sm sm:p-3 md:p-6">
+        <h1 className="mt-2 mb-4 text-xl font-bold tracking-tight text-slate-900 sm:mt-6 sm:text-2xl">
+          My Orders
+        </h1>
 
-        {orders.length === 0 && <p>No orders yet</p>}
+        {orders.length === 0 && (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+            No orders yet
+          </div>
+        )}
 
-        {/* Table for Desktop */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="min-w-full border-separate border-spacing-y-2 text-sm md:text-base">
+        <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full table-fixed border-separate border-spacing-y-1.5 text-sm">
             <thead>
-              <tr className="bg-green-600 text-white">
-                <th className="px-4 py-2 text-left">Customer</th>
-                <th className="px-4 py-2 text-left">Items</th>
-                <th className="px-4 py-2 text-left">Total</th>
-                <th className="px-4 py-2 text-left">Status</th>
-                <th className="px-4 py-2 text-left">Payment</th>
-                <th className="px-4 py-2 text-left">Address</th>
-                <th className="px-4 py-2 text-left">Area</th>
-                <th className="px-4 py-2 text-left">OTP</th>
-                <th className="px-4 py-2 text-left">Action</th>
+              <tr className="bg-emerald-600 text-white">
+                <th className="w-[13%] px-3 py-2 text-left">Customer</th>
+                <th className="w-[19%] px-3 py-2 text-left">Items</th>
+                <th className="w-[8%] px-3 py-2 text-left">Total</th>
+                <th className="w-[10%] px-3 py-2 text-left">Status</th>
+                <th className="w-[10%] px-3 py-2 text-left">Payment</th>
+                <th className="w-[16%] px-3 py-2 text-left">Address</th>
+                <th className="w-[10%] px-3 py-2 text-left">Area</th>
+                <th className="w-[8%] px-3 py-2 text-left">OTP</th>
+                <th className="w-[16%] px-3 py-2 text-left">Action</th>
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => {
+              {visibleOrders.map((order) => {
                 const canCancel = canCancelLocal(order);
                 return (
                   <tr
                     key={order._id}
-                    className="bg-white border rounded-xl hover:bg-gray-50 transition"
+                    className="rounded-xl border bg-white align-top transition hover:bg-slate-50/70"
                   >
                     <td className="px-4 py-2">
                       <div className="font-medium">
                         {order.address?.name ?? "Unknown"}
                       </div>
                       <div className="text-xs text-gray-500">
-                        📞 {order.address?.phone ?? "N/A"}
+                        {order.address?.phone ?? "N/A"}
                       </div>
                       {canCancel && (
-                        <div className="text-xs mt-1">
+                        <div className="mt-1 text-xs">
                           <Countdown createdAt={order.createdAt} />
                         </div>
                       )}
                     </td>
                     <td className="px-4 py-2 text-gray-600">
                       {order.items.map((i, idx) => (
-                        <div key={idx}>
+                        <div
+                          key={idx}
+                          className="mb-1 break-words text-xs leading-4 last:mb-0"
+                        >
                           {i.name}
                           {i.inHindi ? ` / ${i.inHindi}` : ""} ({i.quantity}{" "}
-                          {i.unit}) – ₹{i.price}
+                          {i.unit}) - Rs {i.price}
                         </div>
                       ))}
                     </td>
-                    <td className="px-4 py-2 font-medium">₹ {order.total}</td>
+                    <td className="px-4 py-2 font-semibold text-slate-900">
+                      Rs {order.total}
+                    </td>
                     <td className="px-4 py-2">
                       <span
                         className={`rounded-full px-3 py-1 text-xs
@@ -692,15 +730,15 @@ export default function UserOrderList(): JSX.Element {
                     </td>
                     <td className="px-4 py-2">
                       {order.paymentMethod === "online" ? (
-                        <span className="rounded-full bg-indigo-100 text-indigo-700 px-3 py-1 text-xs">
+                        <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs text-indigo-700">
                           Online
                         </span>
                       ) : order.paymentMethod === "upi" ? (
-                        <span className="rounded-full bg-purple-100 text-purple-700 px-3 py-1 text-xs">
+                        <span className="rounded-full bg-purple-100 px-3 py-1 text-xs text-purple-700">
                           UPI
                         </span>
                       ) : (
-                        <span className="rounded-full bg-orange-100 text-orange-700 px-3 py-1 text-xs">
+                        <span className="rounded-full bg-orange-100 px-3 py-1 text-xs text-orange-700">
                           COD
                         </span>
                       )}
@@ -710,82 +748,63 @@ export default function UserOrderList(): JSX.Element {
                     </td>
                     <td className="px-4 py-2">
                       {typeof order.address?.area === "object"
-                        ? `${order.address?.area?.name ?? ""} (${
-                            order.address?.area?.pincode ?? ""
-                          })`
+                        ? `${order.address?.area?.name ?? ""} (${order.address?.area?.pincode ?? ""})`
                         : order.address?.area || "--"}
                     </td>
                     <td className="px-4 py-2">
                       {order.otp ? (
-                        <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded font-mono">
+                        <span className="rounded bg-yellow-100 px-3 py-1 font-mono text-yellow-700">
                           {order.otp}
                         </span>
                       ) : (
                         "- -"
                       )}
-                      {order.otpExpiresAt && (
+                      {/* {order.otpExpiresAt && (
                         <div className="text-xs text-gray-400">
                           Exp:{" "}
-                          {new Date(order.otpExpiresAt).toLocaleTimeString(
-                            [],
-                            {
-                              day: "2-digit",
-                              month: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            }
-                          )}
+                          {new Date(order.otpExpiresAt).toLocaleTimeString([], {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </div>
-                      )}
+                      )} */}
                     </td>
-                    <td className="px-4 py-2 flex items-center gap-2">
+                    <td className="px-4 py-2">
                       <button
-                        className="text-white bg-green-600 hover:bg-green-700 rounded px-3 py-1"
+                        className="mb-2 inline-flex w-full items-center justify-center rounded-md bg-emerald-600 px-2 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
                         onClick={() => openInvoiceWindow(order)}
                       >
                         Download Bill
                       </button>
 
                       <button
-                        className="text-white bg-blue-500 hover:bg-blue-700 rounded px-3 py-1"
+                        className="mb-2 inline-flex w-full items-center justify-center rounded-md bg-sky-500 px-2 py-1.5 text-xs font-medium text-white hover:bg-sky-700"
                         onClick={() => {
                           Swal.fire({
                             title: "Order Details",
                             html: `
                               ${getOrderTimelineHtml(order)}
                               <div class="mt-4 text-left capitalize">
-                                <b>Name:</b> ${
-                                  order.address?.name ?? "N/A"
-                                } <br/>
-                                <b>Phone:</b> ${
-                                  order.address?.phone ?? "N/A"
-                                } <br/>
-                                <b>Address:</b> ${
-                                  order.address?.address ?? "--"
-                                } <br/>
+                                <b>Name:</b> ${order.address?.name ?? "N/A"} <br/>
+                                <b>Phone:</b> ${order.address?.phone ?? "N/A"} <br/>
+                                <b>Address:</b> ${order.address?.address ?? "--"} <br/>
                                 <b>Area:</b> ${
                                   typeof order.address?.area === "object"
-                                    ? `${order.address?.area?.name ?? ""} (${
-                                        order.address?.area?.pincode ?? ""
-                                      })`
+                                    ? `${order.address?.area?.name ?? ""} (${order.address?.area?.pincode ?? ""})`
                                     : order.address?.area || "--"
                                 } <br/>
                                 <b>Product(s):</b> ${order.items
                                   .map(
                                     (i) =>
-                                      `${i.name}${
-                                        i.inHindi ? ` / ${i.inHindi}` : ""
-                                      } (${i.quantity} ${
-                                        i.unit
-                                      }) - ₹${i.price}`
+                                      `${i.name}${i.inHindi ? ` / ${i.inHindi}` : ""} (${i.quantity} ${i.unit}) - Rs ${i.price}`
                                   )
                                   .join(", ")} <br/>
-                                <b>Total:</b> ₹${order.total} <br/>
+                                <b>Total:</b> Rs ${order.total} <br/>
                                 <b>Payment:</b> ${order.paymentMethod.toUpperCase()}<br/>
                                 <b>Status:</b> ${order.status}<br/>
-                                <b>Placed at:</b> ${new Date(
-                                  order.createdAt
-                                ).toLocaleString()}<br/>
+                                <b>Placed at:</b> ${new Date(order.createdAt).toLocaleString()}<br/>
                               </div>
                             `,
                             showCloseButton: true,
@@ -809,12 +828,10 @@ export default function UserOrderList(): JSX.Element {
                               if (res.isConfirmed) void cancelOrder(order._id);
                             });
                           }}
-                          className="px-3 py-1 bg-red-500 text-white rounded disabled:opacity-60"
+                          className="inline-flex w-full items-center justify-center rounded-md bg-red-500 px-2 py-1.5 text-xs font-medium text-white disabled:opacity-60"
                           disabled={cancellingId === order._id}
                         >
-                          {cancellingId === order._id
-                            ? "Cancelling..."
-                            : "Cancel"}
+                          {cancellingId === order._id ? "Cancelling..." : "Cancel"}
                         </button>
                       )}
                     </td>
@@ -825,59 +842,66 @@ export default function UserOrderList(): JSX.Element {
           </table>
         </div>
 
-        {/* Cards for Mobile */}
-        <div className="md:hidden flex flex-col gap-4">
-          {orders.map((order) => {
+        <div className="grid grid-cols-1 gap-3 md:hidden">
+          {visibleOrders.map((order, index) => {
             const canCancel = canCancelLocal(order);
             return (
-              <div
+              <motion.div
                 key={order._id}
-                className="rounded-xl shadow border bg-white px-4 py-3"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.28, delay: Math.min(index * 0.03, 0.24) }}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
               >
-                <div className="font-bold text-lg mb-1">
+                <div className="mb-1 text-base font-semibold leading-5 text-slate-900">
                   {order.address?.name ?? "Unknown"}
                 </div>
-                <div className="text-sm text-gray-500 mb-1">
-                  📞 {order.address?.phone ?? "N/A"}
+                <div className="mb-1 text-xs text-slate-500">
+                  {order.address?.phone ?? "N/A"}
+                </div>
+                <div className="mb-2 rounded-lg bg-slate-50 p-2 text-xs leading-5 text-slate-700">
+                  <div>
+                    <span className="font-medium">Address: </span>
+                    {order.address?.address ?? "--"}
+                  </div>
+                  <div>
+                    <span className="font-medium">Area: </span>
+                    {typeof order.address?.area === "object"
+                      ? `${order.address?.area?.name ?? ""} (${order.address?.area?.pincode ?? ""})`
+                      : order.address?.area || "- -"}
+                  </div>
                 </div>
                 <div className="mb-2">
-                  <span className="font-medium">Address: </span>
-                  {order.address?.address ?? "--"}
-                </div>
-                <div className="mb-2">
-                  <span className="font-medium">Area: </span>
-                  {typeof order.address?.area === "object"
-                    ? `${order.address?.area?.name ?? ""} (${
-                        order.address?.area?.pincode ?? ""
-                      })`
-                    : order.address?.area || "- -"}
-                </div>
-                <div className="mb-2">
-                  <span className="font-medium">Products: </span>
-                  <ul className="list-disc pl-4">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Products
+                  </span>
+                  <ul className="mt-1 space-y-1">
                     {order.items.map((i, idx) => (
-                      <li key={idx}>
+                      <li
+                        key={idx}
+                        className="rounded-md bg-slate-50 px-2 py-1 text-xs text-slate-700"
+                      >
                         {i.name}
                         {i.inHindi ? ` / ${i.inHindi}` : ""} ({i.quantity}{" "}
-                        {i.unit}) – ₹{i.price}
+                        {i.unit}) - Rs {i.price}
                       </li>
                     ))}
                   </ul>
                 </div>
-                <div className="mb-2">
-                  <span className="font-medium">Total: </span>₹ {order.total}
+                <div className="mb-2 text-sm">
+                  <span className="font-medium">Total: </span>Rs {order.total}
                 </div>
-                <div className="mb-2">
-                  <span className="font-medium ">OTP: </span>
+                <div className="mb-2 text-xs">
+                  <span className="font-medium">OTP: </span>
                   {order.otp ? (
-                    <span className="bg-yellow-100 text-yellow-700 px-2">
+                    <span className="rounded bg-amber-100 px-2 py-0.5 font-mono text-amber-700">
                       {order.otp}
                     </span>
                   ) : (
                     "- -"
                   )}
                 </div>
-                <div className="mb-2">
+                <div className="mb-2 text-xs">
                   <span className="font-medium">Payment: </span>
                   {order.paymentMethod === "online"
                     ? "Online"
@@ -885,7 +909,7 @@ export default function UserOrderList(): JSX.Element {
                     ? "UPI"
                     : "COD"}
                 </div>
-                <div className="mb-2">
+                <div className="mb-2 text-xs">
                   <span className="font-medium">Status: </span>
                   <span
                     className={`rounded-full px-3 py-1 text-xs ${
@@ -910,54 +934,40 @@ export default function UserOrderList(): JSX.Element {
                     </div>
                   )}
                 </div>
-                <div className="flex flex-wrap justify-end gap-2 mt-2">
+                <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
-                    className="text-white bg-green-600 hover:bg-green-700 rounded px-3 py-1"
+                    className="rounded-md bg-emerald-600 px-2 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
                     onClick={() => openInvoiceWindow(order)}
                   >
                     Download Bill
                   </button>
 
                   <button
-                    className="text-white bg-blue-500 hover:bg-blue-700 rounded px-3 py-1"
+                    className="rounded-md bg-sky-500 px-2 py-1.5 text-xs font-medium text-white hover:bg-sky-700"
                     onClick={() => {
                       Swal.fire({
                         title: "Order Details",
                         html: `
                           ${getOrderTimelineHtml(order)}
                           <div class="mt-4 text-left capitalize">
-                            <b>Name:</b> ${
-                              order.address?.name ?? "N/A"
-                            } <br/>
-                            <b>Phone:</b> ${
-                              order.address?.phone ?? "N/A"
-                            } <br/>
-                            <b>Address:</b> ${
-                              order.address?.address ?? "--"
-                            } <br/>
+                            <b>Name:</b> ${order.address?.name ?? "N/A"} <br/>
+                            <b>Phone:</b> ${order.address?.phone ?? "N/A"} <br/>
+                            <b>Address:</b> ${order.address?.address ?? "--"} <br/>
                             <b>Area:</b> ${
                               typeof order.address?.area === "object"
-                                ? `${order.address?.area?.name ?? ""} (${
-                                    order.address?.area?.pincode ?? ""
-                                  })`
+                                ? `${order.address?.area?.name ?? ""} (${order.address?.area?.pincode ?? ""})`
                                 : order.address?.area || "--"
                             } <br/>
                             <b>Product(s):</b> ${order.items
                               .map(
                                 (i) =>
-                                  `${i.name}${
-                                    i.inHindi ? ` / ${i.inHindi}` : ""
-                                  } (${i.quantity} ${
-                                    i.unit
-                                  }) - ₹${i.price}`
+                                  `${i.name}${i.inHindi ? ` / ${i.inHindi}` : ""} (${i.quantity} ${i.unit}) - Rs ${i.price}`
                               )
                               .join(", ")} <br/>
-                            <b>Total:</b> ₹${order.total} <br/>
+                            <b>Total:</b> Rs ${order.total} <br/>
                             <b>Payment:</b> ${order.paymentMethod.toUpperCase()}<br/>
                             <b>Status:</b> ${order.status}<br/>
-                            <b>Placed at:</b> ${new Date(
-                              order.createdAt
-                            ).toLocaleString()}<br/>
+                            <b>Placed at:</b> ${new Date(order.createdAt).toLocaleString()}<br/>
                           </div>
                         `,
                         showCloseButton: true,
@@ -981,19 +991,26 @@ export default function UserOrderList(): JSX.Element {
                           if (res.isConfirmed) void cancelOrder(order._id);
                         });
                       }}
-                      className="px-3 py-1 bg-red-500 text-white rounded disabled:opacity-60"
+                      className="col-span-2 rounded-md bg-red-500 px-2 py-1.5 text-xs font-medium text-white disabled:opacity-60"
                       disabled={cancellingId === order._id}
                     >
-                      {cancellingId === order._id
-                        ? "Cancelling..."
-                        : "Cancel"}
+                      {cancellingId === order._id ? "Cancelling..." : "Cancel"}
                     </button>
                   )}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
+
+        {visibleCount < orders.length && (
+          <div className="mt-4 flex flex-col items-center justify-center gap-2">
+            <div ref={loadMoreRef} className="h-3 w-full" />
+            <p className="text-xs text-slate-500">
+              Loading more orders... ({visibleCount}/{orders.length})
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -81,9 +81,10 @@ export default function Dashboard() {
 
     fetchData();
 
-    // fetch unread notifications count (and poll)
+    // fetch unread notifications count with lightweight polling
     let cancelled = false;
     async function fetchUnread() {
+      if (document.visibilityState !== "visible") return;
       try {
         const res = await fetch("/api/admin/notifications?unread=true", {
           headers: { Authorization: `Bearer ${token}` },
@@ -97,10 +98,17 @@ export default function Dashboard() {
       }
     }
     fetchUnread();
-    const iv = setInterval(fetchUnread, 15_000); // poll every 15s
+    const onFocus = () => {
+      fetchUnread().catch(() => undefined);
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    const iv = setInterval(fetchUnread, 60_000);
 
     return () => {
       cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
       clearInterval(iv);
     };
   }, []);

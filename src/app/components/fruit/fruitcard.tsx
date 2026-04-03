@@ -1,7 +1,9 @@
 "use client";
-import React, { useState, useEffect } from "react";
+
+import React, { useEffect, useMemo, useState } from "react";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
 import { useCart } from "@/app/context/CartContext";
+import Image from "next/image";
 
 type SortOrder = "newest" | "oldest" | "low-high" | "high-low";
 
@@ -31,7 +33,7 @@ export default function FruitsPage() {
   const [fruits, setFruits] = useState<Product[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const { refreshCart } = useCart();
-  //  Fetch fruits from API
+
   useEffect(() => {
     const fetchFruits = async () => {
       try {
@@ -44,7 +46,6 @@ export default function FruitsPage() {
           );
           setFruits(onlyFruits);
 
-          // Initialize quantities with minQty
           const initialQuantities: Record<string, number> = {};
           onlyFruits.forEach((f: Product) => {
             initialQuantities[f.id] = f.minQty || 1;
@@ -56,21 +57,19 @@ export default function FruitsPage() {
         console.error("Error loading fruits:", err);
       }
     };
-    fetchFruits();
+    fetchFruits().catch(() => undefined);
   }, []);
 
-  //  Sorting
-  const sortedFruits = [...fruits].sort((a, b) => {
-    if (sortOrder === "low-high") return a.price - b.price;
-    if (sortOrder === "high-low") return b.price - a.price;
-    if (sortOrder === "newest")
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    if (sortOrder === "oldest")
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    return 0;
-  });
+  const sortedFruits = useMemo(() => {
+    return [...fruits].sort((a, b) => {
+      if (sortOrder === "low-high") return a.price - b.price;
+      if (sortOrder === "high-low") return b.price - a.price;
+      if (sortOrder === "newest") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (sortOrder === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return 0;
+    });
+  }, [fruits, sortOrder]);
 
-  //  Quantity Change
   const handleQuantityChange = (fruit: Product, change: number) => {
     setQuantities((prev) => {
       const current = prev[fruit.id] || fruit.minQty || 1;
@@ -89,7 +88,6 @@ export default function FruitsPage() {
     });
   };
 
-  //  Add to Cart (API integration)
   const handleAddToCart = async (fruit: Product) => {
     try {
       const res = await fetch("/api/cart", {
@@ -114,94 +112,87 @@ export default function FruitsPage() {
   };
 
   return (
-    <div className="bg-[var(--background-color)] min-h-screen py-6 text-[var(--text-color)]">
-      <div className="container mx-auto max-w-7xl px-4">
-        {/* Sort Dropdown */}
-        <div className="flex justify-end mb-6">
+    <div className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-5 md:py-8">
+      <div className="mb-5 rounded-2xl border border-amber-100 bg-gradient-to-r from-amber-50 via-white to-orange-50 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Seasonal Picks</p>
+            <h2 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">Fruits</h2>
+          </div>
+
           <select
             value={sortOrder}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              setSortOrder(e.target.value as SortOrder)
-            }
-            className="border border-[var(--border-color)] px-3 py-2 rounded-md cursor-pointer text-[var(--text-color)] bg-white shadow-sm"
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortOrder(e.target.value as SortOrder)}
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 sm:w-auto sm:text-sm"
           >
-            <option value="newest">Newest → Oldest</option>
-            <option value="oldest">Oldest → Newest</option>
-            <option value="low-high">Price: Low → High</option>
-            <option value="high-low">Price: High → Low</option>
+            <option value="newest">Newest to Oldest</option>
+            <option value="oldest">Oldest to Newest</option>
+            <option value="low-high">Price: Low to High</option>
+            <option value="high-low">Price: High to Low</option>
           </select>
         </div>
+      </div>
 
-        {/* Fruits Grid */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 md:gap-5">
-          {sortedFruits.map((fruit) => {
-            const imgUrl =
-              fruit.images && fruit.images.length > 0
-                ? fruit.images[0].url
-                : "/placeholder.png";
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {sortedFruits.map((fruit) => {
+          const imgUrl = fruit.images && fruit.images.length > 0 ? fruit.images[0].url : "/placeholder.png";
 
-            return (
-              <div
-                key={fruit._id}
-                className="group flex flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-white p-1.5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md md:p-3"
-              >
-                {/* Image */}
-                <div className="w-full aspect-square bg-gray-100 overflow-hidden">
-                  <img
-                    src={imgUrl}
-                    alt={fruit.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
-                  />
-                </div>
+          return (
+            <div
+              key={fruit._id}
+              className="group overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg sm:p-3"
+            >
+              <div className="relative aspect-square overflow-hidden rounded-xl bg-slate-100">
+                <Image
+                  src={imgUrl}
+                  alt={fruit.name}
+                  fill
+                  className="object-cover transition duration-500 group-hover:scale-110"
+                  sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
+                />
+              </div>
 
-                {/* Name */}
-                <h3 className="mt-2 line-clamp-2 text-center text-[11px] font-semibold leading-4 md:mt-3 md:text-sm">{fruit.name}</h3>
-                <p className="line-clamp-1 text-center text-[10px] text-[var(--text-light)] md:text-xs">{fruit.inHindi}</p>
-                <p className="text-green-700 font-bold">
-                  <span className="line-through text-red-500 mx-3">₹{fruit.marketPrice} </span>
-                  ₹{fruit.price} / {fruit.unit}
-                </p>
+              <h3 className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-slate-900">{fruit.name}</h3>
+              <p className="line-clamp-1 text-[11px] text-slate-500">{fruit.inHindi}</p>
 
-                {/* Quantity Counter */}
-                <div className="mt-2 flex items-center justify-center gap-1.5 md:gap-2">
-                  <button
-                    onClick={() =>
-                      handleQuantityChange(fruit, fruit.unit === "kg" ? -0.5 : -1)
-                    }
-                    className="rounded border px-1.5 py-1 text-xs hover:bg-gray-100 md:px-2"
-                  >
-                    <Minus size={18} />
-                  </button>
-                  <span className="text-[11px] font-semibold md:text-xs">
-                    {quantities[fruit.id] || fruit.minQty} {fruit.unit}
-                  </span>
-                  <button
-                    onClick={() =>
-                      handleQuantityChange(fruit, fruit.unit === "kg" ? 0.5 : 1)
-                    }
-                    className="rounded border px-1.5 py-1 text-xs hover:bg-gray-100 md:px-2"
-                  >
-                    <Plus size={18} />
-                  </button>
-                </div>
+              <p className="mt-1 text-sm font-bold text-emerald-700">
+                <span className="mr-1 text-[11px] text-rose-500 line-through">Rs {fruit.marketPrice}</span>
+                Rs {fruit.price}
+                <span className="ml-1 text-[11px] font-medium text-slate-500">/ {fruit.unit}</span>
+              </p>
 
-                {/* Add to Cart */}
+              <div className="mt-2 flex items-center justify-center gap-1.5 sm:gap-2">
                 <button
-                  onClick={() => handleAddToCart(fruit)}
-                  disabled={fruit.stockQty !== undefined && fruit.stockQty <= 0}
-                  className={`mt-2 mx-auto flex items-center gap-1 rounded-md px-2 py-1.5 text-[10px] shadow-md transition duration-200 md:mt-3 md:gap-2 md:px-4 md:py-2 md:text-sm
-                    ${
-                      fruit.stockQty === undefined || fruit.stockQty > 0
-                        ? "bg-[var(--primary-color)] text-white hover:opacity-90 hover:scale-105 active:scale-95"
-                        : "bg-gray-400 text-white cursor-not-allowed"
-                    }`}
+                  onClick={() => handleQuantityChange(fruit, fruit.unit === "kg" ? -0.5 : -1)}
+                  className="rounded-lg border px-1.5 py-1 text-xs hover:bg-slate-50 sm:px-2"
                 >
-                  <ShoppingCart size={18} /> Add to Cart
+                  <Minus size={14} />
+                </button>
+                <span className="min-w-[56px] text-center text-[11px] font-semibold text-slate-700 sm:text-xs">
+                  {quantities[fruit.id] || fruit.minQty} {fruit.unit}
+                </span>
+                <button
+                  onClick={() => handleQuantityChange(fruit, fruit.unit === "kg" ? 0.5 : 1)}
+                  className="rounded-lg border px-1.5 py-1 text-xs hover:bg-slate-50 sm:px-2"
+                >
+                  <Plus size={14} />
                 </button>
               </div>
-            );
-          })}
-        </div>
+
+              <button
+                onClick={() => handleAddToCart(fruit)}
+                disabled={fruit.stockQty !== undefined && fruit.stockQty <= 0}
+                className={`mt-2 flex w-full items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-semibold text-white transition sm:text-xs ${
+                  fruit.stockQty === undefined || fruit.stockQty > 0
+                    ? "bg-emerald-600 hover:bg-emerald-700"
+                    : "cursor-not-allowed bg-slate-400"
+                }`}
+              >
+                <ShoppingCart size={14} /> Add to Cart
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

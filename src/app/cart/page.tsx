@@ -1,13 +1,15 @@
-"use client";
+﻿"use client";
 
 import { useAuth } from "@/app/context/AuthContext";
 import { useCart } from "@/app/context/CartContext";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo, useCallback } from "react";
-import Swal from "sweetalert2";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import QRCode from "qrcode";
+import Swal from "sweetalert2";
 import OrbitVegetableLoader from "../components/Loader/Loader";
+
 type Product = {
   _id: string;
   id: string;
@@ -39,7 +41,30 @@ type UserResponse = {
     name?: string;
     phone?: string;
     address?: string;
+    isActive?: boolean;
   };
+};
+
+type CheckoutForm = {
+  name: string;
+  phone: string;
+  address: string;
+  area: string;
+  paymentMethod: "cod" | "upi";
+};
+
+type UpiState = {
+  upiId: string;
+  upiUrl: string;
+  qrDataUrl: string;
+  utr: string;
+};
+
+type SavedCheckoutDetails = {
+  name?: string;
+  phone?: string;
+  address?: string;
+  area?: string;
 };
 
 const UPI_IDS = [
@@ -48,6 +73,8 @@ const UPI_IDS = [
   process.env.NEXT_PUBLIC_UPI_3 || "rathorevishal7523-1@okaxis",
   process.env.NEXT_PUBLIC_UPI_4 || "rathorevishal7523-1@okaxis",
 ];
+
+const CHECKOUT_STORAGE_KEY = "ssm_checkout_details_v1";
 
 export default function CartPage() {
   const { isLoggedIn, isLoading } = useAuth();
@@ -58,7 +85,60 @@ export default function CartPage() {
   const [loadingCart, setLoadingCart] = useState(false);
   const [areas, setAreas] = useState<DeliveryArea[]>([]);
   const [settings, setSettings] = useState<Record<string, number>>({});
-  //  Fetch Cart from API
+  const [isAccountActive, setIsAccountActive] = useState<boolean>(true);
+
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<"details" | "upi">("details");
+  const [checkoutError, setCheckoutError] = useState("");
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [checkoutForm, setCheckoutForm] = useState<CheckoutForm>({
+    name: "",
+    phone: "",
+    address: "",
+    area: "",
+    paymentMethod: "cod",
+  });
+
+  const [upiState, setUpiState] = useState<UpiState>({
+    upiId: "",
+    upiUrl: "",
+    qrDataUrl: "",
+    utr: "",
+  });
+
+  const getSavedCheckoutDetails = useCallback((): SavedCheckoutDetails => {
+    try {
+      const raw = localStorage.getItem(CHECKOUT_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as SavedCheckoutDetails;
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }, []);
+
+  const saveCheckoutDetails = useCallback((details: SavedCheckoutDetails) => {
+    try {
+      localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(details));
+    } catch {
+      // ignore storage failures
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!checkoutOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const previousTouchAction = document.body.style.touchAction;
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.touchAction = previousTouchAction;
+    };
+  }, [checkoutOpen]);
+
   const fetchCart = useCallback(async () => {
     if (!isLoggedIn) return;
     try {
@@ -66,7 +146,6 @@ export default function CartPage() {
       const res = await fetch("/api/cart", {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
-
       const data = await res.json();
       if (res.ok && data.success) setItems(data.items);
     } catch (err) {
@@ -80,37 +159,61 @@ export default function CartPage() {
     if (isLoggedIn) fetchCart();
   }, [isLoggedIn, fetchCart]);
 
-   // Fetch Settings (and poll)
   const fetchSettings = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/settings");
       if (!res.ok) return;
       const data = await res.json();
-      if (data?.success && data.settings) {
-        setSettings(data.settings);
-      }
+      if (data?.success && data.settings) setSettings(data.settings);
     } catch (err) {
       console.warn("Failed to fetch settings:", err);
     }
   }, []);
 
-   useEffect(() => {
+  useEffect(() => {
     fetchSettings();
-    const iv = setInterval(fetchSettings, 20_000); // poll every 20s so admin changes reflect quickly
+    const iv = setInterval(fetchSettings, 60_000);
     return () => clearInterval(iv);
   }, [fetchSettings]);
 
-  //  Update quantity
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const fetchMe = async () => {
+      try {
+        const res = await fetch("/api/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = (await res.json().catch(() => ({}))) as UserResponse;
+        const active = Boolean(data?.user?.isActive ?? true);
+        setIsAccountActive(active);
+      } catch {
+        setIsAccountActive(true);
+      }
+    };
+
+    fetchMe().catch(() => undefined);
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    const fetchAreas = async () => {
+      try {
+        const res = await fetch("/api/delivery-area");
+        const data: DeliveryArea[] = await res.json();
+        if (res.ok) setAreas(data);
+      } catch (err) {
+        console.error("Failed to fetch delivery areas", err);
+      }
+    };
+    fetchAreas().catch(() => undefined);
+  }, []);
+
   const updateQty = async (productId: string, newQty: number) => {
-    // ✅ Find and update locally first (for instant UI response)
-    setItems((prev) =>
-      prev.map((it) =>
-        it.productId._id === productId ? { ...it, quantity: newQty } : it
-      )
-    );
+    setItems((prev) => prev.map((it) => (it.productId._id === productId ? { ...it, quantity: newQty } : it)));
 
     try {
-      // ✅ No loading overlay for small quantity changes
       await fetch("/api/cart", {
         method: "PUT",
         headers: {
@@ -119,15 +222,12 @@ export default function CartPage() {
         },
         body: JSON.stringify({ productId, quantity: newQty }),
       });
-      // You can optionally refresh silently (no loadingCart)
       refreshCart();
     } catch (err) {
       console.error(err);
     }
   };
 
-
-  //  Remove item
   const removeItem = async (productId: string) => {
     try {
       setLoadingCart(true);
@@ -149,7 +249,6 @@ export default function CartPage() {
     }
   };
 
-   // Delivery values from settings with safe fallbacks
   const deliveryChargeSetting = typeof settings.deliveryCharge === "number" ? settings.deliveryCharge : undefined;
   const freeDeliveryThresholdSetting =
     typeof settings.freeDeliveryThreshold === "number"
@@ -161,390 +260,563 @@ export default function CartPage() {
   const DEFAULT_DELIVERY = 29;
   const DEFAULT_FREE_THRESHOLD = 300;
 
-  //  Price Summary uses settings
   const priceSummary = useMemo(() => {
-    const subTotal = items.reduce(
-      (sum, it) => sum + it.productId.price * it.quantity,
-      0
-    );
-
+    const subTotal = items.reduce((sum, it) => sum + it.productId.price * it.quantity, 0);
     const freeThreshold = freeDeliveryThresholdSetting ?? DEFAULT_FREE_THRESHOLD;
     const configuredDelivery = deliveryChargeSetting ?? DEFAULT_DELIVERY;
-
     const delivery = subTotal >= freeThreshold ? 0 : configuredDelivery;
     const total = subTotal + delivery;
-    return { subTotal, delivery, total, freeThreshold, configuredDelivery };
+    return { subTotal, delivery, total, freeThreshold };
   }, [items, deliveryChargeSetting, freeDeliveryThresholdSetting]);
 
-  //  Fetch delivery areas
-  useEffect(() => {
-    const fetchAreas = async () => {
-      try {
-        const res = await fetch("/api/delivery-area");
-        const data: DeliveryArea[] = await res.json();
-        if (res.ok) setAreas(data);
-      } catch (err) {
-        console.error("Failed to fetch delivery areas", err);
-      }
-    };
-    fetchAreas();
-  }, []);
+  const showInactiveAccountModal = async () => {
+    await Swal.fire({
+      title: "Account Deactivated",
+      html: `
+        <div style="text-align:left;line-height:1.6;font-size:14px;">
+          <div style="background:#fff1f2;border:1px solid #fecdd3;padding:12px;border-radius:10px;margin-bottom:10px;">
+            <strong style="color:#be123c;">Your account is currently deactivated.</strong>
+          </div>
+          <p style="margin:0 0 8px;">You cannot proceed to checkout right now.</p>
+          <p style="margin:0;color:#475569;">Please contact admin to activate your account.</p>
+        </div>
+      `,
+      icon: "warning",
+      confirmButtonText: "Understood",
+      confirmButtonColor: "#be123c",
+      background: "#ffffff",
+      customClass: { popup: "swal2-rounded" },
+    });
+  };
 
-  //  Checkout Flow
-  //  Checkout Flow
-  const handleCheckout = async () => {
+  const orderItems = useMemo(
+    () =>
+      items.map((it) => ({
+        productId: it.productId._id,
+        name: it.productId.name,
+        inHindi: it.productId.inHindi || "",
+        price: it.productId.price,
+        quantity: it.quantity,
+        unit: it.productId.unit,
+      })),
+    [items]
+  );
+
+  const placeOrder = useCallback(
+    async ({ paymentMethod, upiId, utr }: { paymentMethod: "cod" | "upi"; upiId?: string; utr?: string }) => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        await Swal.fire("Error", "Please login again!", "error");
+        return false;
+      }
+
+      setPlacingOrder(true);
+      try {
+        const body: Record<string, unknown> = {
+          items: orderItems,
+          address: {
+            name: checkoutForm.name,
+            phone: checkoutForm.phone,
+            address: checkoutForm.address,
+            area: checkoutForm.area,
+          },
+          paymentMethod,
+          deliveryCharge: priceSummary.delivery,
+        };
+
+        if (paymentMethod === "upi") {
+          body.upiId = upiId;
+          body.utr = utr;
+        }
+
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || "Unable to place order");
+        }
+
+        await Swal.fire("Success", paymentMethod === "upi" ? "Payment verified and order placed!" : "Your order has been placed!", "success");
+
+        saveCheckoutDetails({
+          name: checkoutForm.name,
+          phone: checkoutForm.phone,
+          address: checkoutForm.address,
+          area: checkoutForm.area,
+        });
+
+        fetch("/api/auth/update", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: checkoutForm.name,
+            phone: checkoutForm.phone,
+            address: checkoutForm.address,
+          }),
+        }).catch(() => undefined);
+
+        setCheckoutOpen(false);
+        setCheckoutStep("details");
+        setCheckoutError("");
+        setUpiState({ upiId: "", upiUrl: "", qrDataUrl: "", utr: "" });
+        setItems([]);
+
+        await fetch("/api/cart", {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        await refreshCart();
+        router.push("/order");
+        return true;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Something went wrong";
+        await Swal.fire("Error", message, "error");
+        return false;
+      } finally {
+        setPlacingOrder(false);
+      }
+    },
+    [
+      checkoutForm.address,
+      checkoutForm.area,
+      checkoutForm.name,
+      checkoutForm.phone,
+      orderItems,
+      priceSummary.delivery,
+      refreshCart,
+      router,
+      saveCheckoutDetails,
+    ]
+  );
+
+  const openCheckoutModal = useCallback(async () => {
     if (priceSummary.subTotal < 50) return;
 
     const token = localStorage.getItem("token");
     if (!token) {
-      return Swal.fire("Error", "Please login again!", "error");
+      await Swal.fire("Error", "Please login again!", "error");
+      return;
     }
 
     try {
-      // Confirm order
-      const confirm = await Swal.fire({
-        title: "Confirm Your Order",
-        html: `<p><b>Total:</b> ₹${priceSummary.total}</p><p>Are you sure?</p>`,
-        showCancelButton: true,
-        confirmButtonText: "Yes, Proceed",
-      });
-      if (!confirm.isConfirmed) return;
-
-      //  Fetch logged-in user
       const resUser = await fetch("/api/auth/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const userData: UserResponse = await resUser.json();
       if (!resUser.ok) throw new Error("Please login again!");
 
-      //  Get Address
-      const { value: addressForm } = await Swal.fire({
-        title: "Enter Delivery Details",
-        html: `
-        <input id="swalName" class="swal2-input" placeholder="Name" value="${userData.user?.name || ""}" />
-        <input id="swalPhone" class="swal2-input" placeholder="Phone" value="${userData.user?.phone || ""}" />
-        <input id="swalAddress" class="swal2-input" placeholder="House No, Street" value="${userData.user?.address || ""}" />
-        <select id="swalArea" class="swal2-input">
-          <option value="">Select Delivery Area</option>
-          ${areas.map((a) => `<option value="${a._id}">${a.name} - ${a.pincode}</option>`).join("")}
-        </select>
-      `,
-        focusConfirm: false,
-        preConfirm: () => ({
-          name: (document.getElementById("swalName") as HTMLInputElement)?.value,
-          phone: (document.getElementById("swalPhone") as HTMLInputElement)?.value,
-          address: (document.getElementById("swalAddress") as HTMLInputElement)?.value,
-          area: (document.getElementById("swalArea") as HTMLSelectElement)?.value,
-        }),
-      });
-
-      if (!addressForm || !addressForm.area)
-        return Swal.fire("Error", "Please select delivery area.", "error");
-
-      //  Payment Method
-      const { value: paymentMethod } = await Swal.fire({
-        title: "Select Payment Method",
-        input: "radio",
-        inputOptions: { cod: "Cash on Delivery", upi: "UPI (QR + Apps)" },
-        inputValidator: (v) => (!v ? "Select one option" : undefined),
-      });
-      if (!paymentMethod) return;
-
-      //  Prepare order items
-      const orderItems = items.map((it) => ({
-        productId: it.productId._id, // MUST use _id
-        name: it.productId.name,
-        inHindi: it.productId.inHindi || "",
-        price: it.productId.price,
-        quantity: it.quantity,
-        unit: it.productId.unit,
-      }));
-
-      if (paymentMethod === "upi") {
-        const chosenUpiId =
-          UPI_IDS[Math.floor(Math.random() * UPI_IDS.length)];
-
-        // build UPI URL (client side)
-        const upiUrl = `upi://pay?pa=${chosenUpiId}&am=${priceSummary.total}&cu=INR&tn=Order`;
-
-        // Show QR + apps + UTR input
-        const result = await Swal.fire({
-          title: "UPI Payment",
-          html: `
-          <p>Pay ₹${priceSummary.total} using any UPI app:</p>
-          <div style="display:flex; justify-content:center; margin:12px 0;">
-            <canvas id="swal-qr-canvas"></canvas>
-          </div>
-          <div class="flex justify-center gap-4 mt-2">
-            <a href="${upiUrl}" target="_blank" class="px-3 py-1 bg-green-500 text-white rounded">Google Pay</a>
-            <a href="${upiUrl}" target="_blank" class="px-3 py-1 bg-purple-600 text-white rounded">PhonePe</a>
-            <a href="${upiUrl}" target="_blank" class="px-3 py-1 bg-blue-600 text-white rounded">Paytm</a>
-          </div>
-          <input id="utrInput" class="swal2-input mt-4" placeholder="Enter UTR/Txn ID" />
-        `,
-          confirmButtonText: "Submit Payment",
-          cancelButtonText: "Back",
-          showCancelButton: true,
-          allowOutsideClick: false,
-          allowEscapeKey: false,
-          didOpen: () => {
-            const canvas = document.getElementById("swal-qr-canvas") as HTMLCanvasElement | null;
-            if (canvas) {
-              QRCode.toCanvas(canvas, upiUrl, { width: 220 });
-            }
-          },
-          preConfirm: () => {
-            const utr = ((document.getElementById("utrInput") as HTMLInputElement)?.value || "").trim();
-            if (!utr) {
-              Swal.showValidationMessage("Please enter your UTR / Transaction ID");
-            }
-            return utr;
-          },
-        });
-
-        if (result.dismiss === Swal.DismissReason.cancel) {
-          return handleCheckout(); // restart flow if back pressed
-        }
-        if (!result.isConfirmed) return;
-
-        const utrNumber = result.value as string;
-
-        //  Now create order only after UTR is given
-        const res = await fetch("/api/orders", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            items: orderItems,
-            address: addressForm,
-            paymentMethod,
-            deliveryCharge: priceSummary.delivery,
-            upiId: chosenUpiId,
-            utr: utrNumber,
-          }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Payment failed!");
-
-        Swal.fire("Success", "Payment recorded. Your order is placed!", "success");
-      } else {
-        //  COD directly creates order
-        const res = await fetch("/api/orders", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            items: orderItems,
-            address: addressForm,
-            paymentMethod,
-            deliveryCharge: priceSummary.delivery,
-          }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Server error!");
-
-        Swal.fire("Success", "Your order has been placed!", "success");
+      if (userData?.user?.isActive === false) {
+        setIsAccountActive(false);
+        await showInactiveAccountModal();
+        return;
       }
 
-      //  Clear cart both sides
-      setItems([]);
-      await fetch("/api/cart", {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await refreshCart();
-      router.push("/order");
+      const saved = getSavedCheckoutDetails();
+      const candidateArea = (saved.area || "").trim();
+      const hasValidSavedArea = candidateArea ? areas.some((a) => a._id === candidateArea) : false;
+
+      setCheckoutForm((prev) => ({
+        ...prev,
+        name: (saved.name || userData.user?.name || "").trim(),
+        phone: (saved.phone || userData.user?.phone || "").trim(),
+        address: (saved.address || userData.user?.address || "").trim(),
+        area: hasValidSavedArea ? candidateArea : "",
+        paymentMethod: "cod",
+      }));
+      setCheckoutError("");
+      setCheckoutStep("details");
+      setUpiState({ upiId: "", upiUrl: "", qrDataUrl: "", utr: "" });
+      setCheckoutOpen(true);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Something went wrong";
-      Swal.fire("Error", message, "error");
+      const message = err instanceof Error ? err.message : "Could not open checkout";
+      await Swal.fire("Error", message, "error");
+    }
+  }, [areas, getSavedCheckoutDetails, priceSummary.subTotal]);
+
+  const handleContinueDetails = async () => {
+    if (placingOrder) return;
+
+    if (!checkoutForm.name.trim() || !checkoutForm.phone.trim() || !checkoutForm.address.trim() || !checkoutForm.area) {
+      setCheckoutError("Please fill all delivery details and select delivery area.");
+      return;
+    }
+
+    setCheckoutError("");
+
+    if (checkoutForm.paymentMethod === "cod") {
+      await placeOrder({ paymentMethod: "cod" });
+      return;
+    }
+
+    const chosenUpiId = UPI_IDS[Math.floor(Math.random() * UPI_IDS.length)];
+    const upiUrl = `upi://pay?pa=${chosenUpiId}&am=${priceSummary.total}&cu=INR&tn=Order`;
+
+    try {
+      const qrDataUrl = await QRCode.toDataURL(upiUrl, { width: 230, margin: 1 });
+      setUpiState({ upiId: chosenUpiId, upiUrl, qrDataUrl, utr: "" });
+      setCheckoutStep("upi");
+    } catch {
+      setCheckoutError("Unable to generate UPI QR. Please try again.");
     }
   };
 
+  const handleUpiSubmit = async () => {
+    if (!upiState.utr.trim()) {
+      setCheckoutError("Please enter UTR / transaction ID.");
+      return;
+    }
 
-  //  UI States
-  if (isLoading)
-    return  <div className="flex items-center justify-center min-h-screen py-10">
-      <OrbitVegetableLoader />
-    </div>;
+    setCheckoutError("");
+    await placeOrder({ paymentMethod: "upi", upiId: upiState.upiId, utr: upiState.utr.trim() });
+  };
 
-  if (!isLoggedIn)
+  if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <h2 className="text-xl font-bold text-gray-700 mb-4">
-          Please login to view your cart 🛒
-        </h2>
-        <button
-          onClick={() => router.push("/login")}
-          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-        >
+      <div className="flex min-h-screen items-center justify-center py-10">
+        <OrbitVegetableLoader />
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center">
+        <h2 className="mb-4 text-xl font-bold text-gray-700">Please login to view your cart</h2>
+        <button onClick={() => router.push("/login")} className="rounded-lg bg-emerald-600 px-6 py-3 text-white transition hover:bg-emerald-700">
           Go to Login
         </button>
       </div>
     );
+  }
 
-  if (items.length === 0)
+  if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <h2 className="text-lg text-gray-600 mb-4">Your cart is empty 🛍️</h2>
-        <button
-          onClick={() => router.push("/shop")}
-          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-        >
+      <div className="flex min-h-[60vh] flex-col items-center justify-center">
+        <h2 className="mb-4 text-lg text-gray-600">Your cart is empty</h2>
+        <button onClick={() => router.push("/shop")} className="rounded-lg bg-emerald-600 px-6 py-3 text-white transition hover:bg-emerald-700">
           Go to Shop
         </button>
       </div>
     );
+  }
 
-  //  Free delivery bar progress
-  const freeDeliveryThreshold = 300;
-    const remainingForFreeDelivery =
-    priceSummary.subTotal >= priceSummary.freeThreshold
-      ? 0
-      : priceSummary.freeThreshold - priceSummary.subTotal;
-  const progressPercent =
-    priceSummary.subTotal >= priceSummary.freeThreshold
-      ? 100
-      : (priceSummary.subTotal / priceSummary.freeThreshold) * 100;
-
+  const minOrderThreshold = 50;
+  const remainingForMinOrder = Math.max(0, minOrderThreshold - priceSummary.subTotal);
+  const remainingForFreeDelivery = Math.max(0, priceSummary.freeThreshold - priceSummary.subTotal);
+  const freeDeliveryProgress = Math.min(100, (priceSummary.subTotal / priceSummary.freeThreshold) * 100);
 
   return (
-    <div className="px-4 py-6 max-w-7xl mx-auto relative">
-      {/* Free Delivery Bar */}
-      <div className="fixed top-14 left-1/2 transform -translate-x-1/2 w-11/12 md:w-3/4 lg:w-2/3 z-50">
-        <div className="p-4 bg-green-50 rounded-lg border border-green-200 shadow-md">
-          <div className="flex justify-between items-center mb-2">
-            <span className="font-medium text-green-800">
-              {priceSummary.subTotal >= freeDeliveryThreshold
-                ? "🎉 Free delivery applied!"
-                : `Add ₹${remainingForFreeDelivery} more for free delivery`}
-            </span>
-            {priceSummary.subTotal >= freeDeliveryThreshold && (
-              <span className="text-green-700 font-bold text-xl">✔️</span>
-            )}
+    <>
+      <div className="mx-auto w-full max-w-7xl px-3 pb-8 pt-24 md:px-6 md:py-6">
+        <div className="mb-5 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-cyan-50 p-4">
+          <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">Cart</h1>
+          <p className="mt-1 text-sm text-slate-600">Review quantities, pricing, and checkout details before placing your order.</p>
+        </div>
+
+        {!isAccountActive && (
+          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            Your account is deactivated. Checkout is blocked. Contact admin to reactivate your account.
           </div>
-          <div className="w-full h-3 bg-green-200 rounded-full overflow-hidden">
-            <div
-              className="h-3 bg-green-600 rounded-full transition-all duration-300"
-              style={{ width: `${progressPercent}%` }}
-            ></div>
+        )}
+
+        <div className="mb-5 rounded-xl border border-emerald-200 bg-white p-4 shadow-sm">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-medium text-slate-700">
+              {priceSummary.subTotal >= priceSummary.freeThreshold
+                ? "Free delivery unlocked"
+                : `Add Rs ${remainingForFreeDelivery} more for free delivery`}
+            </p>
+            <span className="text-xs font-semibold text-emerald-700">Target Rs {priceSummary.freeThreshold}</span>
+          </div>
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-emerald-100">
+            <div className="h-2.5 rounded-full bg-emerald-500 transition-all duration-300" style={{ width: `${freeDeliveryProgress}%` }} />
           </div>
         </div>
-      </div>
 
-      <h1 className="text-3xl font-bold mb-6 mt-32">Your Cart</h1>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+          <div className="space-y-3 lg:col-span-2">
+            {items.map((it, idx) => (
+              <motion.div
+                key={it._id + it.productId._id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: Math.min(0.02 * idx, 0.16) }}
+                className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+              >
+                <div className="flex items-start gap-3">
+                  <Image
+                    src={it.productId.images[0]?.url || "/placeholder.png"}
+                    alt={it.productId.name}
+                    width={84}
+                    height={84}
+                    className="h-20 w-20 rounded-lg object-cover"
+                  />
 
-      {/* Items */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {items.map((it) => (
-          <div
-            key={it._id + it.productId._id}
-            className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <Image
-                src={it.productId.images[0]?.url || "/placeholder.png"}
-                alt={it.productId.name}
-                width={64}
-                height={64}
-                className="w-16 h-16 object-cover rounded-md"
-              />
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg">
-                  {it.productId.name} / {it.productId.inHindi}
-                </h3>
-                <p className="text-gray-500">{it.productId.unit}</p>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-base font-semibold text-slate-900 md:text-lg">
+                      {it.productId.name}
+                      {it.productId.inHindi ? ` / ${it.productId.inHindi}` : ""}
+                    </h3>
+                    <p className="text-xs text-slate-500">Unit: {it.productId.unit}</p>
+                    <p className="mt-1 text-sm font-semibold text-emerald-700">Rs {it.productId.price * it.quantity}</p>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const step = it.productId.unit === "kg" ? 0.5 : 1;
+                          const newQty = Math.max(it.productId.minQty, it.quantity - step);
+                          if (newQty !== it.quantity) updateQty(it.productId._id, newQty);
+                        }}
+                        className="rounded-md border px-3 py-1 text-sm hover:bg-slate-50"
+                      >
+                        -
+                      </button>
+
+                      <span className="min-w-12 text-center text-sm font-medium text-slate-700">{it.quantity}</span>
+
+                      <button
+                        onClick={() => {
+                          const step = it.productId.unit === "kg" ? 0.5 : 1;
+                          const newQty = Math.min(it.productId.maxQty, it.quantity + step);
+                          if (newQty !== it.quantity) updateQty(it.productId._id, newQty);
+                        }}
+                        className="rounded-md border px-3 py-1 text-sm hover:bg-slate-50"
+                      >
+                        +
+                      </button>
+
+                      <button
+                        onClick={() => removeItem(it.productId._id)}
+                        className="ml-auto rounded-md bg-rose-50 px-3 py-1 text-sm font-medium text-rose-600 hover:bg-rose-100"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="lg:sticky lg:top-20 lg:h-fit">
+            <div className="relative rounded-xl border border-slate-200 bg-white p-4 shadow-md">
+              {loadingCart && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
+                </div>
+              )}
+
+              <h2 className="mb-4 text-lg font-semibold text-slate-900">Bill Details</h2>
+
+              <div className="space-y-2 text-sm text-slate-700">
+                <div className="flex justify-between">
+                  <span>Items total</span>
+                  <span>Rs {priceSummary.subTotal}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Delivery</span>
+                  <span>{priceSummary.delivery === 0 ? "Free" : `Rs ${priceSummary.delivery}`}</span>
+                </div>
+                <div className="my-2 border-t" />
+                <div className="flex justify-between text-base font-semibold text-slate-900">
+                  <span>Total</span>
+                  <span>Rs {priceSummary.total}</span>
+                </div>
               </div>
-              <p className="font-semibold text-green-700">
-                ₹ {it.productId.price * it.quantity}
-              </p>
-            </div>
 
-            <div className="flex items-center gap-2 mt-2">
+              {priceSummary.subTotal < minOrderThreshold && (
+                <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-center text-sm font-medium text-amber-700">
+                  Add Rs {remainingForMinOrder} more to checkout.
+                </p>
+              )}
+
               <button
-                onClick={() => {
-                  const step = it.productId.unit === "kg" ? 0.5 : 1;
-                  const newQty = Math.max(it.productId.minQty, it.quantity - step);
-                  if (newQty !== it.quantity) updateQty(it.productId._id, newQty);
+                disabled={priceSummary.subTotal < minOrderThreshold || !isAccountActive}
+                onClick={async () => {
+                  if (!isAccountActive) {
+                    await showInactiveAccountModal();
+                    return;
+                  }
+                  await openCheckoutModal();
                 }}
-                className="px-3 py-1 border rounded hover:bg-gray-100 transition"
+                className={`mt-4 w-full rounded-lg py-2.5 text-sm font-medium transition ${
+                  priceSummary.subTotal < minOrderThreshold || !isAccountActive
+                    ? "cursor-not-allowed bg-slate-300 text-slate-600"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+                }`}
               >
-                -
-              </button>
-
-              <span>{it.quantity}</span>
-
-              <button
-                onClick={() => {
-                  const step = it.productId.unit === "kg" ? 0.5 : 1;
-                  const newQty = Math.min(it.productId.maxQty, it.quantity + step);
-                  if (newQty !== it.quantity) updateQty(it.productId._id, newQty);
-                }}
-                className="px-3 py-1 border rounded hover:bg-gray-100 transition"
-              >
-                +
-              </button>
-
-
-              <button
-                onClick={() => removeItem(it.productId.id)}
-                className="ml-auto text-red-600 hover:underline transition"
-              >
-                Remove
+                {!isAccountActive ? "Account Deactivated" : "Proceed to Checkout"}
               </button>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Summary */}
-      <div className="mt-6 border rounded-lg p-4 bg-white shadow-md max-w-md relative">
-        {loadingCart && (
-          <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center rounded-lg">
-            <div className="loader border-4 border-green-500 border-t-transparent rounded-full w-8 h-8 animate-spin"></div>
-          </div>
-        )}
-
-        <h2 className="text-lg font-semibold mb-4">Bill Details</h2>
-
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span>Items total</span>
-            <span>₹ {priceSummary.subTotal}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Delivery</span>
-            <span>{priceSummary.delivery === 0 ? "Free" : `₹ ${priceSummary.delivery}`}</span>
-          </div>
-          <div className="border-t my-2"></div>
-          <div className="flex justify-between font-semibold">
-            <span>Total</span>
-            <span>₹ {priceSummary.total}</span>
           </div>
         </div>
-
-        {priceSummary.subTotal < 50 && (
-          <p className="mt-3 text-sm text-red-600 font-medium text-center">
-            Add ₹{50 - priceSummary.subTotal} more to checkout 🚀
-          </p>
-        )}
-
-        <button
-          disabled={priceSummary.subTotal < 50}
-          onClick={handleCheckout}
-          className={`mt-4 w-full rounded-lg py-2 transition ${priceSummary.subTotal < 50
-            ? "bg-gray-400 cursor-not-allowed"
-            : "bg-green-600 text-white hover:bg-green-700"
-            }`}
-        >
-          Proceed to Checkout
-        </button>
       </div>
-    </div>
+
+      {checkoutOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-slate-950/55 p-2 sm:p-3 sm:items-center">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl max-[360px]:rounded-xl">
+            <div className="border-b border-slate-200 bg-gradient-to-r from-emerald-600 to-emerald-500 px-3 py-3 text-white sm:px-5">
+              <h3 className="text-lg font-bold">Secure Checkout</h3>
+              <p className="text-xs text-emerald-50">Step {checkoutStep === "details" ? "1 of 2" : "2 of 2"} | Total Rs {priceSummary.total}</p>
+            </div>
+
+            <div className="max-h-[78vh] overflow-y-auto p-3 sm:p-5">
+              {checkoutStep === "details" ? (
+                <div className="space-y-3.5">
+                  <p className="text-sm text-slate-600">Enter delivery details and choose your payment method.</p>
+
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-semibold text-slate-700">Full Name</span>
+                    <input
+                      value={checkoutForm.name}
+                      onChange={(e) => setCheckoutForm((prev) => ({ ...prev, name: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-emerald-500"
+                      placeholder="Enter your name"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-semibold text-slate-700">Phone Number</span>
+                    <input
+                      value={checkoutForm.phone}
+                      onChange={(e) => setCheckoutForm((prev) => ({ ...prev, phone: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-emerald-500"
+                      placeholder="Enter phone number"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-semibold text-slate-700">Address</span>
+                    <input
+                      value={checkoutForm.address}
+                      onChange={(e) => setCheckoutForm((prev) => ({ ...prev, address: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-emerald-500"
+                      placeholder="House no, street, landmark"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-semibold text-slate-700">Delivery Area</span>
+                    <select
+                      value={checkoutForm.area}
+                      onChange={(e) => setCheckoutForm((prev) => ({ ...prev, area: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-emerald-500"
+                    >
+                      <option value="">Select delivery area</option>
+                      {areas.map((a) => (
+                        <option key={a._id} value={a._id}>
+                          {a.name} - {a.pincode}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div>
+                    <span className="mb-2 block text-sm font-semibold text-slate-700">Payment Method</span>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setCheckoutForm((prev) => ({ ...prev, paymentMethod: "cod" }))}
+                        className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+                          checkoutForm.paymentMethod === "cod"
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        Cash on Delivery
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCheckoutForm((prev) => ({ ...prev, paymentMethod: "upi" }))}
+                        className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+                          checkoutForm.paymentMethod === "upi"
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        UPI Payment
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-600">Scan QR and complete payment. Then submit UTR/transaction ID.</p>
+
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                    <p><strong>Pay To:</strong> {upiState.upiId}</p>
+                    <p><strong>Amount:</strong> Rs {priceSummary.total}</p>
+                  </div>
+
+                  <div className="flex justify-center rounded-2xl border border-slate-200 bg-white p-3">
+                    {upiState.qrDataUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={upiState.qrDataUrl} alt="UPI QR" className="h-52 w-52 rounded-lg border border-slate-200 object-contain" />
+                    ) : (
+                      <div className="h-52 w-52 animate-pulse rounded-lg bg-slate-100" />
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
+                    <a href={upiState.upiUrl} target="_blank" className="rounded-lg bg-slate-900 px-3 py-2 text-center text-sm font-semibold text-white" rel="noreferrer">Google Pay</a>
+                    <a href={upiState.upiUrl} target="_blank" className="rounded-lg bg-emerald-600 px-3 py-2 text-center text-sm font-semibold text-white" rel="noreferrer">PhonePe</a>
+                    <a href={upiState.upiUrl} target="_blank" className="rounded-lg bg-cyan-600 px-3 py-2 text-center text-sm font-semibold text-white" rel="noreferrer">Paytm</a>
+                  </div>
+
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-semibold text-slate-700">UTR / Transaction ID</span>
+                    <input
+                      value={upiState.utr}
+                      onChange={(e) => setUpiState((prev) => ({ ...prev, utr: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-emerald-500"
+                      placeholder="Enter UTR number"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {checkoutError && (
+                <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{checkoutError}</p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2 border-t border-slate-200 p-3 min-[360px]:flex-row sm:p-4">
+              <button
+                type="button"
+                onClick={() => {
+                  if (placingOrder) return;
+                  if (checkoutStep === "upi") {
+                    setCheckoutStep("details");
+                    setCheckoutError("");
+                    return;
+                  }
+                  setCheckoutOpen(false);
+                  setCheckoutError("");
+                }}
+                className="flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-700"
+              >
+                {checkoutStep === "upi" ? "Back" : "Cancel"}
+              </button>
+
+              <button
+                type="button"
+                onClick={checkoutStep === "details" ? handleContinueDetails : handleUpiSubmit}
+                disabled={placingOrder}
+                className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold text-white ${placingOrder ? "cursor-not-allowed bg-slate-400" : "bg-emerald-600 hover:bg-emerald-700"}`}
+              >
+                {placingOrder ? "Processing..." : checkoutStep === "details" ? (checkoutForm.paymentMethod === "upi" ? "Continue to UPI" : "Place Order") : "Submit Payment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

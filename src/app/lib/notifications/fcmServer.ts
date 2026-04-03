@@ -65,6 +65,10 @@ export async function sendFcmNotification(payload: SendFcmPayload): Promise<Send
 
   const response = await messaging.sendEachForMulticast({
     tokens,
+    notification: {
+      title: payload.title,
+      body: payload.body,
+    },
     data: {
       ...(payload.data || {}),
       title: payload.title,
@@ -72,11 +76,16 @@ export async function sendFcmNotification(payload: SendFcmPayload): Promise<Send
       url: payload.data?.url || "/",
     },
     webpush: {
+      headers: {
+        Urgency: "high",
+        TTL: "86400",
+      },
       notification: {
         title: payload.title,
         body: payload.body,
         icon: "/logo/android-launchericon-192-192.png",
         badge: "/logo/android-launchericon-192-192.png",
+        requireInteraction: true,
       },
       fcmOptions: {
         link: payload.data?.url || "/",

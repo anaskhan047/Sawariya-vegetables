@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+﻿import nodemailer from "nodemailer";
 
 const FROM = process.env.EMAIL_FROM || process.env.EMAIL_USER || "shri@shrisawariyamart.com";
 
@@ -6,12 +6,16 @@ const host = process.env.EMAIL_SMTP_HOST || "smtpout.secureserver.net";
 const port = Number(process.env.EMAIL_SMTP_PORT || 465);
 const useSecure = port === 465;
 
-// Create transporter (supports both 465 and 587)
+const CONTACT_PHONE = process.env.EMAIL_CONTACT_PHONE || "+91 7523 666 366";
+const CONTACT_EMAIL = process.env.EMAIL_CONTACT_EMAIL || "shri@shrisawariyamart.com";
+const CONTACT_ADDRESS = process.env.EMAIL_CONTACT_ADDRESS || "Shri Sawariya Mart, Madhya Pradesh, India";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.shrisawariyamart.com";
+
 const transporter = nodemailer.createTransport({
   host,
   port,
-  secure: useSecure, // true for 465, false for 587 (STARTTLS)
-  requireTLS: !useSecure, // require TLS for non-SSL ports
+  secure: useSecure,
+  requireTLS: !useSecure,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -19,15 +23,14 @@ const transporter = nodemailer.createTransport({
   logger: true,
   debug: true,
   tls: {
-    // do not fail on invalid certs (useful for some setups) - remove in strict production
     rejectUnauthorized: false,
   },
 });
 
-// Optional: test connection at startup (will log detailed SMTP handshake)
-transporter.verify()
+transporter
+  .verify()
   .then(() => console.log("SMTP connected successfully"))
-  .catch(err => console.error("SMTP connection error:", err));
+  .catch((err) => console.error("SMTP connection error:", err));
 
 export async function sendMail(to: string, subject: string, html: string) {
   return transporter.sendMail({
@@ -38,66 +41,81 @@ export async function sendMail(to: string, subject: string, html: string) {
   });
 }
 
-export function otpEmailTemplate({ name, otp, purpose = "verification" }: { name?: string; otp: string; purpose?: string }) {
+function buildEmailLayout({ title, subtitle, body }: { title: string; subtitle: string; body: string }) {
   const logoUrl = process.env.EMAIL_LOGO_URL || "https://www.shrisawariyamart.com/logo/logo.png";
 
   return `
-  <div style="font-family: Arial, sans-serif; background:#f6f9fc; padding:40px;">
-    <div style="max-width:480px; margin:0 auto; background:white; border-radius:12px; padding:30px; box-shadow:0 4px 12px rgba(0,0,0,0.08);">
-      <div style="text-align:center;">
-        <img src="${logoUrl}" alt="Logo" style="width:100px; margin-bottom:10px;" />
-      </div>
-
-      <h2 style="text-align:center; color:#333; margin-top:0;">OTP Verification</h2>
-
-      <p style="font-size:15px; color:#444;">Hi <strong>${name || "there"}</strong>,</p>
-
-      <p style="font-size:15px; color:#444;">Your OTP for <strong>${purpose}</strong> is:</p>
-
-      <div style="margin:20px 0; text-align:center;">
-        <span style="display:inline-block; font-size:32px; letter-spacing:6px; padding:12px 24px; background:#f1f3f5; border-radius:10px;">
-          ${otp}
-        </span>
-      </div>
-
-      <p style="color:#666; font-size:14px;">This OTP will expire in 24 hours. If you didn’t request this, please ignore the email.</p>
-
-      <hr style="border:none; border-top:1px solid #eee; margin:25px 0;" />
-
-      <p style="text-align:center; color:#999; font-size:12px;">© ${new Date().getFullYear()} Shri Sawariya Mart • All Rights Reserved</p>
-    </div>
+  <div style="margin:0;padding:24px;background:#f5f8f6;font-family:Arial,sans-serif;color:#0f172a;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #dbe7df;">
+      <tr>
+        <td style="background:linear-gradient(120deg,#14532d,#16a34a);padding:26px 24px;color:#ffffff;text-align:center;">
+          <img src="${logoUrl}" alt="Shri Sawariya Mart" style="width:74px;height:74px;border-radius:14px;background:#ffffff;padding:6px;object-fit:contain;" />
+          <h1 style="margin:14px 0 6px;font-size:24px;line-height:1.3;">${title}</h1>
+          <p style="margin:0;font-size:14px;opacity:0.95;">${subtitle}</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:24px;">${body}</td>
+      </tr>
+      <tr>
+        <td style="padding:0 24px 24px;">
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;">
+            <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#334155;">Contact Us</p>
+            <p style="margin:0 0 4px;font-size:13px;color:#475569;">Phone: ${CONTACT_PHONE}</p>
+            <p style="margin:0 0 4px;font-size:13px;color:#475569;">Email: ${CONTACT_EMAIL}</p>
+            <p style="margin:0 0 4px;font-size:13px;color:#475569;">Address: ${CONTACT_ADDRESS}</p>
+            <p style="margin:0;font-size:13px;color:#475569;">Website: <a href="${SITE_URL}" style="color:#0f766e;text-decoration:none;">${SITE_URL}</a></p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#0f172a;color:#cbd5e1;padding:12px 16px;text-align:center;font-size:12px;">
+          Copyright ${new Date().getFullYear()} Shri Sawariya Mart. All rights reserved.
+        </td>
+      </tr>
+    </table>
   </div>
   `;
 }
 
-export function welcomeEmailTemplate({ name }: { name?: string }) {
-  const logoUrl = process.env.EMAIL_LOGO_URL || "https://www.shrisawariyamart.com/logo/logo.png";
-
-  return `
-  <div style="font-family: Arial, sans-serif; background:#f6f9fc; padding:40px;">
-    <div style="max-width:480px; margin:0 auto; background:white; border-radius:12px; padding:30px; box-shadow:0 4px 12px rgba(0,0,0,0.08);">
-      <div style="text-align:center;">
-        <img src="${logoUrl}" alt="Logo" style="width:110px; margin-bottom:15px;" />
-      </div>
-
-      <h1 style="text-align:center; font-size:26px; color:#333; margin:0;">Welcome to Shri Sawariya Mart!</h1>
-
-      <p style="font-size:15px; color:#444; margin-top:20px;">Hi <strong>${name || "friend"}</strong>,</p>
-
-      <p style="font-size:15px; color:#444; line-height:1.6;">
-        We're excited to have you with us. Your account has been successfully created, and you’re now ready to explore our services.
-      </p>
-
-      <div style="text-align:center; margin-top:25px;">
-        <a href="https://www.shrisawariyamart.com" style="background:#ff6b00; color:white; padding:12px 22px; border-radius:8px; text-decoration:none; font-size:15px;">
-          Visit Dashboard
-        </a>
-      </div>
-
-      <hr style="border:none; border-top:1px solid #eee; margin:30px 0;" />
-
-      <p style="text-align:center; color:#999; font-size:12px;">© ${new Date().getFullYear()} Shri Sawariya Mart • All Rights Reserved</p>
+export function otpEmailTemplate({
+  name,
+  otp,
+  purpose = "verification",
+}: {
+  name?: string;
+  otp: string;
+  purpose?: string;
+}) {
+  const body = `
+    <p style="margin:0 0 12px;font-size:15px;color:#334155;">Hi <strong>${name || "there"}</strong>,</p>
+    <p style="margin:0 0 14px;font-size:15px;color:#334155;line-height:1.65;">Use the OTP below for <strong>${purpose}</strong>. For your safety, do not share this code with anyone.</p>
+    <div style="margin:0 0 16px;text-align:center;">
+      <span style="display:inline-block;background:#ecfdf5;border:1px solid #86efac;color:#14532d;padding:12px 20px;border-radius:12px;font-size:30px;letter-spacing:7px;font-weight:700;">${otp}</span>
     </div>
-  </div>
+    <p style="margin:0;font-size:13px;color:#64748b;">This OTP expires in 24 hours. If you did not request this, please ignore this email.</p>
   `;
+
+  return buildEmailLayout({
+    title: "OTP Verification",
+    subtitle: "Secure login and account protection",
+    body,
+  });
+}
+
+export function welcomeEmailTemplate({ name }: { name?: string }) {
+  const body = `
+    <p style="margin:0 0 12px;font-size:15px;color:#334155;">Hi <strong>${name || "friend"}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.65;">Your account is now active. You can start exploring fresh vegetables and fruits with smooth mobile-friendly ordering.</p>
+    <div style="text-align:center;margin-bottom:14px;">
+      <a href="${SITE_URL}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;font-size:14px;">Start Shopping</a>
+    </div>
+    <p style="margin:0;font-size:13px;color:#64748b;">Need help? Reach out to us through Contact Us and we will assist you quickly.</p>
+  `;
+
+  return buildEmailLayout({
+    title: "Welcome to Shri Sawariya Mart",
+    subtitle: "Fresh produce, trusted quality, fast delivery",
+    body,
+  });
 }

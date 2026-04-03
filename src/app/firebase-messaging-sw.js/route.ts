@@ -27,20 +27,39 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-messaging.onBackgroundMessage((payload) => {
+function normalizePayload(payload) {
   const data = payload?.data || {};
   const title = payload?.notification?.title || data.title || "Shri Sawariya Mart";
   const body = payload?.notification?.body || data.body || "";
   const url = data.url || "/";
   const tag = data.type && data.orderId ? data.type + ":" + data.orderId : undefined;
+  return { data, title, body, url, tag };
+}
 
-  self.registration.showNotification(title, {
-    body,
-    data: { url },
+async function showPushNotification(payload) {
+  const normalized = normalizePayload(payload);
+  await self.registration.showNotification(normalized.title, {
+    body: normalized.body,
+    data: { url: normalized.url },
     icon: "/logo/android-launchericon-192-192.png",
     badge: "/logo/android-launchericon-192-192.png",
-    tag
+    tag: normalized.tag,
+    requireInteraction: true,
   });
+}
+
+messaging.onBackgroundMessage((payload) => {
+  showPushNotification(payload);
+});
+
+self.addEventListener("push", (event) => {
+  if (!event?.data) return;
+  try {
+    const payload = event.data.json();
+    event.waitUntil(showPushNotification(payload));
+  } catch {
+    // Ignore malformed push payloads.
+  }
 });
 
 self.addEventListener("notificationclick", (event) => {

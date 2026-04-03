@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
 import { useCart } from "@/app/context/CartContext";
+import Image from "next/image";
 
 type SortOrder = "newest" | "oldest" | "low-high" | "high-low";
 
@@ -39,50 +40,38 @@ export default function VegetablePage() {
         const res = await fetch("/api/products");
         const data = await res.json();
 
-        console.log("API /api/products response:", data);
-
         if (data?.success && Array.isArray(data.products)) {
-          // normalize category to lowercase and compare to "vegetables"
           const onlyVegetables = (data.products as Product[]).filter((p) => {
             const cat = (p.category ?? "").toString().trim().toLowerCase();
-            return cat === "vegetable"; // <-- correct lowercase comparison
+            return cat === "vegetable";
           });
-
-          console.log("Filtered vegetables:", onlyVegetables);
-          // If nothing matched, log unique category values to help debugging
-          if (onlyVegetables.length === 0) {
-            const categories = Array.from(
-              new Set((data.products as Product[]).map((p) => (p.category ?? "").toString().trim()))
-            );
-            console.warn("No products matched category 'vegetables'. Categories found in data:", categories);
-          }
 
           setVegetables(onlyVegetables);
 
           const initialQuantities: Record<string, number> = {};
           onlyVegetables.forEach((v) => {
-            // prefer v.id, fallback to _id
             const key = v.id ?? v._id;
             initialQuantities[key] = v.minQty ?? (v.unit === "kg" ? 0.5 : 1);
           });
           setQuantities(initialQuantities);
-        } else {
-          console.warn("/api/products did not return products array:", data);
         }
       } catch (err) {
         console.error("Error loading vegetables:", err);
       }
     };
-    fetchVegetables();
+
+    fetchVegetables().catch(() => undefined);
   }, []);
 
-  const sortedVegetables = [...vegetables].sort((a, b) => {
-    if (sortOrder === "low-high") return a.price - b.price;
-    if (sortOrder === "high-low") return b.price - a.price;
-    if (sortOrder === "newest") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    if (sortOrder === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    return 0;
-  });
+  const sortedVegetables = useMemo(() => {
+    return [...vegetables].sort((a, b) => {
+      if (sortOrder === "low-high") return a.price - b.price;
+      if (sortOrder === "high-low") return b.price - a.price;
+      if (sortOrder === "newest") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (sortOrder === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return 0;
+    });
+  }, [sortOrder, vegetables]);
 
   const handleQuantityChange = (item: Product, change: number) => {
     setQuantities((prev) => {
@@ -110,10 +99,7 @@ export default function VegetablePage() {
       const res = await fetch("/api/cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: item.id,
-          quantity: qty,
-        }),
+        body: JSON.stringify({ productId: item.id, quantity: qty }),
       });
 
       const data = await res.json();
@@ -129,67 +115,93 @@ export default function VegetablePage() {
   };
 
   return (
-    <div className="bg-[var(--background-color)] min-h-screen py-6 text-[var(--text-color)]">
-      <div className="container mx-auto max-w-7xl px-4">
-        <div className="flex justify-end mb-6">
+    <div className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-5 md:py-8">
+      <div className="mb-5 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-lime-50 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Fresh Collection</p>
+            <h2 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">Vegetables</h2>
+          </div>
+
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-            className="border border-[var(--border-color)] px-3 py-2 rounded-md cursor-pointer text-[var(--text-color)] bg-white shadow-sm"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 sm:w-auto sm:text-sm"
           >
-            <option value="newest">Newest → Oldest</option>
-            <option value="oldest">Oldest → Newest</option>
-            <option value="low-high">Price: Low → High</option>
-            <option value="high-low">Price: High → Low</option>
+            <option value="newest">Newest to Oldest</option>
+            <option value="oldest">Oldest to Newest</option>
+            <option value="low-high">Price: Low to High</option>
+            <option value="high-low">Price: High to Low</option>
           </select>
         </div>
+      </div>
 
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 md:gap-5">
-          {sortedVegetables.map((veg) => {
-            const imgUrl = veg.images && veg.images.length > 0 ? veg.images[0].url : "/placeholder.png";
-            const qty = quantities[veg.id] ?? veg.minQty ?? (veg.unit === "kg" ? 0.5 : 1);
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {sortedVegetables.map((veg) => {
+          const imgUrl = veg.images && veg.images.length > 0 ? veg.images[0].url : "/placeholder.png";
+          const qty = quantities[veg.id] ?? veg.minQty ?? (veg.unit === "kg" ? 0.5 : 1);
 
-            return (
-              <div
-                key={veg._id}
-                className="group flex flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-white p-1.5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md md:p-3"
-              >
-                <div className="w-full aspect-square bg-gray-100 overflow-hidden">
-                  <img src={imgUrl} alt={veg.name} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
-                </div>
-
-                <h3 className="mt-2 line-clamp-2 text-center text-[11px] font-semibold leading-4 md:mt-3 md:text-sm">{veg.name}</h3>
-                <p className="line-clamp-1 text-center text-[10px] text-[var(--text-light)] md:text-xs">{veg.inHindi}</p>
-
-                <p className="text-green-700 font-bold">
-                  <span className="line-through text-red-500 mx-3">₹{veg.marketPrice}</span>
-                  ₹{veg.price} / {veg.unit}
-                </p>
-
-                <div className="mt-2 flex items-center justify-center gap-1.5 md:gap-2">
-                  <button onClick={() => handleQuantityChange(veg, veg.unit === "kg" ? -0.5 : -1)} className="rounded border px-1.5 py-1 text-xs hover:bg-gray-100 md:px-2">
-                    <Minus size={18} />
-                  </button>
-                  <span className="text-[11px] font-semibold md:text-xs">
-                    {qty} {veg.unit}
+          return (
+            <div
+              key={veg._id}
+              className="group overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg sm:p-3"
+            >
+              <div className="relative aspect-square overflow-hidden rounded-xl bg-slate-100">
+                <Image
+                  src={imgUrl}
+                  alt={veg.name}
+                  fill
+                  className="object-cover transition duration-500 group-hover:scale-110"
+                  sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
+                />
+                {veg.stockQty !== undefined && veg.stockQty <= 0 && (
+                  <span className="absolute right-2 top-2 rounded bg-rose-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+                    Out
                   </span>
-                  <button onClick={() => handleQuantityChange(veg, veg.unit === "kg" ? 0.5 : 1)} className="rounded border px-1.5 py-1 text-xs hover:bg-gray-100 md:px-2">
-                    <Plus size={18} />
-                  </button>
-                </div>
+                )}
+              </div>
 
+              <h3 className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-slate-900">{veg.name}</h3>
+              <p className="line-clamp-1 text-[11px] text-slate-500">{veg.inHindi}</p>
+
+              <p className="mt-1 text-sm font-bold text-emerald-700">
+                <span className="mr-1 text-[11px] text-rose-500 line-through">Rs {veg.marketPrice}</span>
+                Rs {veg.price}
+                <span className="ml-1 text-[11px] font-medium text-slate-500">/ {veg.unit}</span>
+              </p>
+
+              <div className="mt-2 flex items-center justify-center gap-1.5 sm:gap-2">
                 <button
-                  onClick={() => handleAddToCart(veg)}
-                  disabled={veg.stockQty !== undefined && veg.stockQty <= 0}
-                  className={`mt-2 mx-auto flex items-center gap-1 rounded-md px-2 py-1.5 text-[10px] shadow-md transition duration-200 md:mt-3 md:gap-2 md:px-4 md:py-2 md:text-sm
-                    ${veg.stockQty === undefined || veg.stockQty > 0 ? "bg-[var(--primary-color)] text-white hover:opacity-90 hover:scale-105 active:scale-95" : "bg-gray-400 text-white cursor-not-allowed"}`}
+                  onClick={() => handleQuantityChange(veg, veg.unit === "kg" ? -0.5 : -1)}
+                  className="rounded-lg border px-1.5 py-1 text-xs hover:bg-slate-50 sm:px-2"
                 >
-                  <ShoppingCart size={18} /> Add to Cart
+                  <Minus size={14} />
+                </button>
+                <span className="min-w-[56px] text-center text-[11px] font-semibold text-slate-700 sm:text-xs">
+                  {qty} {veg.unit}
+                </span>
+                <button
+                  onClick={() => handleQuantityChange(veg, veg.unit === "kg" ? 0.5 : 1)}
+                  className="rounded-lg border px-1.5 py-1 text-xs hover:bg-slate-50 sm:px-2"
+                >
+                  <Plus size={14} />
                 </button>
               </div>
-            );
-          })}
-        </div>
+
+              <button
+                onClick={() => handleAddToCart(veg)}
+                disabled={veg.stockQty !== undefined && veg.stockQty <= 0}
+                className={`mt-2 flex w-full items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-semibold text-white transition sm:text-xs ${
+                  veg.stockQty === undefined || veg.stockQty > 0
+                    ? "bg-emerald-600 hover:bg-emerald-700"
+                    : "cursor-not-allowed bg-slate-400"
+                }`}
+              >
+                <ShoppingCart size={14} /> Add to Cart
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

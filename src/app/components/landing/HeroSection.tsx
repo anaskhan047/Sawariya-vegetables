@@ -34,7 +34,7 @@ export default function HeroSection() {
   }, [showAreas, loadAreas]);
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-[#edf6ea] via-[#f4fbf2] to-[#e6f3df] pb-12 pt-24 sm:pt-28 lg:pt-32">
+    <section className="relative overflow-hidden bg-gradient-to-br from-[#edf6ea] via-[#f4fbf2] to-[#e6f3df] pb-12 pt-4 ">
       <div className="pointer-events-none absolute -left-20 top-8 h-64 w-64 rounded-full bg-emerald-200/40 blur-3xl" />
       <div className="pointer-events-none absolute -right-16 bottom-0 h-72 w-72 rounded-full bg-lime-200/40 blur-3xl" />
 

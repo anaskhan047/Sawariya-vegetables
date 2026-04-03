@@ -18,6 +18,15 @@ interface CartItem {
   priceAtAdd: number;
 }
 
+async function findProductByIdentifier(productId: string) {
+  if (!productId) return null;
+  if (Types.ObjectId.isValid(productId)) {
+    const byObjectId = await Product.findById(productId);
+    if (byObjectId) return byObjectId;
+  }
+  return Product.findOne({ id: productId });
+}
+
 /** Helpers **/
 function getCartId(req: NextRequest): string | null {
   const raw = req.headers.get("cookie");
@@ -82,7 +91,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const product = await Product.findOne({ id: productId });
+    const product = await findProductByIdentifier(productId);
     if (!product) {
       return NextResponse.json(
         { success: false, error: "Product not found" },
@@ -208,7 +217,7 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const product = await Product.findOne({ id: productId });
+    const product = await findProductByIdentifier(productId);
     if (!product) {
       return NextResponse.json(
         { success: false, error: "Product not found" },
@@ -303,7 +312,7 @@ export async function DELETE(req: NextRequest) {
     if (!productId) {
       (cart.items as CartItem[]) = [];
     } else {
-      const product = await Product.findOne({ id: productId });
+      const product = await findProductByIdentifier(productId);
       if (product) {
         const prodObjectId = product._id as Types.ObjectId;
         const idx = (cart.items as CartItem[]).findIndex((it) =>
