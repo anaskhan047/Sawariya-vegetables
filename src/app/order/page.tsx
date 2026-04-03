@@ -67,6 +67,105 @@ type Order = {
   upiTxnInfo?: OrderUpiTxnInfo;
 };
 
+function toStr(value: unknown, fallback = ""): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  return fallback;
+}
+
+function toNum(value: unknown, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
+
+function normalizeOrder(raw: unknown): Order | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+
+  const id = toStr(o._id);
+  if (!id) return null;
+
+  const rawItems = Array.isArray(o.items) ? o.items : [];
+  const items: OrderItem[] = rawItems.reduce<OrderItem[]>((acc, it) => {
+    if (!it || typeof it !== "object") return acc;
+    const item = it as Record<string, unknown>;
+    const name = toStr(item.name);
+    if (!name) return acc;
+    acc.push({
+      name,
+      inHindi: toStr(item.inHindi) || undefined,
+      quantity: toNum(item.quantity, 0),
+      price: toNum(item.price, 0),
+      unit: toStr(item.unit, "unit"),
+    });
+    return acc;
+  }, []);
+
+  const addressRaw = (o.address && typeof o.address === "object"
+    ? (o.address as Record<string, unknown>)
+    : {}) as Record<string, unknown>;
+
+  let normalizedArea: string | OrderAddressArea | undefined = undefined;
+  if (typeof addressRaw.area === "string") {
+    normalizedArea = addressRaw.area;
+  } else if (addressRaw.area && typeof addressRaw.area === "object") {
+    const a = addressRaw.area as Record<string, unknown>;
+    normalizedArea = {
+      name: toStr(a.name) || undefined,
+      pincode: toStr(a.pincode) || undefined,
+    };
+  }
+
+  const statusRaw = toStr(o.status, "placed") as OrderStatus;
+  const safeStatus: OrderStatus = ORDER_STATUSES.some((s) => s.key === statusRaw)
+    ? statusRaw
+    : "placed";
+
+  const paymentRaw = toStr(o.paymentMethod, "cod");
+  const safePayment: "online" | "cod" | "upi" =
+    paymentRaw === "online" || paymentRaw === "upi" ? paymentRaw : "cod";
+
+  return {
+    _id: id,
+    user: toStr(o.user),
+    items,
+    address: {
+      name: toStr(addressRaw.name) || undefined,
+      phone: toStr(addressRaw.phone) || undefined,
+      address: toStr(addressRaw.address) || undefined,
+      area: normalizedArea,
+    },
+    subTotal: toNum(o.subTotal, items.reduce((s, it) => s + it.price * it.quantity, 0)),
+    deliveryCharge: toNum(o.deliveryCharge, 0),
+    total: toNum(o.total, 0),
+    status: safeStatus,
+    paymentMethod: safePayment,
+    paymentStatus: toStr(o.paymentStatus, "pending"),
+    createdAt: toStr(o.createdAt, new Date().toISOString()),
+    otp: toStr(o.otp) || undefined,
+    otpExpiresAt: toStr(o.otpExpiresAt) || undefined,
+    couponCode: toStr(o.couponCode) || undefined,
+    discount: toNum(o.discount, 0),
+    upiId: toStr(o.upiId) || undefined,
+    utr: toStr(o.utr) || undefined,
+    upiTxnInfo:
+      o.upiTxnInfo && typeof o.upiTxnInfo === "object"
+        ? { txnRef: toStr((o.upiTxnInfo as Record<string, unknown>).txnRef) || undefined }
+        : undefined,
+  };
+}
+
+function normalizeOrdersList(input: unknown): Order[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((entry) => normalizeOrder(entry))
+    .filter((x): x is Order => Boolean(x));
+}
+
 function isOrderItem(x: unknown): x is OrderItem {
   if (typeof x !== "object" || x === null) return false;
   const obj = x as Record<string, unknown>;
@@ -494,14 +593,16 @@ export default function UserOrderList(): JSX.Element {
 
         if (typeof parsed === "object" && parsed !== null && "orders" in parsed) {
           const candidate = (parsed as Record<string, unknown>).orders;
-          if (isOrdersArray(candidate)) {
-            setOrders(candidate);
+          const normalized = normalizeOrdersList(candidate);
+          if (normalized.length > 0 || (Array.isArray(candidate) && candidate.length === 0)) {
+            setOrders(normalized);
             return;
           }
         }
 
-        if (isOrdersArray(parsed)) {
-          setOrders(parsed);
+        const normalizedDirect = normalizeOrdersList(parsed);
+        if (normalizedDirect.length > 0 || (Array.isArray(parsed) && parsed.length === 0)) {
+          setOrders(normalizedDirect);
           return;
         }
 

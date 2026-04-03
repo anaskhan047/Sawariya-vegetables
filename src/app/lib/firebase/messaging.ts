@@ -5,6 +5,14 @@ let messagingInstance: Messaging | null = null;
 let checkedSupport = false;
 let isMessagingSupported = false;
 
+function getPublicVapidKey() {
+  return (
+    process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ||
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
+    ""
+  ).trim();
+}
+
 function fcmDebug(message: string, extra?: unknown) {
   if (process.env.NEXT_PUBLIC_FCM_DEBUG === "true") {
     if (extra === undefined) {
@@ -69,12 +77,22 @@ export async function getFcmToken(): Promise<string | null> {
 
   try {
     fcmDebug("getToken started (single path, service-worker based).");
-    const token = await getToken(messaging, {
-      serviceWorkerRegistration: registration,
-    });
+    const vapidKey = getPublicVapidKey();
+    const token = await getToken(messaging, vapidKey
+      ? {
+          serviceWorkerRegistration: registration,
+          vapidKey,
+        }
+      : {
+          serviceWorkerRegistration: registration,
+        });
     if (!token) {
       fcmDebug("getToken returned empty token.");
       return null;
+    }
+
+    if (!vapidKey) {
+      fcmDebug("VAPID key missing on client env. Background delivery may be unreliable.");
     }
 
     fcmDebug("getToken success.");

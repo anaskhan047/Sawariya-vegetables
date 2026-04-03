@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "";
