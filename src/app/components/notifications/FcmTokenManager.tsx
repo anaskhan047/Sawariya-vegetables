@@ -81,6 +81,7 @@ export default function FcmTokenManager() {
     const registerToken = async () => {
       if (!isLoggedIn || !user?.id) return;
       if (!navigator.onLine) return;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       fcmDebug("Starting token registration flow.", { userId: user.id, isLoggedIn });
       const authToken = token || localStorage.getItem("token");
       if (!authToken) return;

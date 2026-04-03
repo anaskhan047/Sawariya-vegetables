@@ -463,19 +463,15 @@ export default function UserOrderList(): JSX.Element {
     const controller = new AbortController();
 
     const token = localStorage.getItem("token");
-    if (!token) {
-      if (mounted) setLoading(false);
-      return () => {
-        mounted = false;
-        controller.abort();
-      };
-    }
 
     (async () => {
       try {
+        const headers: HeadersInit = {};
+        if (token) headers.Authorization = `Bearer ${token}`;
         const res = await fetch("/api/orders", {
           method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
+          headers,
+          cache: "no-store",
           signal: controller.signal,
         });
 

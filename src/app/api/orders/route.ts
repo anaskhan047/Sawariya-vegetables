@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { Types } from "mongoose";
+import { cookies } from "next/headers";
 import dbConnect from "@/app/lib/mongodb";
 import Orders from "@/app/models/Orders";
 import Product from "@/app/models/Product";
@@ -33,9 +34,10 @@ type ItemPayload = {
 async function getUserFromReq(req: Request): Promise<AuthUser | null> {
   try {
     const authHeader = req.headers.get("authorization") || "";
-    if (!authHeader.startsWith("Bearer ")) return null;
-
-    const token = authHeader.split(" ")[1];
+    const headerToken = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : "";
+    const cookieToken = (await cookies()).get("token")?.value || "";
+    const token = headerToken || cookieToken;
+    if (!token) return null;
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id?: string };
     if (!decoded.id) return null;
 

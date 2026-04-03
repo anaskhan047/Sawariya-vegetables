@@ -61,8 +61,10 @@ export async function getFcmToken(): Promise<string | null> {
     return null;
   }
 
-  const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-  await navigator.serviceWorker.ready;
+  const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js", {
+    scope: "/firebase-cloud-messaging-push-scope",
+  });
+  await registration.update().catch(() => undefined);
   fcmDebug("Service worker registered for messaging.");
 
   try {
