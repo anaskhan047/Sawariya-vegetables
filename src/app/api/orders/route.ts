@@ -6,6 +6,7 @@ import dbConnect from "@/app/lib/mongodb";
 import Orders from "@/app/models/Orders";
 import Product from "@/app/models/Product";
 import User from "@/app/models/User";
+import DeliveryArea from "@/app/models/DeliveryArea";
 import { notifyAdminsForNewOrder } from "@/app/lib/notifications/orderNotifications";
 
 const UPI_IDS = [
@@ -73,6 +74,66 @@ export async function GET(req: Request) {
       orders = await Orders.find({ user: user._id })
         .sort({ createdAt: -1 })
         .lean();
+    }
+
+    const areaIds = Array.from(
+      new Set(
+        orders
+          .map((order) => {
+            const area = (order as { address?: { area?: unknown } })?.address?.area;
+            if (typeof area === "string" && Types.ObjectId.isValid(area)) return area;
+            if (area && typeof area === "object") {
+              const objectArea = area as { _id?: unknown };
+              if (typeof objectArea._id === "string" && Types.ObjectId.isValid(objectArea._id)) {
+                return objectArea._id;
+              }
+            }
+            return null;
+          })
+          .filter((id): id is string => Boolean(id))
+      )
+    );
+
+    if (areaIds.length) {
+      const areaDocs = await DeliveryArea.find({ _id: { $in: areaIds } })
+        .select("_id name pincode")
+        .lean<{ _id: Types.ObjectId; name?: string; pincode?: string }[]>();
+      const areaMap = new Map(
+        areaDocs.map((a) => [String(a._id), { name: a.name || "", pincode: a.pincode || "" }])
+      );
+
+      orders = orders.map((order) => {
+        const obj = order as {
+          address?: { area?: unknown; [key: string]: unknown };
+          [key: string]: unknown;
+        };
+        if (!obj.address) return order;
+
+        const area = obj.address.area;
+        if (typeof area === "string" && areaMap.has(area)) {
+          return {
+            ...obj,
+            address: {
+              ...obj.address,
+              area: areaMap.get(area),
+            },
+          };
+        }
+
+        if (area && typeof area === "object") {
+          const objectArea = area as { _id?: unknown };
+          if (typeof objectArea._id === "string" && areaMap.has(objectArea._id)) {
+            return {
+              ...obj,
+              address: {
+                ...obj.address,
+                area: areaMap.get(objectArea._id),
+              },
+            };
+          }
+        }
+        return order;
+      });
     }
 
     return NextResponse.json(

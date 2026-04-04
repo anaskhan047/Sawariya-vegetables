@@ -33,7 +33,6 @@ export default function FcmTokenManager() {
   const pathname = usePathname();
   const savedStateRef = useRef<SavedState | null>(null);
   const seenNotificationIdsRef = useRef<Set<string>>(new Set());
-  const unreadBootstrapDoneRef = useRef<boolean>(false);
   const lastAdminSoundAtRef = useRef<number>(0);
 
   const getAdminOrderSoundType = (payload: {
@@ -131,7 +130,6 @@ export default function FcmTokenManager() {
   useEffect(() => {
     if (!isLoggedIn) {
       savedStateRef.current = null;
-      unreadBootstrapDoneRef.current = false;
       seenNotificationIdsRef.current.clear();
       localStorage.removeItem("fcm_token");
     }
@@ -146,7 +144,6 @@ export default function FcmTokenManager() {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       fcmDebug("Starting token registration flow.", { userId: user.id, isLoggedIn });
       const authToken = token || localStorage.getItem("token");
-      if (!authToken) return;
       const result = await registerFcmTokenClient(authToken);
       if (!mounted || !result.ok) return;
 
@@ -241,12 +238,11 @@ export default function FcmTokenManager() {
     if (!shouldPoll) return;
 
     const fetchUnreadAndNotify = async () => {
-      if (document.visibilityState !== "visible") return;
       const authToken = token || localStorage.getItem("token");
-      if (!authToken) return;
 
       const res = await fetch(endpoint, {
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+        cache: "no-store",
       });
       const data = (await res.json().catch(() => ({}))) as {
         success?: boolean;
@@ -256,14 +252,6 @@ export default function FcmTokenManager() {
 
       // Oldest -> newest for natural notification order
       const items = [...data.notifications].reverse();
-
-      if (!unreadBootstrapDoneRef.current) {
-        items.forEach((item) => {
-          if (item?._id) seenNotificationIdsRef.current.add(item._id);
-        });
-        unreadBootstrapDoneRef.current = true;
-        return;
-      }
 
       items.forEach((item) => {
         if (!item?._id) return;
@@ -304,7 +292,7 @@ export default function FcmTokenManager() {
 
     const interval = window.setInterval(() => {
       fetchUnreadAndNotify().catch(() => undefined);
-    }, 45000);
+    }, 12000);
 
     return () => {
       cancelled = true;

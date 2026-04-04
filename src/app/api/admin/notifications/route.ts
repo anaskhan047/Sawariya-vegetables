@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/app/lib/mongodb";
 import User from "@/app/models/User";
 import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 import Notification from "@/app/models/Notification";
 import { notifyAllUsersFromAdmin } from "@/app/lib/notifications/orderNotifications";
@@ -17,8 +18,10 @@ type MaybeUser = {
 async function getUserFromReq(req: Request | NextRequest): Promise<MaybeUser | null> {
   try {
     const authHeader = (req.headers.get("authorization") || "") as string;
-    if (!authHeader.startsWith("Bearer ")) return null;
-    const token = authHeader.split(" ")[1];
+    const headerToken = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : "";
+    const cookieToken = (await cookies()).get("token")?.value || "";
+    const token = headerToken || cookieToken;
+    if (!token) return null;
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id?: string };
     if (!decoded?.id) return null;
     await dbConnect();

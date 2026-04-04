@@ -13,10 +13,6 @@ export async function registerFcmTokenClient(authToken?: string | null): Promise
       return { ok: false, reason: "not-in-browser" };
     }
 
-    if (!authToken) {
-      return { ok: false, reason: "missing-auth-token" };
-    }
-
     if (!(await canUseFcmInBrowser())) {
       console.info("[FCM] Browser does not support FCM.");
       return { ok: false, reason: "unsupported-browser" };
@@ -51,7 +47,7 @@ export async function registerFcmTokenClient(authToken?: string | null): Promise
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       },
       body: JSON.stringify({ token: fcmToken }),
     });
