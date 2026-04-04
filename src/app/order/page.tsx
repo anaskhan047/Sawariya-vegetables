@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { JSX, useEffect, useRef, useState } from "react";
+import React, { JSX, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
@@ -559,12 +559,9 @@ function Countdown({
 }
 
 export default function UserOrderList(): JSX.Element {
-  const PAGE_SIZE = 20;
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -636,28 +633,6 @@ export default function UserOrderList(): JSX.Element {
       controller.abort();
     };
   }, []);
-
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [orders.length]);
-
-  useEffect(() => {
-    const node = loadMoreRef.current;
-    if (!node) return;
-    if (visibleCount >= orders.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (!first?.isIntersecting) return;
-        setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, orders.length));
-      },
-      { root: null, rootMargin: "320px 0px", threshold: 0.1 }
-    );
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [orders.length, visibleCount]);
 
   const cancelOrder = async (orderId: string) => {
     try {
@@ -740,8 +715,6 @@ export default function UserOrderList(): JSX.Element {
     return Date.now() - createdTs <= 5 * 60 * 1000;
   };
 
-  const visibleOrders = orders.slice(0, visibleCount);
-
   if (loading) {
     return (
       <div className="min-h-screen flex justify-center items-center">
@@ -779,7 +752,7 @@ export default function UserOrderList(): JSX.Element {
               </tr>
             </thead>
             <tbody>
-              {visibleOrders.map((order) => {
+              {orders.map((order) => {
                 const canCancel = canCancelLocal(order);
                 return (
                   <tr
@@ -949,7 +922,7 @@ export default function UserOrderList(): JSX.Element {
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:hidden">
-          {visibleOrders.map((order, index) => {
+          {orders.map((order, index) => {
             const canCancel = canCancelLocal(order);
             return (
               <motion.div
@@ -1109,14 +1082,6 @@ export default function UserOrderList(): JSX.Element {
           })}
         </div>
 
-        {visibleCount < orders.length && (
-          <div className="mt-4 flex flex-col items-center justify-center gap-2">
-            <div ref={loadMoreRef} className="h-3 w-full" />
-            <p className="text-xs text-slate-500">
-              Loading more orders... ({visibleCount}/{orders.length})
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
