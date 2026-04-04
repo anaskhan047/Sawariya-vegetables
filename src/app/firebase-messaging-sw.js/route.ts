@@ -4,26 +4,43 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "";
-  const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "";
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "";
-  const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "";
-  const messagingSenderId = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "";
-  const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "";
-  const measurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "";
+  const fallbackFirebaseConfig = {
+    apiKey: "AIzaSyD9hppcBYI550csqNpISvpRFu-O17vRVxQ",
+    authDomain: "shri-sawariya-mart.firebaseapp.com",
+    projectId: "shri-sawariya-mart",
+    storageBucket: "shri-sawariya-mart.firebasestorage.app",
+    messagingSenderId: "400592809243",
+    appId: "1:400592809243:web:d66c767e3240550ff3b7be",
+    measurementId: "G-MM60NTPP4F",
+  };
+
+  const firebaseConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || fallbackFirebaseConfig.apiKey,
+    authDomain:
+      process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || fallbackFirebaseConfig.authDomain,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || fallbackFirebaseConfig.projectId,
+    storageBucket:
+      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || fallbackFirebaseConfig.storageBucket,
+    messagingSenderId:
+      process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ||
+      fallbackFirebaseConfig.messagingSenderId,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || fallbackFirebaseConfig.appId,
+    measurementId:
+      process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || fallbackFirebaseConfig.measurementId,
+  };
 
   const body = `
 importScripts("https://www.gstatic.com/firebasejs/12.6.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging-compat.js");
 
 firebase.initializeApp({
-  apiKey: "${apiKey}",
-  authDomain: "${authDomain}",
-  projectId: "${projectId}",
-  storageBucket: "${storageBucket}",
-  messagingSenderId: "${messagingSenderId}",
-  appId: "${appId}",
-  measurementId: "${measurementId}"
+  apiKey: ${JSON.stringify(firebaseConfig.apiKey)},
+  authDomain: ${JSON.stringify(firebaseConfig.authDomain)},
+  projectId: ${JSON.stringify(firebaseConfig.projectId)},
+  storageBucket: ${JSON.stringify(firebaseConfig.storageBucket)},
+  messagingSenderId: ${JSON.stringify(firebaseConfig.messagingSenderId)},
+  appId: ${JSON.stringify(firebaseConfig.appId)},
+  measurementId: ${JSON.stringify(firebaseConfig.measurementId)}
 });
 
 const messaging = firebase.messaging();

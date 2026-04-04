@@ -62,10 +62,18 @@ export async function GET(req: Request) {
     }
 
     await dbConnect();
-    const orders = await Orders.find({ user: user._id })
-      .populate("address.area", "name pincode")
-      .sort({ createdAt: -1 })
-      .lean();
+    let orders: unknown[] = [];
+    try {
+      orders = await Orders.find({ user: user._id })
+        .populate("address.area", "name pincode")
+        .sort({ createdAt: -1 })
+        .lean();
+    } catch (populateError) {
+      console.warn("GET /api/orders populate fallback:", populateError);
+      orders = await Orders.find({ user: user._id })
+        .sort({ createdAt: -1 })
+        .lean();
+    }
 
     return NextResponse.json(
       { success: true, orders },
