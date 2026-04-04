@@ -4,13 +4,47 @@ import { getFirebaseClientApp } from "@/app/lib/firebase/client";
 let messagingInstance: Messaging | null = null;
 let checkedSupport = false;
 let isMessagingSupported = false;
+let cachedVapidKey: string | null = null;
 
-function getPublicVapidKey() {
+function getEnvVapidKey() {
   return (
     process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ||
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
     ""
   ).trim();
+}
+
+async function resolvePublicVapidKey() {
+  const envKey = getEnvVapidKey();
+  if (envKey) return envKey;
+  if (cachedVapidKey) return cachedVapidKey;
+
+  try {
+    const res = await fetch("/api/push/public-key", { cache: "no-store" });
+    if (!res.ok) return "";
+    const data = (await res.json().catch(() => ({}))) as { success?: boolean; key?: string };
+    const key = (data?.success && typeof data.key === "string" ? data.key : "").trim();
+    if (!key) return "";
+    cachedVapidKey = key;
+    return key;
+  } catch {
+    return "";
+  }
+}
+
+async function registerMessagingServiceWorker() {
+  try {
+    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js", {
+      scope: "/firebase-cloud-messaging-push-scope/",
+    });
+    await registration.update().catch(() => undefined);
+    return registration;
+  } catch (error) {
+    fcmDebug("Scoped SW registration failed, trying default scope.", error);
+    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    await registration.update().catch(() => undefined);
+    return registration;
+  }
 }
 
 function fcmDebug(message: string, extra?: unknown) {
@@ -69,15 +103,12 @@ export async function getFcmToken(): Promise<string | null> {
     return null;
   }
 
-  const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js", {
-    scope: "/firebase-cloud-messaging-push-scope",
-  });
-  await registration.update().catch(() => undefined);
+  const registration = await registerMessagingServiceWorker();
   fcmDebug("Service worker registered for messaging.");
 
   try {
     fcmDebug("getToken started (single path, service-worker based).");
-    const vapidKey = getPublicVapidKey();
+    const vapidKey = await resolvePublicVapidKey();
     const token = await getToken(messaging, vapidKey
       ? {
           serviceWorkerRegistration: registration,
