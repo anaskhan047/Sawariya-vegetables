@@ -51,19 +51,22 @@ function toAbsoluteUrl(u) {
 
 function normalizePayload(payload) {
   var data = payload && payload.data ? payload.data : {};
+  var notification = payload && payload.notification ? payload.notification : {};
   var title =
-    (payload && payload.notification && payload.notification.title) ||
+    notification.title ||
     (payload && payload.title) ||
     data.title ||
     "Shri Sawariya Mart";
   var bodyText =
-    (payload && payload.notification && payload.notification.body) ||
+    notification.body ||
     (payload && payload.body) ||
     data.body ||
     "";
-  var url = toAbsoluteUrl(data.url || "/");
+  var url = toAbsoluteUrl(data.url || (payload && payload.url) || "/");
+  var type = data.type || (payload && payload.type);
+  var orderId = data.orderId || (payload && payload.orderId);
   var tag =
-    data.type && data.orderId ? String(data.type) + ":" + String(data.orderId) : undefined;
+    type && orderId ? String(type) + ":" + String(orderId) : undefined;
   return { data: data, title: title, body: bodyText, url: url, tag: tag };
 }
 

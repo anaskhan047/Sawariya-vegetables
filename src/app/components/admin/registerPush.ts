@@ -1,4 +1,8 @@
 // src/app/components/admin/registerPush.ts
+const PUSH_SW_URL = "/firebase-messaging-sw.js";
+const PUSH_SUBSCRIPTION_VERSION = "firebase-sw-v3-details";
+const PUSH_SUBSCRIPTION_VERSION_KEY = "ssm_push_subscription_version";
+
 export async function registerAdminPush(adminId?: string, authToken?: string | null) {
   if (typeof window === "undefined") return null;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -6,7 +10,7 @@ export async function registerAdminPush(adminId?: string, authToken?: string | n
     return null;
   }
   try {
-    const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    const reg = await navigator.serviceWorker.register(PUSH_SW_URL);
     await reg.update().catch(() => undefined);
     if (reg.waiting) {
       reg.waiting.postMessage({ type: "SKIP_WAITING" });
@@ -20,6 +24,11 @@ export async function registerAdminPush(adminId?: string, authToken?: string | n
       (await navigator.serviceWorker.getRegistration("/")) ||
       (await navigator.serviceWorker.ready);
     let subscription = await activeReg.pushManager.getSubscription();
+    if (subscription && shouldRenewChromeSubscription()) {
+      await subscription.unsubscribe().catch(() => false);
+      subscription = null;
+      console.info("Chrome push subscription renewed for active service worker.");
+    }
     if (!subscription) {
       const res = await fetch("/api/push/public-key");
       if (!res.ok) return null;
@@ -29,6 +38,8 @@ export async function registerAdminPush(adminId?: string, authToken?: string | n
       subscription = await activeReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
     }
 
+    const activeWorkerUrl =
+      activeReg.active?.scriptURL || activeReg.installing?.scriptURL || activeReg.waiting?.scriptURL || "";
     const saveResponse = await fetch("/api/push/register", {
       method: "POST",
       credentials: "include",
@@ -52,12 +63,24 @@ export async function registerAdminPush(adminId?: string, authToken?: string | n
       return null;
     }
 
-    console.info("Push subscription registered for", location.origin);
+    localStorage.setItem(PUSH_SUBSCRIPTION_VERSION_KEY, PUSH_SUBSCRIPTION_VERSION);
+    console.info("Push subscription registered for", location.origin, {
+      endpointPrefix: subscription.endpoint.slice(0, 45),
+      serviceWorker: activeWorkerUrl,
+    });
     return subscription;
   } catch (err) {
     console.error("registerAdminPush error", err);
     return null;
   }
+}
+
+function shouldRenewChromeSubscription() {
+  const ua = navigator.userAgent || "";
+  const isChromeLike = /\bChrome\//.test(ua) || /\bEdg\//.test(ua);
+  const isFirefox = /\bFirefox\//.test(ua);
+  if (!isChromeLike || isFirefox) return false;
+  return localStorage.getItem(PUSH_SUBSCRIPTION_VERSION_KEY) !== PUSH_SUBSCRIPTION_VERSION;
 }
 
 function urlBase64ToUint8Array(base64String: string) {

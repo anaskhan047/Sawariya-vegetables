@@ -58,7 +58,13 @@ export async function POST(req: Request) {
       customPayload ?? {
         title: "New Order",
         body: "Naya order aaya hai!",
+        notification: {
+          title: "New Order",
+          body: "Naya order aaya hai!",
+        },
         data: {
+          title: "New Order",
+          body: "Naya order aaya hai!",
           origin: origin ?? "all",
           url: "https://www.shrisawariyamart.com/admin/orders",
         },

@@ -62,8 +62,14 @@ async function sendRoleWebPushNotification(params: {
   const payload = {
     title: params.title,
     body: params.body,
+    notification: {
+      title: params.title,
+      body: params.body,
+    },
     data: {
       ...(params.data || {}),
+      title: params.title,
+      body: params.body,
       url: params.url,
     },
     renotify: true,
