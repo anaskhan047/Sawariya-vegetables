@@ -18,7 +18,7 @@ export default function Footer() {
         <div className="absolute -bottom-20 left-1/3 h-56 w-56 rounded-full bg-green-100/55 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto w-full max-w-7xl px-4 pb-6 pt-10 sm:px-6 md:px-8">
+      <div className="relative mx-auto w-full max-w-7xl px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-10 sm:px-6 md:px-8 md:pb-6">
         <div className="mb-8 grid gap-6 rounded-3xl border border-[var(--border-color)] bg-[var(--background-color)]/95 p-5 shadow-[0_18px_45px_rgba(22,163,74,0.14)] backdrop-blur-xl sm:p-6 md:grid-cols-[1.2fr_1fr_1fr_1fr]">
           <div>
             <Link href="/" className="inline-flex items-center gap-3">
@@ -42,9 +42,9 @@ export default function Footer() {
               <a href="#" aria-label="Twitter" className="rounded-full border border-emerald-200 bg-white p-2.5 text-emerald-700 transition hover:bg-emerald-50">
                 <FaTwitter />
               </a>
-              <a href="#" aria-label="Instagram" className="rounded-full border border-emerald-200 bg-white p-2.5 text-emerald-700 transition hover:bg-emerald-50">
-                <FaInstagram />
-              </a>
+                <a href="https://www.instagram.com/shri_sawariya_mart?utm_source=qr&igsh=ZHB6NmR4NjFpZGp1" target="_blank" aria-label="Instagram" className="rounded-full border border-emerald-200 bg-white p-2.5 text-emerald-700 transition hover:bg-emerald-50">
+                  <FaInstagram />
+                </a>
               <a href="#" aria-label="LinkedIn" className="rounded-full border border-emerald-200 bg-white p-2.5 text-emerald-700 transition hover:bg-emerald-50">
                 <FaLinkedinIn />
               </a>

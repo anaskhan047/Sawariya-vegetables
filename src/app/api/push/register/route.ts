@@ -1,12 +1,43 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
 import dbConnect from "@/app/lib/mongodb";
 import PushSubscription from "@/app/models/PushSubscription";
+import User from "@/app/models/User";
+
+type JwtPayload = {
+  id?: string;
+};
+
+async function getAuthenticatedUser(req: Request) {
+  const authHeader = req.headers.get("authorization") || "";
+  const headerToken = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : "";
+  const cookieToken = (await cookies()).get("token")?.value || "";
+  const token = headerToken || cookieToken;
+  if (!token) return null;
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
+    if (!decoded.id) return null;
+    await dbConnect();
+    return User.findById(decoded.id).select("_id role").lean<{
+      _id: string;
+      role: "admin" | "delivery" | "user";
+    } | null>();
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(req: Request) {
   try {
-    await dbConnect();
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return NextResponse.json({ success: false, message: "Not authenticated" }, { status: 401 });
+    }
+
     const body = await req.json();
-    const { subscription, origin } = body ?? {};
+    const { subscription, origin, adminId } = body ?? {};
 
     if (!subscription || !subscription.endpoint) {
       return NextResponse.json(
@@ -26,6 +57,9 @@ export async function POST(req: Request) {
         $set: {
           endpoint: subscription.endpoint,
           keys: subscription.keys || {},
+          adminId: typeof adminId === "string" ? adminId : "",
+          userId: String(user._id),
+          role: user.role,
           origin: siteOrigin,
           updatedAt: new Date(),
         },

@@ -67,15 +67,20 @@ export async function PATCH(req: Request) {
       }
     }
 
-    notifyAdminsForCancelledOrder({
-      orderId: String(order._id),
-      customerName: String((user as { name?: string })?.name || "Customer"),
-      total: Number(order.total || 0),
-      itemCount: Array.isArray(order.items) ? order.items.length : 0,
-      status: String(order.status || "cancelled"),
-    }).catch((notificationError) => {
-      console.error("Admin cancel-order notification failed:", notificationError);
-    });
+    void (async () => {
+      try {
+        await notifyAdminsForCancelledOrder({
+          orderId: String(order._id),
+          customerName: String((user as { name?: string })?.name || "Customer"),
+          total: Number(order.total || 0),
+          itemCount: Array.isArray(order.items) ? order.items.length : 0,
+          status: String(order.status || "cancelled"),
+        });
+        console.info("[orders] PATCH cancel admin notify pipeline completed", { orderId: String(order._id) });
+      } catch (notificationError) {
+        console.error("[orders] PATCH admin cancel-order notification failed:", notificationError);
+      }
+    })();
 
     return NextResponse.json({ success: true, order }, { status: 200 });
   } catch (err: unknown) {

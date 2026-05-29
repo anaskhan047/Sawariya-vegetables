@@ -9,6 +9,10 @@ import { motion } from "framer-motion";
 import QRCode from "qrcode";
 import Swal from "sweetalert2";
 import OrbitVegetableLoader from "../components/Loader/Loader";
+import {
+  requestNotificationPermissionFromUserGesture,
+  showBrowserOrderConfirmation,
+} from "@/app/lib/notifications/browserOrderNotification";
 
 type Product = {
   _id: string;
@@ -343,7 +347,22 @@ export default function CartPage() {
           throw new Error(data.message || "Unable to place order");
         }
 
-        await Swal.fire("Success", paymentMethod === "upi" ? "Payment verified and order placed!" : "Your order has been placed!", "success");
+        const oid = data.order?._id != null ? String(data.order._id) : undefined;
+        const totalNum =
+          typeof data.order?.total === "number" && !Number.isNaN(data.order.total)
+            ? data.order.total
+            : priceSummary.total;
+        await showBrowserOrderConfirmation({
+          orderId: oid,
+          total: totalNum,
+          itemCount: orderItems.length,
+        });
+
+        await Swal.fire(
+          "Success",
+          paymentMethod === "upi" ? "Payment verified and order placed!" : "Your order has been placed!",
+          "success",
+        );
 
         saveCheckoutDetails({
           name: checkoutForm.name,
@@ -442,6 +461,7 @@ export default function CartPage() {
 
   const handleContinueDetails = async () => {
     if (placingOrder) return;
+    requestNotificationPermissionFromUserGesture();
 
     if (!checkoutForm.name.trim() || !checkoutForm.phone.trim() || !checkoutForm.address.trim() || !checkoutForm.area) {
       setCheckoutError("Please fill all delivery details and select delivery area.");
@@ -468,6 +488,9 @@ export default function CartPage() {
   };
 
   const handleUpiSubmit = async () => {
+    if (placingOrder) return;
+    requestNotificationPermissionFromUserGesture();
+
     if (!upiState.utr.trim()) {
       setCheckoutError("Please enter UTR / transaction ID.");
       return;

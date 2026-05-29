@@ -40,7 +40,7 @@ export default function CartFloatingButton(): JSX.Element {
           exit="exit"
           variants={containerVariants}
           onClick={handleClick}
-          className="fixed bottom-3 left-1/2 z-50 flex w-[calc(100%-14px)] max-w-[360px] -translate-x-1/2 items-center gap-2 rounded-2xl border border-white/10 bg-gradient-to-r from-green-600 to-emerald-500 px-2.5 py-2 text-white shadow-2xl backdrop-blur-md sm:bottom-5 sm:w-auto sm:max-w-none sm:gap-3 sm:rounded-full sm:px-4 sm:py-2.5"
+          className="fixed bottom-[calc(4.35rem+env(safe-area-inset-bottom))] left-1/2 z-50 flex w-[calc(100%-14px)] max-w-[360px] -translate-x-1/2 items-center gap-2 rounded-2xl border border-white/10 bg-gradient-to-r from-green-600 to-emerald-500 px-2.5 py-2 text-white shadow-2xl backdrop-blur-md max-md:max-w-[min(360px,calc(100vw-1rem))] md:bottom-5 md:w-auto md:max-w-none md:gap-3 md:rounded-full md:px-4 md:py-2.5"
           style={{ WebkitTapHighlightColor: "transparent" }}
         >
           <motion.span

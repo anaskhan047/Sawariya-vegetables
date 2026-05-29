@@ -1,5 +1,5 @@
 "use client";
-import { Bell, Settings, LogOut } from "lucide-react";
+import { Settings, LogOut } from "lucide-react";
 import "../../../app/globals.css"; // Ensure global styles are imported
 import { useRouter } from "next/navigation";
 
@@ -22,14 +22,6 @@ export default function Topbar() {
   return (
     <header className="w-full bg-[var(--secondary-color)] flex items-center justify-end px-6 py-3 shadow-sm">
       <div className="flex items-center gap-4 text-white">
-        {/* Notification Icon */}
-        <button
-          aria-label="Notifications"
-          className="hover:text-gray-200 transition"
-        >
-          <Bell size={20} />
-        </button>
-
         {/* Settings Icon */}
         <button
           aria-label="Settings"

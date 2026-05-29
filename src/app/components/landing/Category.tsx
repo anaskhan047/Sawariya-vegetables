@@ -79,14 +79,18 @@ export default function Categories() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
         {cardItems.map((category, index) => {
           const isLoaded = typeof category === "object" && category !== null && "name" in category;
+          const cat = isLoaded ? (category as Category) : null;
+          const imageUrl =
+            cat && typeof cat.imageUrl === "string" ? cat.imageUrl.trim() : "";
+          const hasImageSrc = imageUrl.length > 0;
 
           return (
             <motion.button
-              key={isLoaded ? (category as Category)._id : `placeholder-${index}`}
+              key={cat?._id ?? `placeholder-${index}`}
               type="button"
               onClick={() => {
-                if (!isLoaded) return;
-                handleCategoryClick((category as Category).name);
+                if (!isLoaded || !cat) return;
+                handleCategoryClick(cat.name);
               }}
               whileHover={isLoaded ? { y: -6, scale: 1.01 } : {}}
               whileTap={isLoaded ? { scale: 0.985 } : {}}
@@ -101,16 +105,26 @@ export default function Categories() {
               }`}
             >
               <div className="relative h-32 w-full overflow-hidden sm:h-36 lg:h-40">
-                {isLoaded ? (
+                {isLoaded && hasImageSrc ? (
                   <>
                     <Image
-                      src={(category as Category).imageUrl}
-                      alt={(category as Category).name}
+                      src={imageUrl}
+                      alt={cat?.name ?? "Category"}
                       fill
                       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
                       priority={index < 4}
                       className="object-cover transition duration-500 group-hover:scale-110"
                     />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/65 via-slate-900/15 to-transparent" />
+                  </>
+                ) : isLoaded ? (
+                  <>
+                    <div
+                      className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-200 via-lime-100 to-cyan-100 text-4xl font-extrabold text-emerald-800/35 transition duration-500 group-hover:scale-105"
+                      aria-hidden
+                    >
+                      {(cat?.name ?? "?").charAt(0).toUpperCase()}
+                    </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900/65 via-slate-900/15 to-transparent" />
                   </>
                 ) : (
@@ -123,7 +137,7 @@ export default function Categories() {
                   className={`line-clamp-2 text-sm font-semibold sm:text-base ${isLoaded ? "text-white" : "text-slate-500"}`}
                   style={{ fontFamily: '"Poppins", "Segoe UI", sans-serif' }}
                 >
-                  {isLoaded ? (category as Category).name : "Loading..."}
+                  {isLoaded && cat ? cat.name : "Loading..."}
                 </p>
                 <span className={`mt-1 inline-block text-[11px] font-medium ${isLoaded ? "text-emerald-100" : "text-slate-400"}`}>
                   {isLoaded ? "Tap to explore" : "Please wait"}

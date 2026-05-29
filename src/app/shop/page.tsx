@@ -9,8 +9,8 @@ export default function ShopPage() {
 
   return (
     <main className="min-h-screen bg-[var(--background-color)]">
-      <div className="mx-auto w-full max-w-[1600px] px-3 pb-10 pt-14 sm:px-4 md:pt-16 lg:px-6">
-        <div className="mb-3 mt-8 flex justify-end md:hidden">
+      <div className="mx-auto w-full max-w-[1600px] px-3 pb-10 pt-3 sm:px-4 md:pt-16 lg:px-6">
+        <div className="mb-3 mt-3 flex justify-end md:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
             className="rounded-xl bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-white shadow-sm"

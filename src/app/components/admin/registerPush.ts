@@ -1,33 +1,58 @@
 // src/app/components/admin/registerPush.ts
-export async function registerAdminPush(adminId?: string) {
+export async function registerAdminPush(adminId?: string, authToken?: string | null) {
   if (typeof window === "undefined") return null;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     console.warn("Push not supported");
     return null;
   }
   try {
-    const reg = await navigator.serviceWorker.register("/sw.js");
+    const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    await reg.update().catch(() => undefined);
+    if (reg.waiting) {
+      reg.waiting.postMessage({ type: "SKIP_WAITING" });
+    }
     await navigator.serviceWorker.ready;
 
     const permission = await Notification.requestPermission();
     if (permission !== "granted") return null;
 
-    let subscription = await reg.pushManager.getSubscription();
+    const activeReg =
+      (await navigator.serviceWorker.getRegistration("/")) ||
+      (await navigator.serviceWorker.ready);
+    let subscription = await activeReg.pushManager.getSubscription();
     if (!subscription) {
       const res = await fetch("/api/push/public-key");
       if (!res.ok) return null;
       const json = await res.json();
       if (!json?.success || !json.key) return null;
       const applicationServerKey = urlBase64ToUint8Array(json.key);
-      subscription = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+      subscription = await activeReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
     }
 
-    await fetch("/api/push/register", {
+    const saveResponse = await fetch("/api/push/register", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
       body: JSON.stringify({ subscription, adminId, origin: location.origin }),
     });
 
+    const saveData = (await saveResponse.json().catch(() => ({}))) as {
+      success?: boolean;
+      message?: string;
+      error?: string;
+    };
+    if (!saveResponse.ok || !saveData.success) {
+      console.warn("Push subscription save failed", {
+        status: saveResponse.status,
+        data: saveData,
+      });
+      return null;
+    }
+
+    console.info("Push subscription registered for", location.origin);
     return subscription;
   } catch (err) {
     console.error("registerAdminPush error", err);

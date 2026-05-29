@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { FiSearch, FiShoppingCart, FiUser, FiMenu, FiX } from "react-icons/fi";
+import { FiSearch, FiShoppingCart, FiUser } from "react-icons/fi";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import Swal from "sweetalert2";
@@ -23,7 +23,6 @@ const navLinks: NavLink[] = [
 ];
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState<boolean>(false);
   const [searchOpen, setSearchOpen] = useState<boolean>(false);
   const [searchValue, setSearchValue] = useState<string>("");
   const [userOpen, setUserOpen] = useState<boolean>(false);
@@ -31,7 +30,6 @@ export default function Navbar() {
 
   const searchRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const lastScrollYRef = useRef<number>(0);
   const showTimerRef = useRef<number | null>(null);
 
@@ -56,9 +54,6 @@ export default function Navbar() {
       if (userRef.current && !userRef.current.contains(e.target as Node)) {
         setUserOpen(false);
       }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -72,7 +67,7 @@ export default function Navbar() {
 
       if (y <= 10) {
         setIsNavVisible(true);
-      } else if (scrollingDown && y - lastY > 3 && !isOpen && !searchOpen && !userOpen) {
+      } else if (scrollingDown && y - lastY > 3 && !searchOpen && !userOpen) {
         setIsNavVisible(false);
       } else if (!scrollingDown) {
         setIsNavVisible(true);
@@ -91,7 +86,7 @@ export default function Navbar() {
       window.removeEventListener("scroll", onScroll);
       if (showTimerRef.current) window.clearTimeout(showTimerRef.current);
     };
-  }, [isOpen, searchOpen, userOpen]);
+  }, [searchOpen, userOpen]);
 
   useEffect(() => {
     async function fetchUser() {
@@ -136,7 +131,7 @@ export default function Navbar() {
     }`;
 
   const actionIconClass =
-    "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700";
+    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 md:h-9 md:w-9";
 
   useEffect(() => {
     const fetchSearchResults = async () => {
@@ -188,8 +183,8 @@ export default function Navbar() {
         isNavVisible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
-      <div className="mx-auto flex w-full max-w-[1320px] items-center justify-between px-2 py-2.5 sm:px-3 md:px-5 md:py-3">
-        <div className="min-w-0">
+      <div className="mx-auto flex w-full max-w-[1320px] min-w-0 items-center gap-2 px-2 py-2 sm:px-3 md:justify-between md:gap-3 md:px-5 md:py-3">
+        <div className="shrink-0">
           <Link
             href="/"
             aria-label="Shri Sawariya Mart - Home"
@@ -201,7 +196,7 @@ export default function Navbar() {
               className="h-8 w-8 rounded object-cover sm:h-9 sm:w-9 md:h-10 md:w-10"
               loading="lazy"
             />
-            <span className="ml-2 hidden whitespace-nowrap text-sm font-bold leading-tight text-emerald-700 sm:block md:text-base">
+            <span className="ml-2 hidden whitespace-nowrap text-sm font-bold leading-tight text-emerald-700 md:block md:text-base">
               Shri Sawariya Mart
             </span>
           </Link>
@@ -217,17 +212,20 @@ export default function Navbar() {
           ))}
         </ul>
 
-        <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-          <div ref={searchRef} className="relative flex items-center">
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-1.5 md:flex-none md:gap-3">
+          <div
+            ref={searchRef}
+            className={`relative flex min-w-0 items-center ${searchOpen ? "max-md:flex-1" : ""}`}
+          >
             {searchOpen ? (
-              <div className="relative">
+              <div className="relative min-w-0 flex-1 md:flex-initial">
                 <input
                   type="search"
                   aria-label="Search products"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
                   placeholder="Search products..."
-                  className="w-[180px] max-w-[62vw] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none sm:w-[260px] md:w-[320px]"
+                  className="w-full min-w-0 max-w-full rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none sm:px-3 md:w-[320px] md:max-w-none"
                   autoFocus
                 />
                 {searchValue && searchResults.length > 0 && (
@@ -270,14 +268,14 @@ export default function Navbar() {
                 className={actionIconClass}
                 onClick={() => setSearchOpen(true)}
               >
-                <FiSearch size={20} />
+                <FiSearch className="h-[18px] w-[18px] md:h-5 md:w-5" />
               </button>
             )}
           </div>
 
-          <div className="group relative cursor-pointer" onClick={() => router.push("/cart")}>
+          <div className="group relative shrink-0 cursor-pointer" onClick={() => router.push("/cart")}>
             <button type="button" aria-label="Open cart" className={actionIconClass}>
-              <FiShoppingCart size={20} />
+              <FiShoppingCart className="h-[18px] w-[18px] md:h-5 md:w-5" />
             </button>
             <span className="absolute -bottom-7 left-1/2 w-20 -translate-x-1/2 rounded-md bg-slate-800 px-2 py-1 text-xs text-white opacity-0 shadow transition group-hover:opacity-100">
               Add to cart
@@ -289,8 +287,9 @@ export default function Navbar() {
             )}
           </div>
 
-          <div ref={userRef} className="relative">
+          <div ref={userRef} className="relative shrink-0">
             <button
+              type="button"
               className="flex items-center gap-2"
               onClick={() => {
                 if (isLoading || loading) return;
@@ -301,10 +300,14 @@ export default function Navbar() {
               aria-expanded={userOpen}
             >
               {isLoggedIn && image ? (
-                <img src={image} alt={user?.name || "User avatar"} className="h-8 w-8 rounded-full border border-slate-200 object-cover shadow-sm" />
+                <img
+                  src={image}
+                  alt={user?.name || "User avatar"}
+                  className="h-8 w-8 rounded-full border border-slate-200 object-cover shadow-sm md:h-9 md:w-9"
+                />
               ) : (
                 <span className={actionIconClass}>
-                  <FiUser size={20} />
+                  <FiUser className="h-[18px] w-[18px] md:h-5 md:w-5" />
                 </span>
               )}
             </button>
@@ -337,40 +340,8 @@ export default function Navbar() {
               </div>
             )}
           </div>
-
-          <button
-            className="rounded-xl border border-slate-200 bg-white p-1.5 text-2xl text-slate-700 shadow-sm md:hidden"
-            onClick={() => setIsOpen((p) => !p)}
-            aria-label="Toggle Menu"
-          >
-            {isOpen ? <FiX /> : <FiMenu />}
-          </button>
         </div>
       </div>
-
-      {isOpen && (
-        <div ref={mobileMenuRef} className="border-t border-slate-200 bg-white shadow-md md:hidden">
-          <ul className="flex flex-col space-y-2 p-3">
-            {navLinks.map((link) => (
-              <li key={link.name}>
-                <Link
-                  href={link.href}
-                  onClick={() => {
-                    setIsOpen(false);
-                  }}
-                  className={`block rounded-xl px-2.5 py-2 text-sm font-medium capitalize transition ${
-                    isLinkActive(link.href)
-                      ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white"
-                      : "text-slate-700 hover:bg-emerald-50 hover:text-emerald-700"
-                  }`}
-                >
-                  {link.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </nav>
   );
 }

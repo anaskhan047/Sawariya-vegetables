@@ -128,7 +128,7 @@ export default function ContactInfo() {
     {
       icon: MapPin,
       title: "Address",
-      detail: "Indore, Madhya Pradesh, India",
+      detail: "VIP PARSPAR NAGAR NEAR RYAN INTERNATIONAL SCHOOL, Indore, Madhya Pradesh, India",
     },
     { icon: Phone, title: "Phone", detail: settingsLoading ? "Loading..." : businessPhone },
     { icon: Mail, title: "Email", detail: settingsLoading ? "Loading..." : businessEmail },
@@ -153,7 +153,7 @@ export default function ContactInfo() {
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d235527.49482607495!2d75.69903738855072!3d22.72388828988633!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3962fcad1b410ddb%3A0x96ec4da356240f4!2sIndore%2C%20Madhya%20Pradesh!5e0!3m2!1sen!2sin!4v1762752568209!5m2!1sen!2sin"
+           src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d267.8657510129061!2d75.82224206886303!3d22.675447707375653!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2sin!4v1780082669176!5m2!1sen!2sin" 
             width="100%"
             height="100%"
             loading="lazy"

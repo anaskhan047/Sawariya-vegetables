@@ -2,6 +2,8 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IPushSubscription extends Document {
   adminId?: string;
+  userId?: string;
+  role?: "admin" | "delivery" | "user";
   endpoint: string;
   keys: {
     p256dh: string;
@@ -15,6 +17,8 @@ export interface IPushSubscription extends Document {
 const PushSubscriptionSchema = new Schema<IPushSubscription>(
   {
     adminId: { type: String, default: "" },
+    userId: { type: String, default: "", index: true },
+    role: { type: String, enum: ["admin", "delivery", "user"], default: "admin", index: true },
     endpoint: { type: String, required: true, unique: true },
     keys: {
       p256dh: { type: String, required: true },

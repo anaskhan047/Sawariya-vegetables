@@ -260,15 +260,20 @@ export async function POST(req: Request) {
       }
     }
 
-    notifyAdminsForNewOrder({
-      orderId: order._id.toString(),
-      customerName: fullUser.name || "Customer",
-      total: Number(order.total || 0),
-      itemCount: Array.isArray(order.items) ? order.items.length : items.length,
-      status: String(order.status || "placed"),
-    }).catch((notificationError) => {
-      console.error("Admin new-order notification failed:", notificationError);
-    });
+    void (async () => {
+      try {
+        await notifyAdminsForNewOrder({
+          orderId: order._id.toString(),
+          customerName: fullUser.name || "Customer",
+          total: Number(order.total || 0),
+          itemCount: Array.isArray(order.items) ? order.items.length : items.length,
+          status: String(order.status || "placed"),
+        });
+        console.info("[orders] POST admin notify pipeline completed", { orderId: String(order._id) });
+      } catch (notificationError) {
+        console.error("[orders] POST admin new-order notification failed:", notificationError);
+      }
+    })();
 
     return NextResponse.json({ success: true, order }, { status: 201 });
   } catch (error) {

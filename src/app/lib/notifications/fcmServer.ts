@@ -1,5 +1,6 @@
 import FcmToken from "@/app/models/FcmToken";
 import { getFirebaseAdminMessaging } from "@/app/lib/firebase/admin";
+import { toAbsoluteUrl } from "@/app/lib/notifications/siteUrl";
 
 type SendFcmPayload = {
   tokens: string[];
@@ -19,6 +20,19 @@ type SendFcmResult = {
 
 function dedupeTokens(tokens: string[]) {
   return Array.from(new Set(tokens.map((token) => token.trim()).filter(Boolean)));
+}
+
+/** FCM data payload: every value must be a non-empty string. */
+function stringifyData(data: Record<string, string | undefined> | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!data) return out;
+  for (const [k, v] of Object.entries(data)) {
+    if (v === undefined || v === null) continue;
+    const s = String(v);
+    if (s.length === 0) continue;
+    out[k] = s;
+  }
+  return out;
 }
 
 async function cleanupInvalidTokens(tokens: string[]) {
@@ -58,9 +72,20 @@ export async function sendFcmNotification(payload: SendFcmPayload): Promise<Send
     };
   }
 
+  const relativeUrl = payload.data?.url || "/";
+  const clickUrl = toAbsoluteUrl(relativeUrl);
+
+  const dataPayload = stringifyData({
+    ...(payload.data || {}),
+    title: payload.title,
+    body: payload.body,
+    url: clickUrl,
+  });
+
   console.info("FCM send started.", {
     tokenCount: tokens.length,
-    type: payload.data?.type || "GENERIC",
+    type: dataPayload.type || "GENERIC",
+    clickUrl,
   });
 
   const response = await messaging.sendEachForMulticast({
@@ -69,12 +94,7 @@ export async function sendFcmNotification(payload: SendFcmPayload): Promise<Send
       title: payload.title,
       body: payload.body,
     },
-    data: {
-      ...(payload.data || {}),
-      title: payload.title,
-      body: payload.body,
-      url: payload.data?.url || "/",
-    },
+    data: dataPayload,
     webpush: {
       headers: {
         Urgency: "high",
@@ -86,9 +106,10 @@ export async function sendFcmNotification(payload: SendFcmPayload): Promise<Send
         icon: "/logo/android-launchericon-192-192.png",
         badge: "/logo/android-launchericon-192-192.png",
         requireInteraction: true,
+        silent: false,
       },
       fcmOptions: {
-        link: payload.data?.url || "/",
+        link: clickUrl,
       },
     },
   });
@@ -104,7 +125,8 @@ export async function sendFcmNotification(payload: SendFcmPayload): Promise<Send
     });
     if (
       errorCode === "messaging/registration-token-not-registered" ||
-      errorCode === "messaging/invalid-registration-token"
+      errorCode === "messaging/invalid-registration-token" ||
+      errorCode === "messaging/unregistered"
     ) {
       invalidTokens.push(tokens[index]);
     }

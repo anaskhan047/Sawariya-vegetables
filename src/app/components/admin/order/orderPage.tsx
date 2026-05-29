@@ -19,7 +19,7 @@ type OrderAddress = {
   name: string;
   phone: string;
   address: string;
-  area: string | { name: string; pincode: string };
+  area: string | { name: string; pincode: string } | null;
 };
 
 type Order = {
@@ -73,6 +73,37 @@ const getStatusPillClass = (status: OrderStatus): string => {
   if (status === "refunded") return "bg-purple-100 text-purple-700";
   return "bg-slate-100 text-slate-700";
 };
+
+/**
+ * Delivery area may be a string (ID), populated `{ name, pincode }`, or `null`.
+ * `typeof null === "object"` — never use `typeof x === "object"` alone.
+ */
+function formatOrderArea(area: OrderAddress["area"] | null | undefined, emptyLabel = ""): string {
+  if (area == null) return emptyLabel;
+  if (typeof area === "string") {
+    const s = area.trim();
+    return s || emptyLabel;
+  }
+  if (typeof area !== "object" || Array.isArray(area)) {
+    return emptyLabel;
+  }
+  const o = area as { name?: string | null; pincode?: string | null };
+  const name = String(o.name ?? "").trim();
+  const pc = String(o.pincode ?? "").trim();
+  if (name && pc) return `${name} (${pc})`;
+  if (name) return name;
+  if (pc) return pc;
+  return emptyLabel;
+}
+
+/** Space-separated name + pincode for search matching */
+function formatOrderAreaSearch(area: OrderAddress["area"] | null | undefined): string {
+  if (area == null) return "";
+  if (typeof area === "string") return area.trim();
+  if (typeof area !== "object" || Array.isArray(area)) return "";
+  const o = area as { name?: string | null; pincode?: string | null };
+  return [String(o.name ?? "").trim(), String(o.pincode ?? "").trim()].filter(Boolean).join(" ");
+}
 
 const canChangeStatus = (current: OrderStatus, next: OrderStatus): boolean => {
   if (current === next) return false;
@@ -234,11 +265,7 @@ export default function AdminOrdersPage() {
       const idMatch = order._id.toLowerCase().includes(q);
       const nameMatch = order.address.name.toLowerCase().includes(q);
       const phoneMatch = order.address.phone.toLowerCase().includes(q);
-      const areaText =
-        typeof order.address.area === "object"
-          ? `${order.address.area.name ?? ""} ${order.address.area.pincode ?? ""}`
-          : order.address.area ?? "";
-      const areaMatch = areaText.toLowerCase().includes(q);
+      const areaMatch = formatOrderAreaSearch(order.address.area).toLowerCase().includes(q);
       return idMatch || nameMatch || phoneMatch || areaMatch;
     });
 
@@ -268,10 +295,7 @@ export default function AdminOrdersPage() {
         "Customer Name": o.address.name,
         Phone: o.address.phone,
         Address: o.address.address,
-        Area:
-          typeof o.address.area === "object"
-            ? `${o.address.area.name ?? ""} (${o.address.area.pincode ?? ""})`
-            : o.address.area,
+        Area: formatOrderArea(o.address.area),
         "Order Items": o.items.map((i) => `${i.name} (${i.quantity} ${i.unit})`).join(", "),
         Subtotal: o.subTotal,
         "Delivery Charge": o.deliveryCharge,
@@ -402,10 +426,7 @@ export default function AdminOrdersPage() {
       .join("");
 
     const address = order.address?.address ?? "--";
-    const area =
-      typeof order.address?.area === "object"
-        ? `${order.address.area?.name ?? ""} (${order.address.area?.pincode ?? ""})`
-        : order.address?.area ?? "--";
+    const area = formatOrderArea(order.address?.area, "--");
 
     const deliveryCharge = order.deliveryCharge ?? 0;
     const subTotal = order.subTotal ?? calculateSubTotal(order.items);
@@ -727,10 +748,7 @@ export default function AdminOrdersPage() {
             const createdDate = created.toLocaleDateString();
             const createdTime = created.toLocaleTimeString();
 
-            const areaText =
-              typeof order.address.area === "object"
-                ? `${order.address.area.name ?? ""} (${order.address.area.pincode ?? ""})`
-                : order.address.area ?? "--";
+            const areaText = formatOrderArea(order.address.area, "--");
 
             const statuses: OrderStatus[] = [
               "placed",

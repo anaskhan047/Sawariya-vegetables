@@ -1,6 +1,7 @@
 "use client";
 
-import { canUseFcmInBrowser, getFcmToken } from "@/app/lib/firebase/messaging";
+import { canUseFcmInBrowser, getFcmTokenWithResult } from "@/app/lib/firebase/messaging";
+import { getFirebaseWebConfigSnapshot } from "@/app/lib/firebase/webConfig";
 
 type RegisterResult = {
   ok: boolean;
@@ -35,16 +36,36 @@ export async function registerFcmTokenClient(authToken?: string | null): Promise
 
     console.info("[FCM] Notification permission granted.");
 
-    const fcmToken = await getFcmToken();
+    const tokenResult = await getFcmTokenWithResult();
+    const fcmToken = tokenResult.token;
     if (!fcmToken) {
-      console.info("[FCM] Token generation failed (null token).");
-      return { ok: false, reason: "token-null" };
+      const code = tokenResult.errorCode ?? "unknown";
+      const msg = tokenResult.message ?? "(no detail — enable NEXT_PUBLIC_FCM_DEBUG=true for verbose logs)";
+      const snap = getFirebaseWebConfigSnapshot();
+      console.warn(
+        `[FCM] Token generation failed. errorCode=${code} message=${msg} projectId=${snap.projectId} webApiKeySource=${snap.webApiKeySource}`
+      );
+      if (typeof fetch !== "undefined" && typeof window !== "undefined") {
+        try {
+          if (sessionStorage.getItem("ssm_fcm_health_snapshot_fetched") !== "1") {
+            sessionStorage.setItem("ssm_fcm_health_snapshot_fetched", "1");
+            fetch("/api/push/fcm-health", { cache: "no-store" })
+              .then((r) => r.json())
+              .then((j) => console.info("[FCM] Server-side FCM health snapshot (once per tab):", j))
+              .catch(() => undefined);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      return { ok: false, reason: code !== "unknown" ? code : "token-null" };
     }
 
     console.info("[FCM] Token generated:", `${fcmToken.slice(0, 20)}...`);
 
     const res = await fetch("/api/fcm/token", {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),

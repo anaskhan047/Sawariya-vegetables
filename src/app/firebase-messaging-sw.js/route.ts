@@ -1,37 +1,33 @@
 import { NextResponse } from "next/server";
+import { getPublicSiteUrl } from "@/app/lib/notifications/siteUrl";
+import { getFirebaseWebConfig } from "@/app/lib/firebase/webConfig";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const FB_JS = "12.11.0";
+
 export async function GET() {
-  const fallbackFirebaseConfig = {
-    apiKey: "AIzaSyD9hppcBYI550csqNpISvpRFu-O17vRVxQ",
-    authDomain: "shri-sawariya-mart.firebaseapp.com",
-    projectId: "shri-sawariya-mart",
-    storageBucket: "shri-sawariya-mart.firebasestorage.app",
-    messagingSenderId: "400592809243",
-    appId: "1:400592809243:web:d66c767e3240550ff3b7be",
-    measurementId: "G-MM60NTPP4F",
-  };
+  const siteOrigin = getPublicSiteUrl();
+  const firebaseConfig = getFirebaseWebConfig();
 
-  const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || fallbackFirebaseConfig.apiKey,
-    authDomain:
-      process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || fallbackFirebaseConfig.authDomain,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || fallbackFirebaseConfig.projectId,
-    storageBucket:
-      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || fallbackFirebaseConfig.storageBucket,
-    messagingSenderId:
-      process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ||
-      fallbackFirebaseConfig.messagingSenderId,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || fallbackFirebaseConfig.appId,
-    measurementId:
-      process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || fallbackFirebaseConfig.measurementId,
-  };
+const body = `
+importScripts("https://www.gstatic.com/firebasejs/${FB_JS}/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/${FB_JS}/firebase-messaging-compat.js");
 
-  const body = `
-importScripts("https://www.gstatic.com/firebasejs/12.6.0/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging-compat.js");
+self.addEventListener("install", function () {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", function (event) {
+  event.waitUntil(clients.claim());
+});
+
+self.addEventListener("message", function (event) {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 
 firebase.initializeApp({
   apiKey: ${JSON.stringify(firebaseConfig.apiKey)},
@@ -44,63 +40,98 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
+const SITE_ORIGIN = ${JSON.stringify(siteOrigin)};
 
-function normalizePayload(payload) {
-  const data = payload?.data || {};
-  const title = payload?.notification?.title || data.title || "Shri Sawariya Mart";
-  const body = payload?.notification?.body || data.body || "";
-  const url = data.url || "/";
-  const tag = data.type && data.orderId ? data.type + ":" + data.orderId : undefined;
-  return { data, title, body, url, tag };
+function toAbsoluteUrl(u) {
+  if (!u || typeof u !== "string") return SITE_ORIGIN + "/";
+  var t = u.trim();
+  if (t.indexOf("http://") === 0 || t.indexOf("https://") === 0) return t;
+  return SITE_ORIGIN + (t.charAt(0) === "/" ? t : "/" + t);
 }
 
-async function showPushNotification(payload) {
-  const normalized = normalizePayload(payload);
-  await self.registration.showNotification(normalized.title, {
+function normalizePayload(payload) {
+  var data = payload && payload.data ? payload.data : {};
+  var title =
+    (payload && payload.notification && payload.notification.title) ||
+    (payload && payload.title) ||
+    data.title ||
+    "Shri Sawariya Mart";
+  var bodyText =
+    (payload && payload.notification && payload.notification.body) ||
+    (payload && payload.body) ||
+    data.body ||
+    "";
+  var url = toAbsoluteUrl(data.url || "/");
+  var tag =
+    data.type && data.orderId ? String(data.type) + ":" + String(data.orderId) : undefined;
+  return { data: data, title: title, body: bodyText, url: url, tag: tag };
+}
+
+function showPushNotification(payload) {
+  var normalized = normalizePayload(payload);
+  return self.registration.showNotification(normalized.title, {
     body: normalized.body,
     data: { url: normalized.url },
     icon: "/logo/android-launchericon-192-192.png",
     badge: "/logo/android-launchericon-192-192.png",
     tag: normalized.tag,
     requireInteraction: true,
+    silent: false,
+    renotify: true,
+    vibrate: [160, 80, 160],
   });
 }
 
-messaging.onBackgroundMessage((payload) => {
-  showPushNotification(payload);
+messaging.onBackgroundMessage(function (payload) {
+  return showPushNotification(payload);
 });
 
-self.addEventListener("push", (event) => {
-  if (!event?.data) return;
+self.addEventListener("push", function (event) {
+  if (!event.data) return;
+
+  var payload = {};
   try {
-    const payload = event.data.json();
-    event.waitUntil(showPushNotification(payload));
-  } catch {
-    // Ignore malformed push payloads.
+    payload = event.data.json();
+  } catch (e) {
+    payload = { title: "Shri Sawariya Mart", body: event.data.text() };
   }
+
+  if (payload && (payload.firebaseMessaging || payload.from || payload.collapse_key)) {
+    return;
+  }
+
+  event.waitUntil(showPushNotification(payload));
 });
 
-self.addEventListener("notificationclick", (event) => {
+self.addEventListener("notificationclick", function (event) {
   event.notification.close();
-  const targetUrl = event.notification?.data?.url || "/";
+  var raw = (event.notification && event.notification.data && event.notification.data.url) || "/";
+  var targetUrl = toAbsoluteUrl(raw);
 
-  event.waitUntil((async () => {
-    const clientsList = await clients.matchAll({ type: "window", includeUncontrolled: true });
-    for (const client of clientsList) {
-      if ("focus" in client) {
-        client.postMessage({ type: "FCM_NAVIGATE", url: targetUrl });
-        await client.focus();
-        if ("navigate" in client) {
-          await client.navigate(targetUrl);
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (clientsList) {
+      for (var i = 0; i < clientsList.length; i++) {
+        var client = clientsList[i];
+        if ("focus" in client) {
+          client.postMessage({ type: "FCM_NAVIGATE", url: targetUrl });
+          return client.focus().then(function () {
+            if (client.url !== targetUrl && "navigate" in client) {
+              try {
+                return client.navigate(targetUrl);
+              } catch (e) {
+                return undefined;
+              }
+            }
+            return undefined;
+          });
         }
-        return;
       }
-    }
-
-    if (clients.openWindow) {
-      await clients.openWindow(targetUrl);
-    }
-  })());
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+      return undefined;
+    })
+  );
 });
 `;
 

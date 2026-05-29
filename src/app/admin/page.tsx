@@ -25,8 +25,6 @@ export default function Dashboard() {
     monthlyOrders: 0,
     pendingOrdersCount: 0,
   });
-  const [unreadCount, setUnreadCount] = useState(0);
-
   useEffect(() => {
     const token = localStorage.getItem("token");
 
@@ -80,58 +78,12 @@ export default function Dashboard() {
     };
 
     fetchData();
-
-    // fetch unread notifications count with lightweight polling
-    let cancelled = false;
-    async function fetchUnread() {
-      if (document.visibilityState !== "visible") return;
-      try {
-        const res = await fetch("/api/admin/notifications?unread=true", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (!cancelled && data?.success) {
-          setUnreadCount(Array.isArray(data.notifications) ? data.notifications.length : 0);
-        }
-      } catch (e) {
-        console.warn("Failed to fetch unread notifications", e);
-      }
-    }
-    fetchUnread();
-    const onFocus = () => {
-      fetchUnread().catch(() => undefined);
-    };
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
-    const iv = setInterval(fetchUnread, 60_000);
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
-      clearInterval(iv);
-    };
   }, []);
 
   return (
     <main className="container mx-auto p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Dashboard Overview</h1>
-        <div className="relative">
-          <button
-            onClick={() => window.location.href = "/admin/notifications"}
-            className="px-3 py-2 rounded-lg border"
-            style={{ borderColor: "var(--border-color)" }}
-            title="Notifications"
-          >
-            🔔
-          </button>
-          {unreadCount > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full text-xs px-2 py-0.5">
-              {unreadCount}
-            </span>
-          )}
-        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
