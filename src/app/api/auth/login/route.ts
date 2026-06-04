@@ -32,6 +32,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Invalid email or password" }, { status: 400 });
     }
 
+    user.lastLoginAt = new Date();
+    user.authProvider = user.authProvider || "password";
+    await user.save();
+
     const token = jwt.sign(
       { id: user._id, role: user.role, name: user.name, email: user.email },
       process.env.JWT_SECRET as string,

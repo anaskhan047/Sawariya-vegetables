@@ -34,6 +34,8 @@ export async function POST(req: NextRequest) {
       name: payload.name,
       email,
       password: payload.passwordHash,
+      authProvider: "password",
+      verified: true,
       role: payload.role ?? "user",
     }) as typeof User.prototype;
 
