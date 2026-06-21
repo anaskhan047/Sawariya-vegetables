@@ -7,7 +7,7 @@ import Image from "next/image";
 import Swal from "sweetalert2";
 import { postAddToCart } from "@/app/lib/client/addToCart";
 import { getOrderableMaxQty } from "@/app/lib/stock";
-import { isFruitCategory } from "@/app/lib/productCategory";
+import { isFruitCategory } from "../../lib/productCategory";
 
 type SortOrder = "newest" | "oldest" | "low-high" | "high-low";
 

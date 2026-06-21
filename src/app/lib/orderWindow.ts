@@ -1,3 +1,21 @@
+/** Store operates in Indore — order-window times are always interpreted in IST. */
+export const STORE_TIMEZONE = "Asia/Kolkata";
+
+/** Current clock time in a timezone as minutes since midnight (0–1439). */
+export function getMinutesInTimezone(now: Date, timeZone = STORE_TIMEZONE): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+
+  let hour = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+  if (hour === 24) hour = 0;
+  return hour * 60 + minute;
+}
+
 /** Parse "HH:MM" (24h) to minutes since midnight. */
 export function timeStringToMinutes(value: string): number | null {
   if (!value || typeof value !== "string") return null;
@@ -112,7 +130,7 @@ export function getOrderWindowStatus(
   const startMin = timeStringToMinutes(normalizeTime24h(start)) ?? 8 * 60;
   let endMin = resolveEndMinutes(startMin, timeStringToMinutes(normalizeTime24h(end)) ?? 0);
 
-  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const nowMin = getMinutesInTimezone(now);
   let isOpen: boolean;
 
   if (startMin < endMin) {
