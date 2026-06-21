@@ -184,7 +184,7 @@ export default function CartPage() {
           freeDeliveryThreshold: typeof s.freeDeliveryThreshold === "number" ? s.freeDeliveryThreshold : undefined,
           freeDeliveryAbove: typeof s.freeDeliveryAbove === "number" ? s.freeDeliveryAbove : undefined,
           orderWindowStart: typeof s.orderWindowStart === "string" ? s.orderWindowStart : "08:00",
-          orderWindowEnd: typeof s.orderWindowEnd === "string" ? s.orderWindowEnd : "00:00",
+          orderWindowEnd: typeof s.orderWindowEnd === "string" ? s.orderWindowEnd : "23:59",
         });
       }
     } catch (err) {
@@ -438,7 +438,7 @@ export default function CartPage() {
 
     const windowStatus = getOrderWindowStatus(
       settings.orderWindowStart || "08:00",
-      settings.orderWindowEnd || "00:00"
+      settings.orderWindowEnd || "23:59"
     );
     if (!windowStatus.isOpen) {
       await Swal.fire({

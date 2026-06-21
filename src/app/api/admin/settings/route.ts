@@ -4,7 +4,7 @@ import dbConnect from "@/app/lib/mongodb";
 import Settings from "@/app/models/Settings";
 import User from "@/app/models/User";
 import jwt from "jsonwebtoken";
-import { buildDeliveryTimeLabel, normalizeTime24h } from "@/app/lib/orderWindow";
+import { buildDeliveryTimeLabel, normalizeOrderWindowEnd24h, normalizeTime24h } from "@/app/lib/orderWindow";
 import { getGlobalSettings } from "@/app/lib/settingsServer";
 
 export const dynamic = "force-dynamic";
@@ -69,10 +69,11 @@ export async function PATCH(req: Request) {
         hasStart ? body.orderWindowStart : current.orderWindowStart,
         current.orderWindowStart
       );
-      const end = normalizeTime24h(
+      const endRaw = normalizeTime24h(
         hasEnd ? body.orderWindowEnd : current.orderWindowEnd,
         current.orderWindowEnd
       );
+      const end = normalizeOrderWindowEnd24h(start, endRaw);
       updateFields.orderWindowStart = start;
       updateFields.orderWindowEnd = end;
       updateFields.deliveryTimeWindow = buildDeliveryTimeLabel(start, end);

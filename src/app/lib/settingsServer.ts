@@ -1,6 +1,6 @@
 import dbConnect from "@/app/lib/mongodb";
 import Settings from "@/app/models/Settings";
-import { buildDeliveryTimeLabel, getOrderWindowStatus, normalizeTime24h } from "@/app/lib/orderWindow";
+import { buildDeliveryTimeLabel, getOrderWindowStatus, normalizeOrderWindowEnd24h, normalizeTime24h } from "@/app/lib/orderWindow";
 
 export type NormalizedSettings = {
   key: string;
@@ -16,7 +16,10 @@ export type NormalizedSettings = {
 
 function normalizeSettingsDoc(raw: Record<string, unknown> | null | undefined): NormalizedSettings {
   const orderWindowStart = normalizeTime24h(raw?.orderWindowStart, "08:00");
-  const orderWindowEnd = normalizeTime24h(raw?.orderWindowEnd, "00:00");
+  const orderWindowEnd = normalizeOrderWindowEnd24h(
+    orderWindowStart,
+    normalizeTime24h(raw?.orderWindowEnd, "00:00")
+  );
   const deliveryTimeWindow =
     typeof raw?.deliveryTimeWindow === "string" && raw.deliveryTimeWindow.trim()
       ? raw.deliveryTimeWindow.trim()

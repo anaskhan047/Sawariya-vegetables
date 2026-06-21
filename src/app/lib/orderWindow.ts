@@ -36,6 +36,63 @@ export function buildDeliveryTimeLabel(start: string, end: string): string {
   return `${formatTime12h(start)} – ${formatTime12h(end)}`;
 }
 
+export type Time12hParts = {
+  hour: number;
+  minute: number;
+  period: "AM" | "PM";
+};
+
+/** "23:59" → { hour: 11, minute: 59, period: "PM" } */
+export function time24hTo12hParts(value: string): Time12hParts {
+  const mins = timeStringToMinutes(normalizeTime24h(value)) ?? 0;
+  const h24 = Math.floor(mins / 60);
+  const minute = mins % 60;
+  const period: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
+  const hour = h24 % 12 === 0 ? 12 : h24 % 12;
+  return { hour, minute, period };
+}
+
+/** 11 + 59 + PM → "23:59" */
+export function time12hPartsTo24h(hour12: number, minute: number, period: "AM" | "PM"): string {
+  const h = Math.min(12, Math.max(1, Math.floor(hour12)));
+  const m = Math.min(59, Math.max(0, Math.floor(minute)));
+  let h24: number;
+  if (period === "AM") {
+    h24 = h === 12 ? 0 : h;
+  } else {
+    h24 = h === 12 ? 12 : h + 12;
+  }
+  return `${String(h24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * Fixes a common admin mistake: end saved as 11:59 meaning 11:59 PM but stored as 11:59 (AM).
+ * Only applies when start is morning and end is 11:00–11:59 (24h).
+ */
+export function resolveEndMinutes(startMin: number, endMin: number): number {
+  if (endMin === 0 && startMin > 0) return 24 * 60;
+
+  if (
+    startMin >= 6 * 60 &&
+    endMin >= 11 * 60 &&
+    endMin < 12 * 60 &&
+    endMin > startMin
+  ) {
+    return endMin + 12 * 60;
+  }
+
+  return endMin;
+}
+
+/** Normalize stored end time (handles 11:59 AM → 11:59 PM when paired with morning start). */
+export function normalizeOrderWindowEnd24h(start24: string, end24: string): string {
+  const startMin = timeStringToMinutes(normalizeTime24h(start24)) ?? 8 * 60;
+  const rawEndMin = timeStringToMinutes(normalizeTime24h(end24)) ?? 0;
+  const resolved = resolveEndMinutes(startMin, rawEndMin);
+  if (resolved >= 24 * 60) return "00:00";
+  return `${String(Math.floor(resolved / 60)).padStart(2, "0")}:${String(resolved % 60).padStart(2, "0")}`;
+}
+
 export type OrderWindowStatus = {
   isOpen: boolean;
   start: string;
@@ -52,26 +109,29 @@ export function getOrderWindowStatus(
   end = "00:00",
   now = new Date()
 ): OrderWindowStatus {
-  const startMin = timeStringToMinutes(start) ?? 8 * 60;
-  let endMin = timeStringToMinutes(end) ?? 0;
-  if (endMin === 0 && startMin > 0) endMin = 24 * 60;
+  const startMin = timeStringToMinutes(normalizeTime24h(start)) ?? 8 * 60;
+  let endMin = resolveEndMinutes(startMin, timeStringToMinutes(normalizeTime24h(end)) ?? 0);
 
   const nowMin = now.getHours() * 60 + now.getMinutes();
   let isOpen: boolean;
 
   if (startMin < endMin) {
-    isOpen = nowMin >= startMin && nowMin < endMin;
+    // Inclusive end minute — "closes at 11:59 PM" includes 11:59 PM
+    isOpen = nowMin >= startMin && nowMin <= endMin;
   } else if (startMin === endMin) {
     isOpen = true;
   } else {
-    isOpen = nowMin >= startMin || nowMin < endMin;
+    isOpen = nowMin >= startMin || nowMin <= endMin;
   }
+
+  const resolvedEnd24 =
+    endMin >= 24 * 60 ? "00:00" : `${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
 
   return {
     isOpen,
-    start,
-    end,
-    label: buildDeliveryTimeLabel(start, end),
+    start: normalizeTime24h(start),
+    end: resolvedEnd24,
+    label: buildDeliveryTimeLabel(normalizeTime24h(start), resolvedEnd24),
   };
 }
 
