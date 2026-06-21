@@ -81,11 +81,11 @@ export default function AuthPage() {
       if (isLogin) {
         if (data.token) {
           localStorage.setItem("token", data.token);
-          await registerFcmTokenClient(data.token);
+          void registerFcmTokenClient(data.token);
         }
         if (data.user) setUserDirect(data.user);
-        await refresh();
         router.push(data.redirectUrl || "/shop");
+        void refresh();
         return;
       }
 
@@ -157,9 +157,9 @@ export default function AuthPage() {
       }
 
       localStorage.setItem("token", data.token);
-      await registerFcmTokenClient(data.token);
+      void registerFcmTokenClient(data.token);
       if (data.user) setUserDirect(data.user);
-      await refresh();
+      void refresh();
 
       const isNewGoogleAccount = data.message?.toLowerCase().includes("created");
       setSuccessModal({
@@ -185,10 +185,10 @@ export default function AuthPage() {
         src="/hero/hero.png"
         alt="Fresh produce background"
         fill
-        className="object-cover"
+        className="pointer-events-none object-cover"
         priority
       />
-      <div className="absolute inset-0 bg-slate-950/45" />
+      <div className="pointer-events-none absolute inset-0 bg-slate-950/45" />
       <div className="relative mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-6xl items-center px-3 py-6 sm:px-5 md:min-h-[calc(100vh-6rem)]">
         <div className="grid w-full overflow-hidden rounded-3xl border border-white/30 bg-white/90 shadow-[0_30px_90px_rgba(15,23,42,0.45)] backdrop-blur md:grid-cols-2">
           <div className="relative hidden min-h-[620px] md:block">
@@ -204,9 +204,9 @@ export default function AuthPage() {
           </div>
 
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.2 }}
             className="p-5 sm:p-7 md:p-9"
           >
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Secure Access</p>

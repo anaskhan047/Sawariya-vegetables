@@ -13,6 +13,8 @@ import {
   requestNotificationPermissionFromUserGesture,
   showBrowserOrderConfirmation,
 } from "@/app/lib/notifications/browserOrderNotification";
+import { getCheckoutBlockedMessage, getOrderWindowStatus } from "@/app/lib/orderWindow";
+import { getOrderableMaxQty } from "@/app/lib/stock";
 
 type Product = {
   _id: string;
@@ -24,6 +26,7 @@ type Product = {
   images: { url: string }[];
   minQty: number;
   maxQty: number;
+  stockQty?: number;
 };
 
 type CartItem = {
@@ -88,7 +91,13 @@ export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [loadingCart, setLoadingCart] = useState(false);
   const [areas, setAreas] = useState<DeliveryArea[]>([]);
-  const [settings, setSettings] = useState<Record<string, number>>({});
+  const [settings, setSettings] = useState<{
+    deliveryCharge?: number;
+    freeDeliveryThreshold?: number;
+    freeDeliveryAbove?: number;
+    orderWindowStart?: string;
+    orderWindowEnd?: string;
+  }>({});
   const [isAccountActive, setIsAccountActive] = useState<boolean>(true);
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -165,10 +174,19 @@ export default function CartPage() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/settings");
+      const res = await fetch("/api/admin/settings", { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
-      if (data?.success && data.settings) setSettings(data.settings);
+      if (data?.success && data.settings) {
+        const s = data.settings;
+        setSettings({
+          deliveryCharge: typeof s.deliveryCharge === "number" ? s.deliveryCharge : undefined,
+          freeDeliveryThreshold: typeof s.freeDeliveryThreshold === "number" ? s.freeDeliveryThreshold : undefined,
+          freeDeliveryAbove: typeof s.freeDeliveryAbove === "number" ? s.freeDeliveryAbove : undefined,
+          orderWindowStart: typeof s.orderWindowStart === "string" ? s.orderWindowStart : "08:00",
+          orderWindowEnd: typeof s.orderWindowEnd === "string" ? s.orderWindowEnd : "00:00",
+        });
+      }
     } catch (err) {
       console.warn("Failed to fetch settings:", err);
     }
@@ -418,6 +436,21 @@ export default function CartPage() {
   const openCheckoutModal = useCallback(async () => {
     if (priceSummary.subTotal < 50) return;
 
+    const windowStatus = getOrderWindowStatus(
+      settings.orderWindowStart || "08:00",
+      settings.orderWindowEnd || "00:00"
+    );
+    if (!windowStatus.isOpen) {
+      await Swal.fire({
+        title: "Ordering closed for now",
+        text: getCheckoutBlockedMessage(windowStatus),
+        icon: "info",
+        confirmButtonText: "OK",
+        confirmButtonColor: "#059669",
+      });
+      return;
+    }
+
     const token = localStorage.getItem("token");
     if (!token) {
       await Swal.fire("Error", "Please login again!", "error");
@@ -457,7 +490,7 @@ export default function CartPage() {
       const message = err instanceof Error ? err.message : "Could not open checkout";
       await Swal.fire("Error", message, "error");
     }
-  }, [areas, getSavedCheckoutDetails, priceSummary.subTotal]);
+  }, [areas, getSavedCheckoutDetails, priceSummary.subTotal, settings.orderWindowEnd, settings.orderWindowStart]);
 
   const handleContinueDetails = async () => {
     if (placingOrder) return;
@@ -607,7 +640,8 @@ export default function CartPage() {
                       <button
                         onClick={() => {
                           const step = it.productId.unit === "kg" ? 0.5 : 1;
-                          const newQty = Math.min(it.productId.maxQty, it.quantity + step);
+                          const cap = getOrderableMaxQty(it.productId);
+                          const newQty = Math.min(cap, it.quantity + step);
                           if (newQty !== it.quantity) updateQty(it.productId._id, newQty);
                         }}
                         className="rounded-md border px-3 py-1 text-sm hover:bg-slate-50"

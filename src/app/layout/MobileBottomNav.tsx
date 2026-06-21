@@ -42,6 +42,7 @@ export default function MobileBottomNav() {
             <li key={href} className="min-w-0 flex-1">
               <Link
                 href={href}
+                prefetch
                 className={`flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition active:scale-[0.97] ${
                   active
                     ? "text-emerald-700"

@@ -44,7 +44,7 @@ export default function ContactInfo() {
     async function loadSettings() {
       try {
         setSettingsLoading(true);
-        const res = await fetch("/api/admin/settings");
+        const res = await fetch("/api/admin/settings", { cache: "no-store" });
         const data = await res.json();
         if (!cancelled && data?.success && data.settings) {
           const s = data.settings as SettingsShape;

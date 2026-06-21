@@ -180,7 +180,7 @@ export default function Navbar() {
   return (
     <nav
       className={`fixed left-0 top-0 z-50 w-full border-b border-emerald-100 bg-white/95 shadow-[0_8px_28px_rgba(15,23,42,0.10)] backdrop-blur-xl transition-transform duration-300 ease-out ${
-        isNavVisible ? "translate-y-0" : "-translate-y-full"
+        isNavVisible ? "translate-y-0 pointer-events-auto" : "-translate-y-full pointer-events-none"
       }`}
     >
       <div className="mx-auto flex w-full max-w-[1320px] min-w-0 items-center gap-2 px-2 py-2 sm:px-3 md:justify-between md:gap-3 md:px-5 md:py-3">
@@ -205,7 +205,7 @@ export default function Navbar() {
         <ul className="hidden items-center gap-1 rounded-2xl border border-emerald-100 bg-white px-1.5 py-1.5 shadow-[0_10px_22px_rgba(16,185,129,0.12)] md:flex">
           {navLinks.map((link) => (
             <li className="capitalize" key={link.name}>
-              <Link href={link.href} className={linkClass(link.href)}>
+              <Link href={link.href} prefetch className={linkClass(link.href)}>
                 {link.name}
               </Link>
             </li>
@@ -273,19 +273,19 @@ export default function Navbar() {
             )}
           </div>
 
-          <div className="group relative shrink-0 cursor-pointer" onClick={() => router.push("/cart")}>
-            <button type="button" aria-label="Open cart" className={actionIconClass}>
+          <Link href="/cart" prefetch className="group relative shrink-0" aria-label="Open cart">
+            <span className={actionIconClass}>
               <FiShoppingCart className="h-[18px] w-[18px] md:h-5 md:w-5" />
-            </button>
-            <span className="absolute -bottom-7 left-1/2 w-20 -translate-x-1/2 rounded-md bg-slate-800 px-2 py-1 text-xs text-white opacity-0 shadow transition group-hover:opacity-100">
+            </span>
+            <span className="pointer-events-none absolute -bottom-7 left-1/2 w-20 -translate-x-1/2 rounded-md bg-slate-800 px-2 py-1 text-xs text-white opacity-0 shadow transition group-hover:opacity-100">
               Add to cart
             </span>
             {isLoggedIn && (
-              <span className="absolute -right-2 -top-2 rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">
+              <span className="pointer-events-none absolute -right-2 -top-2 rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">
                 {cartCount}
               </span>
             )}
-          </div>
+          </Link>
 
           <div ref={userRef} className="relative shrink-0">
             <button

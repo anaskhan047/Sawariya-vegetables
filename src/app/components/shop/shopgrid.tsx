@@ -6,6 +6,9 @@ import { useSearchParams } from "next/navigation";
 import { useCart } from "@/app/context/CartContext";
 import OrbitVegetableLoader from "../Loader/Loader";
 import Swal from "sweetalert2";
+import { postAddToCart } from "@/app/lib/client/addToCart";
+import { getOrderableMaxQty } from "@/app/lib/stock";
+import { productMatchesCategoryFilter } from "@/app/lib/productCategory";
 
 interface ProductImage {
   url: string;
@@ -69,7 +72,9 @@ export default function ShopPage() {
             filteredProducts = filteredProducts.filter((p: Product) => p.grade === selectedGrade);
           }
           if (selectedCategory) {
-            filteredProducts = filteredProducts.filter((p: Product) => p.category === selectedCategory);
+            filteredProducts = filteredProducts.filter((p: Product) =>
+              productMatchesCategoryFilter(p.category, selectedCategory)
+            );
           }
           if (popularOnly) {
             filteredProducts = filteredProducts.filter((p: Product) => p.popular);
@@ -118,20 +123,14 @@ export default function ShopPage() {
     }
 
     try {
-      const res = await fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: product.id,
-          quantity: quantities[product.id] || product.minQty || 1,
-        }),
+      const result = await postAddToCart({
+        productId: product.id,
+        quantity: quantities[product.id] || product.minQty || 1,
       });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (result.ok) {
         await refreshCart();
-      } else if (!res.ok) {
-        Swal.fire("Limit Exceeded", data.error || "Failed to add to cart", "error");
+      } else {
+        Swal.fire("Not available", result.error || "Failed to add to cart", "error");
       }
     } catch (error) {
       console.error("Add to cart error:", error);
@@ -174,7 +173,7 @@ export default function ShopPage() {
         {products.map((product) => {
           const imgUrl = product.images && product.images.length > 0 ? product.images[0].url : "/placeholder.png";
           const minQty = product.minQty || 0.5;
-          const maxQty = product.maxQty || 10;
+          const maxQty = getOrderableMaxQty(product);
 
           return (
             <div

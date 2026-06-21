@@ -1,27 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
+import { buildDeliveryTimeLabel, formatTime12h, normalizeTime24h } from "@/app/lib/orderWindow";
 
 export default function SettingsPage() {
   const [businessEmail, setBusinessEmail] = useState("");
   const [businessPhone, setBusinessPhone] = useState("");
   const [deliveryCharge, setDeliveryCharge] = useState<number>(40);
-  const [deliveryTimeWindow, setDeliveryTimeWindow] = useState("9 AM - 9 PM");
+  const [orderWindowStart, setOrderWindowStart] = useState("08:00");
+  const [orderWindowEnd, setOrderWindowEnd] = useState("00:00");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  function applySettingsToForm(s: Record<string, unknown>) {
+    setBusinessEmail(typeof s.businessEmail === "string" ? s.businessEmail : "");
+    setBusinessPhone(typeof s.businessPhone === "string" ? s.businessPhone : "");
+    setDeliveryCharge(typeof s.deliveryCharge === "number" ? s.deliveryCharge : 40);
+    setOrderWindowStart(normalizeTime24h(s.orderWindowStart, "08:00"));
+    setOrderWindowEnd(normalizeTime24h(s.orderWindowEnd, "00:00"));
+  }
+
+  const previewLabel = useMemo(
+    () => buildDeliveryTimeLabel(orderWindowStart, orderWindowEnd),
+    [orderWindowStart, orderWindowEnd]
+  );
 
   useEffect(() => {
     async function loadSettings() {
       try {
-        const res = await fetch("/api/admin/settings");
+        const res = await fetch("/api/admin/settings", { cache: "no-store" });
         const data = await res.json();
         if (data.success && data.settings) {
-          const s = data.settings;
-          setBusinessEmail(s.businessEmail);
-          setBusinessPhone(s.businessPhone);
-          setDeliveryCharge(s.deliveryCharge);
-          setDeliveryTimeWindow(s.deliveryTimeWindow);
+          applySettingsToForm(data.settings as Record<string, unknown>);
         }
       } catch (err) {
         console.error(err);
@@ -42,6 +53,7 @@ export default function SettingsPage() {
       setSaving(true);
       const res = await fetch("/api/admin/settings", {
         method: "PATCH",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -50,14 +62,18 @@ export default function SettingsPage() {
           businessEmail,
           businessPhone,
           deliveryCharge,
-          deliveryTimeWindow,
+          orderWindowStart: normalizeTime24h(orderWindowStart, "08:00"),
+          orderWindowEnd: normalizeTime24h(orderWindowEnd, "00:00"),
         }),
       });
 
       const data = await res.json();
       setSaving(false);
 
-      if (data.success) {
+      if (data.success && data.settings) {
+        applySettingsToForm(data.settings as Record<string, unknown>);
+        Swal.fire("Saved", "Settings updated successfully", "success");
+      } else if (data.success) {
         Swal.fire("Saved", "Settings updated successfully", "success");
       } else {
         Swal.fire("Error", data.message || "Failed to save", "error");
@@ -106,15 +122,50 @@ export default function SettingsPage() {
           />
         </div>
 
-        <div>
-          <label className="block text-sm mb-1 text-gray-600">Delivery Time Window</label>
-          <input
-            type="text"
-            value={deliveryTimeWindow}
-            onChange={(e) => setDeliveryTimeWindow(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2"
-          />
-          <p className="text-xs text-gray-500 mt-1">Example: 9 AM - 9 PM</p>
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-emerald-900">Order acceptance window</h2>
+            <p className="text-xs text-gray-600 mt-1">
+              Customers can add to cart anytime. Checkout is allowed only between these times (24-hour clock).
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="orderWindowStart" className="block text-sm mb-1 text-gray-600">
+                Opens at
+              </label>
+              <input
+                id="orderWindowStart"
+                type="time"
+                value={orderWindowStart}
+                onChange={(e) => setOrderWindowStart(e.target.value)}
+                className="w-full rounded-lg border px-3 py-2 bg-white"
+              />
+              <p className="text-xs text-gray-500 mt-1">{formatTime12h(orderWindowStart)}</p>
+            </div>
+            <div>
+              <label htmlFor="orderWindowEnd" className="block text-sm mb-1 text-gray-600">
+                Closes at
+              </label>
+              <input
+                id="orderWindowEnd"
+                type="time"
+                value={orderWindowEnd}
+                onChange={(e) => setOrderWindowEnd(e.target.value)}
+                className="w-full rounded-lg border px-3 py-2 bg-white"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {orderWindowEnd === "00:00"
+                  ? "12:00 AM (midnight) — end of day"
+                  : formatTime12h(orderWindowEnd)}
+              </p>
+            </div>
+          </div>
+
+          <p className="text-sm text-slate-700">
+            Shown to customers: <span className="font-semibold text-emerald-800">{previewLabel}</span>
+          </p>
         </div>
 
         <div className="flex justify-end">

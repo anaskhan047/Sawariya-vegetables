@@ -68,10 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(data.token);
 
         // console.log(" Token saved in localStorage:", data.token);
-        await registerFcmTokenClient(data.token);
+        void registerFcmTokenClient(data.token);
 
-        await refresh();
         router.push("/shop");
+        void refresh();
       } else {
         throw new Error(data?.error || "Login failed");
       }

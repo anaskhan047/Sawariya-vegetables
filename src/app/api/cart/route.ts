@@ -5,6 +5,9 @@ import dbConnect from "@/app/lib/mongodb";
 import Cart from "@/app/models/Cart";
 import Product from "@/app/models/Product";
 import { Types } from "mongoose";
+import { getOutsideOrderWindowMessage, getOrderWindowStatus } from "@/app/lib/orderWindow";
+import { getGlobalSettings } from "@/app/lib/settingsServer";
+import { getOrderableMaxQty, stockExceededMessage } from "@/app/lib/stock";
 
 /** Types **/
 interface CartQuery {
@@ -45,6 +48,24 @@ function makeCartCookieValue(cartId: string) {
     httpOnly: false,
     maxAge: 60 * 60 * 24 * 30, // 30 days
   });
+}
+
+async function orderWindowPayload() {
+  const settings = await getGlobalSettings();
+  const start =
+    typeof settings.orderWindowStart === "string" && settings.orderWindowStart.trim()
+      ? settings.orderWindowStart.trim()
+      : "08:00";
+  const end =
+    typeof settings.orderWindowEnd === "string" && settings.orderWindowEnd.trim()
+      ? settings.orderWindowEnd.trim()
+      : "00:00";
+  const status = getOrderWindowStatus(start, end);
+  return {
+    isOpen: status.isOpen,
+    label: status.label,
+    outsideMessage: status.isOpen ? undefined : getOutsideOrderWindowMessage(status),
+  };
 }
 
 /** GET: fetch cart items */
@@ -100,13 +121,16 @@ export async function POST(req: NextRequest) {
     }
 
     const minQty = product.minQty ?? 1;
-    const maxQty = product.maxQty ?? Number.MAX_SAFE_INTEGER;
-    if (quantity < minQty || quantity > maxQty) {
+    const orderableMax = getOrderableMaxQty(product);
+    if (orderableMax <= 0) {
       return NextResponse.json(
-        {
-          success: false,
-          error: `Quantity must be between ${minQty} and ${maxQty}`,
-        },
+        { success: false, error: `${product.name} is out of stock.` },
+        { status: 400 }
+      );
+    }
+    if (quantity < minQty) {
+      return NextResponse.json(
+        { success: false, error: `Minimum order is ${minQty} ${product.unit || "units"}.` },
         { status: 400 }
       );
     }
@@ -143,12 +167,11 @@ export async function POST(req: NextRequest) {
       const existingQty = (cart.items[existingIndex] as CartItem).quantity;
       const newTotal = existingQty + quantity;
 
-      // ✅ Cap it at maxQty
-      if (newTotal > maxQty) {
+      if (newTotal > orderableMax) {
         return NextResponse.json(
           {
             success: false,
-            error: `You can add only up to ${maxQty} ${product.unit || "units"} for ${product.name}`,
+            error: stockExceededMessage(product, newTotal),
           },
           { status: 400 }
         );
@@ -156,12 +179,11 @@ export async function POST(req: NextRequest) {
 
       (cart.items[existingIndex] as CartItem).quantity = newTotal;
     } else {
-      // ✅ Also check when adding first time
-      if (quantity > maxQty) {
+      if (quantity > orderableMax) {
         return NextResponse.json(
           {
             success: false,
-            error: `You can add only up to ${maxQty} ${product.unit || "units"} for ${product.name}`,
+            error: stockExceededMessage(product, quantity),
           },
           { status: 400 }
         );
@@ -178,8 +200,10 @@ export async function POST(req: NextRequest) {
     await cart.save();
     await cart.populate("items.productId");
 
+    const orderWindow = await orderWindowPayload();
+
     return NextResponse.json(
-      { success: true, items: cart.items },
+      { success: true, items: cart.items, orderWindow },
       { status: 200, headers }
     );
   } catch (err) {
@@ -226,15 +250,26 @@ export async function PUT(req: NextRequest) {
     }
 
     const minQty = product.minQty ?? 1;
-    const maxQty = product.maxQty ?? Number.MAX_SAFE_INTEGER;
-    if (quantity > 0 && (quantity < minQty || quantity > maxQty)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Quantity must be between ${minQty} and ${maxQty}`,
-        },
-        { status: 400 }
-      );
+    const orderableMax = getOrderableMaxQty(product);
+    if (quantity > 0) {
+      if (orderableMax <= 0) {
+        return NextResponse.json(
+          { success: false, error: `${product.name} is out of stock.` },
+          { status: 400 }
+        );
+      }
+      if (quantity < minQty) {
+        return NextResponse.json(
+          { success: false, error: `Minimum order is ${minQty} ${product.unit || "units"}.` },
+          { status: 400 }
+        );
+      }
+      if (quantity > orderableMax) {
+        return NextResponse.json(
+          { success: false, error: stockExceededMessage(product, quantity) },
+          { status: 400 }
+        );
+      }
     }
 
     const query: CartQuery = { cartId };

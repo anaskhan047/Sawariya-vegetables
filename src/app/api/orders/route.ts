@@ -8,6 +8,9 @@ import Product from "@/app/models/Product";
 import User from "@/app/models/User";
 import DeliveryArea from "@/app/models/DeliveryArea";
 import { notifyAdminsForNewOrder } from "@/app/lib/notifications/orderNotifications";
+import { getCheckoutBlockedMessage } from "@/app/lib/orderWindow";
+import { getOrderWindowFromSettings } from "@/app/lib/settingsServer";
+import { getOrderableMaxQty, stockExceededMessage } from "@/app/lib/stock";
 
 const UPI_IDS = [
   process.env.UPI_1 || "rathorevishal7523-1@okaxis",
@@ -204,6 +207,46 @@ export async function POST(req: Request) {
       };
     });
 
+    const orderWindow = await getOrderWindowFromSettings();
+    if (!orderWindow.isOpen) {
+      return NextResponse.json(
+        { success: false, message: getCheckoutBlockedMessage(orderWindow) },
+        { status: 403 }
+      );
+    }
+
+    for (const item of items) {
+      if (!item.productId || item.quantity <= 0) {
+        return NextResponse.json(
+          { success: false, message: "Invalid item in cart." },
+          { status: 400 }
+        );
+      }
+
+      let product = Types.ObjectId.isValid(item.productId)
+        ? await Product.findById(item.productId)
+        : null;
+      if (!product) {
+        product = await Product.findOne({ id: item.productId });
+      }
+      if (!product) {
+        return NextResponse.json(
+          { success: false, message: `${item.name || "Product"} is no longer available.` },
+          { status: 400 }
+        );
+      }
+
+      const orderableMax = getOrderableMaxQty(product);
+      if (item.quantity > orderableMax) {
+        return NextResponse.json(
+          { success: false, message: stockExceededMessage(product, item.quantity) },
+          { status: 400 }
+        );
+      }
+
+      item.productId = String(product._id);
+    }
+
     const subTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     if (subTotal < 50) {
       return NextResponse.json(
@@ -253,10 +296,13 @@ export async function POST(req: Request) {
     const order = await Orders.create(payload);
 
     for (const item of items) {
-      try {
-        await Product.findByIdAndUpdate(item.productId, { $inc: { stockQty: -item.quantity } });
-      } catch (stockError) {
-        console.error(`Stock update failed for product ${item.productId}:`, stockError);
+      const updated = await Product.findOneAndUpdate(
+        { _id: item.productId, stockQty: { $gte: item.quantity } },
+        { $inc: { stockQty: -item.quantity } },
+        { new: true }
+      );
+      if (!updated) {
+        console.error(`Stock deduction failed for product ${item.productId} qty ${item.quantity}`);
       }
     }
 

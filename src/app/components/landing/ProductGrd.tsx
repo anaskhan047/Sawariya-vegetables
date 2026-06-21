@@ -4,6 +4,9 @@ import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { Product } from "@/app/lib/types"; // <-- yeh aapke types.ts se le rahe hain
 import { useCart } from "@/app/context/CartContext";
+import Swal from "sweetalert2";
+import { postAddToCart } from "@/app/lib/client/addToCart";
+import { getOrderableMaxQty } from "@/app/lib/stock";
 
 export default function ProductGrid() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -43,7 +46,7 @@ export default function ProductGrid() {
       if (!product) return prev;
 
       const newQty = Math.min(
-        product.maxQty ?? 10,
+        getOrderableMaxQty(product),
         Math.max(product.minQty ?? 1, current + value)
       );
 
@@ -54,24 +57,18 @@ export default function ProductGrid() {
   //  Add to Cart API
   const handleAddToCart = async (product: Product) => {
     try {
-      const res = await fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: product.id,
-          quantity: quantities[product.id] || product.minQty || 1,
-        }),
+      const result = await postAddToCart({
+        productId: product.id,
+        quantity: quantities[product.id] || product.minQty || 1,
       });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (result.ok) {
         await refreshCart();
       } else {
-        alert(data.message || "Failed to add to cart");
+        Swal.fire("Not available", result.error || "Failed to add to cart", "error");
       }
     } catch (error) {
       console.error("Add to cart error:", error);
-      alert("Something went wrong");
+      Swal.fire("Error", "Something went wrong", "error");
     }
   };
 

@@ -4,6 +4,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
 import { useCart } from "@/app/context/CartContext";
 import Image from "next/image";
+import Swal from "sweetalert2";
+import { postAddToCart } from "@/app/lib/client/addToCart";
+import { getOrderableMaxQty } from "@/app/lib/stock";
+import { isVegetableCategory } from "@/app/lib/productCategory";
 
 type SortOrder = "newest" | "oldest" | "low-high" | "high-low";
 
@@ -41,10 +45,9 @@ export default function VegetablePage() {
         const data = await res.json();
 
         if (data?.success && Array.isArray(data.products)) {
-          const onlyVegetables = (data.products as Product[]).filter((p) => {
-            const cat = (p.category ?? "").toString().trim().toLowerCase();
-            return cat === "vegetable";
-          });
+          const onlyVegetables = (data.products as Product[]).filter((p) =>
+            isVegetableCategory(p.category)
+          );
 
           setVegetables(onlyVegetables);
 
@@ -77,15 +80,16 @@ export default function VegetablePage() {
     setQuantities((prev) => {
       const current = prev[item.id] ?? item.minQty ?? (item.unit === "kg" ? 0.5 : 1);
       let newQty = current + change;
+      const cap = getOrderableMaxQty(item);
 
       if (item.unit === "kg") {
         const step = 0.5;
         if (newQty < (item.minQty ?? step)) newQty = item.minQty ?? step;
-        if (newQty > (item.maxQty ?? 1000)) newQty = item.maxQty ?? 1000;
+        if (newQty > cap) newQty = cap;
         newQty = Math.round(newQty * 10) / 10;
       } else {
         if (newQty < (item.minQty ?? 1)) newQty = item.minQty ?? 1;
-        if (newQty > (item.maxQty ?? 100000)) newQty = item.maxQty ?? 100000;
+        if (newQty > cap) newQty = cap;
         newQty = Math.floor(newQty);
       }
 
@@ -96,21 +100,15 @@ export default function VegetablePage() {
   const handleAddToCart = async (item: Product) => {
     try {
       const qty = quantities[item.id] ?? item.minQty ?? 1;
-      const res = await fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: item.id, quantity: qty }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const result = await postAddToCart({ productId: item.id, quantity: qty });
+      if (result.ok) {
         await refreshCart();
       } else {
-        alert(data?.message || "Failed to add to cart");
+        Swal.fire("Not available", result.error || "Failed to add to cart", "error");
       }
     } catch (error) {
       console.error("Add to cart error:", error);
-      alert("Something went wrong");
+      Swal.fire("Error", "Something went wrong", "error");
     }
   };
 

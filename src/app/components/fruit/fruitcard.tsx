@@ -4,6 +4,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
 import { useCart } from "@/app/context/CartContext";
 import Image from "next/image";
+import Swal from "sweetalert2";
+import { postAddToCart } from "@/app/lib/client/addToCart";
+import { getOrderableMaxQty } from "@/app/lib/stock";
+import { isFruitCategory } from "@/app/lib/productCategory";
 
 type SortOrder = "newest" | "oldest" | "low-high" | "high-low";
 
@@ -41,9 +45,7 @@ export default function FruitsPage() {
         const data = await res.json();
 
         if (data.success && data.products) {
-          const onlyFruits = data.products.filter(
-            (p: Product) => p.category.toLowerCase() === "fruits"
-          );
+          const onlyFruits = (data.products as Product[]).filter((p) => isFruitCategory(p.category));
           setFruits(onlyFruits);
 
           const initialQuantities: Record<string, number> = {};
@@ -74,14 +76,15 @@ export default function FruitsPage() {
     setQuantities((prev) => {
       const current = prev[fruit.id] || fruit.minQty || 1;
       let newQty = current + change;
+      const cap = getOrderableMaxQty(fruit);
 
       if (fruit.unit === "kg") {
         if (newQty < fruit.minQty) newQty = fruit.minQty;
-        if (newQty > fruit.maxQty) newQty = fruit.maxQty;
+        if (newQty > cap) newQty = cap;
         newQty = parseFloat(newQty.toFixed(1));
       } else {
         if (newQty < fruit.minQty) newQty = fruit.minQty;
-        if (newQty > fruit.maxQty) newQty = fruit.maxQty;
+        if (newQty > cap) newQty = cap;
       }
 
       return { ...prev, [fruit.id]: newQty };
@@ -90,24 +93,18 @@ export default function FruitsPage() {
 
   const handleAddToCart = async (fruit: Product) => {
     try {
-      const res = await fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: fruit.id,
-          quantity: quantities[fruit.id] || fruit.minQty || 1,
-        }),
+      const result = await postAddToCart({
+        productId: fruit.id,
+        quantity: quantities[fruit.id] || fruit.minQty || 1,
       });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (result.ok) {
         await refreshCart();
       } else {
-        alert(data.message || "Failed to add to cart");
+        Swal.fire("Not available", result.error || "Failed to add to cart", "error");
       }
-    } catch (error) {
-      console.error("Add to cart error:", error);
-      alert("Something went wrong");
+    } catch (err) {
+      console.error("Add to cart error:", err);
+      Swal.fire("Error", "Something went wrong", "error");
     }
   };
 
@@ -134,6 +131,15 @@ export default function FruitsPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {sortedFruits.length === 0 ? (
+          <p className="col-span-full py-12 text-center text-sm text-slate-500">
+            No fruits available right now. Please check back soon or browse the{" "}
+            <a href="/shop?category=Fruits" className="font-semibold text-emerald-700 underline">
+              shop
+            </a>
+            .
+          </p>
+        ) : null}
         {sortedFruits.map((fruit) => {
           const imgUrl = fruit.images && fruit.images.length > 0 ? fruit.images[0].url : "/placeholder.png";
 
