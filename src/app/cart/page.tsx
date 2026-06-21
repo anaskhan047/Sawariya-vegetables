@@ -251,8 +251,10 @@ export default function CartPage() {
   };
 
   const removeItem = async (productId: string) => {
+    const previousItems = items;
+    setItems((prev) => prev.filter((it) => it.productId._id !== productId));
+
     try {
-      setLoadingCart(true);
       const res = await fetch("/api/cart", {
         method: "DELETE",
         headers: {
@@ -261,13 +263,14 @@ export default function CartPage() {
         },
         body: JSON.stringify({ productId }),
       });
-      if (res.ok) {
-        await refreshCart();
-        fetchCart();
+      if (!res.ok) {
+        setItems(previousItems);
+        return;
       }
+      refreshCart().catch(() => undefined);
     } catch (err) {
       console.error(err);
-      setLoadingCart(false);
+      setItems(previousItems);
     }
   };
 
